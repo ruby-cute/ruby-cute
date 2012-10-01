@@ -1,0 +1,2 @@
+module Cute
+end
