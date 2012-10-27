@@ -1,2 +1,2 @@
-module Cute
-end
+
+require 'cute/bash'
