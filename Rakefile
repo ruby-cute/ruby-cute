@@ -3,7 +3,10 @@ require 'rake/packagetask'
 require 'yard'
 
 GEM='ruby-cute'
-CUTE_VERSION='0.0.1'
+
+def get_version
+  File.read(File.join(File.expand_path(File.dirname(__FILE__)), 'VERSION')).chomp
+end # def:: get_version
 
 
 desc "Run tests"
@@ -19,7 +22,7 @@ YARD::Rake::YardocTask.new do |t|
 end
 
 desc "Generate source tgz package"
-Rake::PackageTask::new("ruby-cute",CUTE_VERSION) do |p|
+Rake::PackageTask::new("ruby-cute",get_version) do |p|
   p.need_tar_gz = true
   p.package_files.include('lib/**/*')
   p.package_files.include('ext/**/*')
@@ -45,9 +48,9 @@ end
 task :default => :test
 
 namespace :version do
-  desc "New #{GEM} GIT release (v#{CUTE_VERSION})"
+  desc "New #{GEM} GIT release (v#{get_version})"
   task :release do
-    sh "git tag #{GEM_VERSION} -m \"New release: #{CUTE_VERSION}\""
+    sh "git tag #{get_version} -m \"New release: #{get_version}\""
     sh "git push --tag"
   end
 
@@ -69,10 +72,9 @@ namespace :version do
   end
 end
 
-
 def bump_version(level)
-  version_txt = CUTE_VERSION
-  if version_txt =~ /(\d+)\.(\d+)\.(\d+)/
+  version_txt = get_version
+  if version_txt =~ /^(\d+)\.(\d+)\.(\d+)$/
     major = $1.to_i
     minor = $2.to_i
     patch = $3.to_i
@@ -91,9 +93,10 @@ def bump_version(level)
   end
 
   new_version = [major,minor,patch].compact.join('.')
-  v = File.read(File.join(File.expand_path(File.dirname(__FILE__)),'Rakefile')).chomp
-  v.gsub!(/(\d+)\.(\d+)\.(\d+)/,"#{new_version}")
-  File.open(File.join(File.expand_path(File.dirname(__FILE__)),'Rakefile'), 'w') do |file|
-    file.puts v
+
+  File.open(File.join(File.expand_path(File.dirname(__FILE__)), 'VERSION'), 'w') do |file|
+    file.puts new_version
   end
 end # def:: bump_version(level)
+
+
