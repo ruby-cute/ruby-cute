@@ -1,15 +1,21 @@
 require 'rake/testtask'
 require 'rake/packagetask'
+require 'yard'
 
 CUTE_VERSION='0.0.1'
 
+
+desc "Run tests"
 Rake::TestTask.new do |t|
   t.libs << 'test'
   t.test_files = FileList['test/test*.rb']
 end
 
-desc "Run tests"
-task :default => :test
+desc "Generate basic Documentation"
+YARD::Rake::YardocTask.new do |t|
+  t.files   = ['lib/**/*.rb']
+  t.options = ['--title',"Ruby CUTE #{CUTE_VERSION}"]
+end
 
 desc "Generate source tgz package"
 Rake::PackageTask::new("ruby-cute",CUTE_VERSION) do |p|
@@ -35,3 +41,4 @@ task :snapshot do
   sh 'mv debian/changelog.git debian/changelog'
 end
 
+task :default => :test
