@@ -3,7 +3,7 @@ Section: ruby
 Priority: optional
 Maintainer: Lucas Nussbaum <lucas@debian.org>
 DM-Upload-Allowed: yes
-Build-Depends: debhelper (>= 8~), gem2deb (>= 0.3.0~)
+Build-Depends: debhelper (>= 8~), gem2deb (>= 0.3.0~), rake, yard, ruby-redcloth, bc
 Standards-Version: 3.9.3
 Homepage: http://ruby-cute.gforge.inria.fr/
 XS-Ruby-Versions: all

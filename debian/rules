@@ -13,3 +13,7 @@
 
 %:
 	dh $@ --buildsystem=ruby --with ruby
+
+override_dh_auto_build:
+	dh_auto_build
+	rake yard
