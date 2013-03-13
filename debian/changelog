@@ -1,0 +1,5 @@
+ruby-cute (0.0.1) UNRELEASED; urgency=low
+
+  * Initial release, as a native package for now.
+
+ -- Lucas Nussbaum <lucas@debian.org>  Wed, 13 Mar 2013 10:47:08 +0100

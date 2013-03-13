@@ -1,0 +1,16 @@
+Source: ruby-cute
+Section: ruby
+Priority: optional
+Maintainer: Lucas Nussbaum <lucas@debian.org>
+DM-Upload-Allowed: yes
+Build-Depends: debhelper (>= 8~), gem2deb (>= 0.3.0~)
+Standards-Version: 3.9.3
+Homepage: http://ruby-cute.gforge.inria.fr/
+XS-Ruby-Versions: all
+
+Package: ruby-cute
+Architecture: all
+XB-Ruby-Versions: ${ruby:Versions}
+Depends: ${shlibs:Depends}, ${misc:Depends}, ruby | ruby-interpreter
+Description: Critically Useful Tools for Experiments
+
