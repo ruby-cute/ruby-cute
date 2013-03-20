@@ -1,5 +1,6 @@
 require 'rake/testtask'
 require 'rake/packagetask'
+require 'rubygems/package_task'
 require 'yard'
 
 GEM='ruby-cute'
@@ -18,7 +19,7 @@ end
 desc "Generate basic Documentation"
 YARD::Rake::YardocTask.new do |t|
   t.files   = ['lib/**/*.rb']
-  t.options = ['--title',"Ruby CUTE #{CUTE_VERSION}"]
+  t.options = ['--title',"Ruby CUTE #{get_version}"]
 end
 
 desc "Generate source tgz package"
@@ -99,4 +100,28 @@ def bump_version(level)
   end
 end # def:: bump_version(level)
 
+gemspec = Gem::Specification.new do |s|
+  s.name        = GEM
+  s.version     = get_version
+  s.authors     = ["Algorille team"]
+  s.email       = "ruby-cute-staff@lists.gforge.inria.fr"
+  s.homepage    = "http://ruby-cute.gforge.inria.fr/"
+  s.summary     = "Critically Useful Tools for Experiments"
+  s.description = ""
+  s.required_rubygems_version = ">= 1.3.6"
+  s.files = ["lib/cute.rb"]
+  # s.add_dependency 'some-gem'
+  s.extra_rdoc_files = ['README.md','LICENSE','VERSION']
+  s.license = 'CeCILL-B'
+end
 
+Gem::PackageTask.new(gemspec) do |pkg|
+  pkg.gem_spec = gemspec
+end
+
+desc "Generate a gemspec file"
+task :gemspec do
+  File.open("#{GEM}.gemspec", "w") do |file|
+    file.puts gemspec.to_ruby
+  end
+end
