@@ -12,7 +12,9 @@ module Cute
 
       def acquire(n = 1)
         @lock.synchronize {
-          @cond.wait(@lock) if (n > (@max - @used))
+          while (n > (@max - @used)) do
+            @cond.wait(@lock)
+          end
           @used += n
         }
       end
@@ -20,7 +22,9 @@ module Cute
       def relaxed_acquire(n = 1)
         taken = 0
         @lock.synchronize {
-          @cond.wait(@lock) if (@max == @used)
+          while (@max == @used) do
+            @cond.wait(@lock)
+          end
           taken = (n + @used) > @max ? @max - @used : n
           @used += taken
         }
@@ -64,4 +68,12 @@ module Cute
       end
     end
   end
+end
+
+if (__FILE__ == $0)
+  w = Cute::Synchronization::SlidingWindow.new(3)
+  (1..10).each {
+    w.add_cmd("sleep 1")
+  }
+  w.run
 end
