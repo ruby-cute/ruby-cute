@@ -41,27 +41,37 @@ module Cute
 
     class SlidingWindow
       def initialize(size)
-        @sem = Semaphore.new(size)
-        @tasks = []
+        @queue = []
+        @lock = Mutex.new
+        @finished = false
+        @size = size
       end
 
-      def add_task(t)
-        @tasks << t
-      end
-
-      def add_cmd(cmd)
-        @tasks << Proc.new {
-          system(cmd)
-        }
+      def add(t)
+        @queue << t
       end
 
       def run
         tids = []
-        @tasks.each { |t|
+        (1..@size).each {
           tids << Thread.new {
-            @sem.acquire
-            t.call
-            @sem.release
+            while !@finished do
+              task = nil
+              @lock.synchronize {
+                if @queue.size > 0
+                  task = @queue.pop
+                else
+                  @finished = true
+                end
+              }
+              if task
+                if task.is_a?(Proc)
+                  task.call
+                else
+                  system(task)
+                end
+              end
+            end
           }
         }
         tids.each { |tid| tid.join }
@@ -73,7 +83,7 @@ end
 if (__FILE__ == $0)
   w = Cute::Synchronization::SlidingWindow.new(3)
   (1..10).each {
-    w.add_cmd("sleep 1")
+    w.add("sleep 1")
   }
   w.run
 end
