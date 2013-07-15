@@ -13,28 +13,17 @@ module TakTuk
 
     def visit(results)
       ret = {}
-      results = results.compact!()
-      results.each do |result|
-        curval = result.dup
-        @criteria.each do |criterion|
-          curval.delete(criterion)
-        end
-
-        curkey = []
-        @criteria.each do |criterion|
-          curkey << result[criterion]
-        end
-
-        ok = false
-        ret.each_pair do |critkeys,v|
-          if curval == v
-            critkeys << curkey
-            ok = true
-            break
+      results.each_pair do |host,pids|
+        pids.each_pair do |pid,values|
+          affected = false
+          ret.each_pair do |k,v|
+            if values.eql?(v)
+              k << [ host, pid ]
+              affected = true
+              break
+            end
           end
-        end
-        unless ok
-        ret[[curkey]] = curval
+          ret[[[host,pid]]] = values unless affected
         end
       end
       ret
@@ -47,6 +36,7 @@ module TakTuk
     end
   end
 
+  # A Hash where the keyring is based on the host/pid
   class Result < Hash
     attr_reader :content
 
@@ -54,38 +44,30 @@ module TakTuk
       @content = content
     end
 
-    def push(key,val)
-      self.store(key,[]) unless self[key]
-      self[key] << val
+    def free()
+      self.each_pair do |host,pids|
+        pids.each_value do |val|
+          val.clear if val.is_a?(Array) or val.is_a?(Hash)
+        end
+        pids.clear
+      end
+      self.clear
     end
 
-    def compact!(excludelist=[:line])
-      ret = []
-      self.each_pair do |key,values|
-        equals = true
-        tmp = {}
-        keys = values.first.keys
-        values.each do |value|
-          if value.keys == keys
-            value.each_pair do |field,val|
-              tmp[field] = [] unless tmp[field]
-              tmp[field] << val if !tmp[field].include?(val) or excludelist.include?(field)
-            end
-          else
-            equals = false
-            break
-          end
-        end
-        if equals
-          # Clean 1 elem arrays
-          tmp.each_pair do |k,v|
-            tmp[k] = tmp[k][0] if tmp[k].size == 1
-          end
-          #self[key] = tmp
-          ret << tmp
+    def add(host,pid,val,concatval=false)
+      raise unless val.is_a?(Hash)
+      self.store(host,{}) unless self[host]
+      self[host].store(pid,{}) unless self[host][pid]
+      val.each_key do |k|
+        if concatval
+          self[host][pid][k] = '' unless self[host][pid][k]
+          self[host][pid][k] << val[k]
+          self[host][pid][k] << concatval
+        else
+          self[host][pid][k] = [] unless self[host][pid][k]
+          self[host][pid][k] << val[k]
         end
       end
-      ret
     end
 
     def aggregate(aggregator)
@@ -104,20 +86,29 @@ module TakTuk
                 "(?:[A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])"
     HOSTNAME_REGEXP = "#{IP_REGEXP}|#{DOMAIN_REGEXP}"
 
-    def initialize(type,template=nil)
+    def initialize(type,template=nil,concat=false)
       @type = type
       @template = template
+      @concat = concat
+    end
+
+    def free
+      @type = nil
+      @template = nil
     end
 
     def parse(string)
       ret = Result.new
-      if @template
+      if @template and string and !string.empty?
+        regexp = /^#{@type.to_s}#{SEPESCAPED}(\d+)#{SEPESCAPED}(#{HOSTNAME_REGEXP})#{SEPESCAPED}(.+)$/
         string.each_line do |line|
-          if /^#{@type.to_s}#{SEPESCAPED}(\d+)#{SEPESCAPED}(#{HOSTNAME_REGEXP})#{SEPESCAPED}(.+)$/ =~ line
-            tmp = @template.parse(Regexp.last_match(3))
-            tmp[:host] = Regexp.last_match(2)
-            tmp[:pid] = Regexp.last_match(1)
-            ret.push([tmp[:host],tmp[:pid]],tmp)
+          if regexp =~ line
+            ret.add(
+              Regexp.last_match(2),
+              Regexp.last_match(1),
+              @template.parse(Regexp.last_match(3)),
+              (@concat ? $/ : false)
+            )
           end
         end
       end
@@ -139,7 +130,7 @@ module TakTuk
 
   class OutputStream < Stream
     def initialize(template)
-      super(:output,template)
+      super(:output,template,true)
     end
   end
 
@@ -292,7 +283,13 @@ module TakTuk
     def to_cmd
       self.keys.inject([]) do |ret,opt|
         ret << "--#{check(opt)}"
-        ret << self[opt] if self[opt] and self[opt].is_a?(String) and !self[opt].empty?
+        if self[opt]
+          if self[opt].is_a?(String)
+            ret << self[opt] unless self[opt].empty?
+          else
+            ret << self[opt].to_s
+          end
+        end
         ret
       end
     end
@@ -301,6 +298,10 @@ module TakTuk
   class Hostlist
     def initialize(hostlist)
       @hostlist=hostlist
+    end
+
+    def free
+      @hostlist = nil
     end
 
     def exclude(node)
@@ -319,6 +320,14 @@ module TakTuk
         ret << @hostlist
       end
       ret
+    end
+
+    def to_a
+      if @hostlist.is_a?(Array)
+        @hostlist
+      elsif @hostlist.is_a?(String)
+        File.read(@hostlist).split("\n").uniq
+      end
     end
   end
 
@@ -369,9 +378,6 @@ module TakTuk
     end
   end
 
-  # You can set streams to customize gathered taktuk streams :
-  # tak = Taktuk.new(nodes)
-  # tak.streams[:info] => ConnectorStream.new(Template[:command,:line])
   class TakTuk
     attr_accessor :streams,:binary
     attr_reader :stdout,:stderr,:status, :args, :exec
@@ -407,7 +413,7 @@ module TakTuk
       @options = Options[opts]
     end
 
-    def run!
+    def run!(opts = {})
       @curthread = Thread.current
       @args = []
       @args += @options.to_cmd
@@ -420,10 +426,21 @@ module TakTuk
       @args += @commands.to_cmd
 
       @exec = Execute[@binary,*@args].run!
-      @status, @stdout, @stderr = @exec.wait
+      hosts = @hostlist.to_a
+      outputs_size = opts[:outputs_size] || 0
+      @status, @stdout, @stderr, emptypipes = @exec.wait(
+        :stdout_size => outputs_size * hosts.size,
+        :stderr_size => outputs_size * hosts.size
+      )
 
       unless @status.success?
         @curthread = nil
+        return false
+      end
+
+      unless emptypipes
+        @curthread = nil
+        @stderr = "Too much data on the TakTuk command's stdout/stderr"
         return false
       end
 
@@ -442,11 +459,32 @@ module TakTuk
     end
 
     def kill!()
-      @curthread.kill! if @curthread.alive?
+      @curthread.kill if @curthread.alive?
       unless @exec.nil?
         @exec.kill
         @exec = nil
       end
+      free!()
+    end
+
+    def free!()
+      @binary = nil
+      @options = nil
+      if @streams
+        @streams.each_value do |stream|
+          stream.free if stream
+          stream = nil
+        end
+      end
+      @hostlist.free if @hostlist
+      @hostlist = nil
+      @commands = nil
+      @args = nil
+      @stdout = nil
+      @stderr = nil
+      @status = nil
+      @exec = nil
+      @curthread = nil
     end
 
     def raw!(string)
@@ -474,21 +512,24 @@ module TakTuk
   end
 end
 
-
-# samples:
+###
+# Execution samples:
+###
 #   taktuk('hostfile',:connector => 'ssh -A', :self_propagate => true).broadcast_exec['hostname'].run!
-#
+###
 #   taktuk(['node-1','node-2'],:dynamic => 3).broadcast_put['myfile']['dest'].run!
-#
+###
 #   taktuk(nodes).broadcast_exec['hostname'].seq!.broadcast_exec['df'].run!
-#
+###
 #   taktuk(nodes).broadcast_exec['cat - | fdisk'].seq!.broadcast_input_file['fdiskdump'].run!
-#
+###
 #   tak = taktuk(nodes)
 #   tak.broadcast_exec['hostname']
 #   tak.seq!.broadcast_exec['df']
+#   tak.streams[:output] => OutputStream.new(Template[:line,:rank]),
 #   tak.streams[:info] => ConnectorStream.new(Template[:command,:line])
 #   tak.run!
+###
 def taktuk(*args)
   TakTuk::TakTuk.new(*args)
 end
