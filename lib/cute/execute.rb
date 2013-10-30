@@ -1,4 +1,3 @@
-# To be used as you're using Open3.popen3 in ruby 1.9.2
 class Execute
   require 'thread'
   require 'fcntl'
