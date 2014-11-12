@@ -20,6 +20,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency "pry", "~> 0.10"
 
   s.add_dependency 'rest-client', '1.6.7'
+  s.add_dependency 'json', '~> 1.8.1'
 
   s.extra_rdoc_files = ['README.md', 'LICENSE']
   s.license = 'CeCILL-B'
