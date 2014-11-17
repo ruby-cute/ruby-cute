@@ -2,3 +2,5 @@
 *.swp
 # Generated gems
 pkg/
+.yardoc/
+doc/

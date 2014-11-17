@@ -16,5 +16,5 @@ and specifically by:
 * Emmanuel Jeanvoine <emmanuel.jeanvoine@inria.fr>
 * Lucas Nussbaum <lucas.nussbaum@loria.fr>
 * Luc Sarzyniec <luc.sarzyniec@inria.fr>
-
+* Cristian Ruiz <cristian.ruiz@inria.fr>
 Questions/comments should be directed to Lucas Nussbaum and Emmanuel Jeanvoine.
