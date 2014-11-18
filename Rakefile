@@ -2,13 +2,18 @@ require 'rake/testtask'
 require 'rake/packagetask'
 require 'rubygems/package_task'
 require 'yard'
-
+require 'rake'
+require 'rspec/core/rake_task'
 GEM='ruby-cute'
 
 def get_version
   File.read(File.join(File.expand_path(File.dirname(__FILE__)), 'VERSION')).chomp
 end # def:: get_version
 
+
+
+desc "Run spec tests"
+RSpec::Core::RakeTask.new(:spec)
 
 desc "Run tests"
 Rake::TestTask.new do |t|
