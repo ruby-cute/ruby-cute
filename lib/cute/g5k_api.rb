@@ -110,6 +110,15 @@ module Cute
       return G5KJson.parse(r)
     end
 
+    # Delete a resource on the server
+    # @param path [String] this complements the URI to address to a specific resource
+    def delete_json(path)
+      begin
+        return resource(path).delete()
+      rescue RestClient::InternalServerError => e
+        raise
+      end
+    end
     private
 
     # Test the connection and raises an error in case of a problem
@@ -133,15 +142,22 @@ module Cute
     # @param user [String] user if authentication is needed
     # @param pass [String] password if authentication is needed
     def initialize(uri,user=nil,pass=nil)
+      @user = user
+      @pass = pass
       @g5k_connection = G5KRest.new(uri,user,pass)
     end
 
-    # Returns the site identifiers
+    # @return [String] Grid'5000 user
+    def g5k_user
+      return @user.nil? ? ENV['USER'] : @user
+    end
+
+    # @return [Array] all site identifiers
     def site_uids
       return sites.uids
     end
 
-    # Returns the cluster identifiers
+    # @return [Array] cluster identifiers
     def cluster_uids(site)
       return clusters(site).uids
     end
@@ -179,9 +195,9 @@ module Cute
     #          if a uid is provided only the jobs owned by the user are shown.
     # @param site [String] a valid Grid'5000 site name
     # @param uid [String] user name in Grid'5000
-    def get_jobs(site, uid = nil)
-      filter = uid.nil? ? "" : "&user_uid=#{uid}"
-      @g5k_connection.get_json(api_uri("/sites/#{site}/jobs/?state=running#{filter}"))
+    def get_jobs(site, uid = nil, state)
+      filter = uid.nil? ? "" : "&user=#{uid}"
+      @g5k_connection.get_json(api_uri("/sites/#{site}/jobs/?state=#{state}#{filter}")).items
     end
 
     # @return [Hash] information concerning a given job submitted in a Grid'5000 site
@@ -209,13 +225,41 @@ module Cute
       return items.select { |it| it.key?('nodes') }
     end
 
-    # Return information of a specific switch available in a given Grid'5000 site.
+    # @return [Hash] information of a specific switch available in a given Grid'5000 site.
     # @param site [String] a valid Grid'5000 site name
     # @param name [String] a valid switch name
     def get_switch(site, name)
       s = get_switches(site).detect { |x| x.uid == name }
       raise "Unknown switch '#{name}'" if s.nil?
       return s
+    end
+
+    # @returns [Array] all my jobs submitted to a given site
+    # @param site [String] a valid Grid'5000 site name
+    def my_jobs(site,state="running")
+      return get_jobs(site, g5k_user,state)
+    end
+
+    # releases all jobs on a site
+    def release_all(site)
+      Timeout.timeout(20) do
+        jobs = my_jobs(site)
+        pass if jobs.length == 0
+        begin
+          jobs.each { |j| release(j) }
+        rescue RestClient::InternalServerError => e
+          raise unless e.response.include?('already killed')
+        end
+      end
+    end
+
+    # Release a resource
+    def release(r)
+      begin
+        return @g5k_connection.delete_json(r.rel_self)
+      rescue RestClient::InternalServerError => e
+        raise unless e.response.include?('already killed')
+      end
     end
 
     # @return a VLAN option codified to OAR.
@@ -367,7 +411,10 @@ module Cute
       end
     end
 
+    # @returns a valid Grid'5000 resource
+    # it avoids "//"
     def api_uri(path)
+      path = path[1..-1] if path.start_with?('/')
       return "#{API_VERSION}/#{path}"
     end
 
