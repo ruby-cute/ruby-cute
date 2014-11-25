@@ -22,6 +22,7 @@ Gem::Specification.new do |s|
 
   s.add_dependency 'rest-client', '1.6.7'
   s.add_dependency 'json', '~> 1.8.1'
+  s.add_dependency 'ipaddress', '~>0.8.0'
 
   s.extra_rdoc_files = ['README.md', 'LICENSE']
   s.license = 'CeCILL-B'

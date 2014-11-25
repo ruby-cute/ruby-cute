@@ -1,7 +1,7 @@
 require 'restclient'
 require 'yaml'
 require 'json'
-require 'pry'
+require 'ipaddress'
 
 module Cute
 
@@ -15,6 +15,15 @@ module Cute
       return self.map { |it| it.__repr__ }.to_s
     end
 
+    def rel_self
+      return rel('self')
+    end
+
+    def rel(r)
+      return self['links'].detect { |x| x['rel'] == r }['href']
+    end
+
+
   end
 
   # Provides an abstraction for handling G5K responses
@@ -27,6 +36,10 @@ module Cute
 
     def nodes
       return self['nodes']
+    end
+
+    def resources
+      return self['resources_by_type']
     end
 
     def rel(r)
@@ -191,8 +204,8 @@ module Cute
       @g5k_connection.get_json(api_uri("sites/#{site}/clusters")).items
     end
 
-    # @returns [Hash] all the jobs submitted in a given Grid'5000 site,
-    #          if a uid is provided only the jobs owned by the user are shown.
+    # @return [Hash] all the jobs submitted in a given Grid'5000 site,
+    #         if a uid is provided only the jobs owned by the user are shown.
     # @param site [String] a valid Grid'5000 site name
     # @param uid [String] user name in Grid'5000
     def get_jobs(site, uid = nil, state)
@@ -234,10 +247,19 @@ module Cute
       return s
     end
 
-    # @returns [Array] all my jobs submitted to a given site
+    # @return [Array] all my jobs submitted to a given site
     # @param site [String] a valid Grid'5000 site name
     def my_jobs(site,state="running")
       return get_jobs(site, g5k_user,state)
+    end
+
+    # @return [Array] with the subnets reserved
+    # @param site [String] a valid Grid'5000 site name
+    def get_subnets(site)
+      jobs = my_jobs(site)
+      subnets = []
+      jobs.each{ |j| subnets += @g5k_connection.get_json(j.rel_self).resources["subnets"] }
+      subnets.map!{|s| IPAddress::IPv4.new s }
     end
 
     # releases all jobs on a site
@@ -262,33 +284,16 @@ module Cute
       end
     end
 
-    # @return a VLAN option codified to OAR.
-    # @param opts [Hash]
-    def handle_slash(opts)
-      slash = nil
-      predefined = { :slash_22 => 22, :slash_18 => 18 }
-      if opts[:slash]
-        bits = opts[:slash].to_i
-        slash = "slash_#{bits}=1"
-      else
-        slashes = predefined.select { |label, bits| opts.key?(label) }
-        unless slashes.empty?
-          label, bits = slashes.first
-          count = opts[label].to_i
-          slash = "slash_#{bits}=#{count}"
-        end
-      end
-      return slash
-    end
-
     # helper for making the reservations the easy way
     # @param opts [Hash] options compatible with OAR
+    # reserve_nodes
+    # :nodes => 1, :time => '01:00:00', :site => "nancy", :type => :normal
+    # :name => "my reservation", :cluster=> "graphene", :subnets => [prefix_size, 2]
     def reserve_nodes(opts)
 
       nodes = opts.fetch(:nodes, 1)
       time = opts.fetch(:time, '01:00:00')
       at = opts[:at]
-      slash = handle_slash(opts)
       site = opts[:site]
       type = opts.fetch(:type, :normal)
       keep = opts[:keep]
@@ -299,6 +304,7 @@ module Cute
       props = nil
       vlan = opts[:vlan]
       cluster = opts[:cluster]
+      subnets = opts[:subnets]
 
       raise 'At least nodes, time and site must be given'  if [nodes, time, site].any? { |x| x.nil? }
 
@@ -316,7 +322,6 @@ module Cute
       end
 
       raise 'Nodes must be an integer.' unless nodes.is_a?(Integer)
-      # site = site.__repr__
       raise 'Type must be either :deploy or :normal' unless (type.respond_to?(:to_sym) && [ :normal, :deploy ].include?(type.to_sym))
       command = "sleep #{secs}" if command.nil?
       type = type.to_sym
@@ -324,7 +329,8 @@ module Cute
       resources = "/nodes=#{nodes},walltime=#{time}"
       resources = "{cluster='#{cluster}'}" + resources unless cluster.nil?
       resources = "{type='kavlan'}/vlan=1+" + resources if vlan == true
-      resources = "#{slash}+" + resources unless slash.nil?
+      resources = "slash_#{subnets[0]}=#{subnets[1]}+" + resources unless subnets.nil?
+
 
       payload = {
                  'resources' => resources,
@@ -411,7 +417,7 @@ module Cute
       end
     end
 
-    # @returns a valid Grid'5000 resource
+    # @return a valid Grid'5000 resource
     # it avoids "//"
     def api_uri(path)
       path = path[1..-1] if path.start_with?('/')
