@@ -147,7 +147,7 @@ module Cute
 
   # Implements high level functions to get status information form Grid'5000 and
   # performs operations such as submitting jobs in the platform and deploying system images.
-  class G5KUser
+  class G5KAPI
 
     API_VERSION = "sid"
     # Initializes a REST connection for Grid'5000 API
