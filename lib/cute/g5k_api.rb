@@ -2,6 +2,7 @@ require 'restclient'
 require 'yaml'
 require 'json'
 require 'ipaddress'
+require 'uri'
 
 module Cute
 
@@ -46,8 +47,16 @@ module Cute
       return self['links'].detect { |x| x['rel'] == r }['href']
     end
 
+    def uid
+      return self['uid']
+    end
+
     def rel_self
       return rel('self')
+    end
+
+    def rel_parent
+      return rel('parent')
     end
 
     def __repr__
@@ -69,15 +78,15 @@ module Cute
   # Manages the low level operations for communicating with the REST API.
   class G5KRest
 
-    attr_reader :user, :api
-    API_VERSION = "sid"
+    attr_reader :user
     # Initializes a REST connection
     # @param uri [String] resource identifier which normally is the url of the Rest API
     # @param user [String] user if authentication is needed
     # @param pass [String] password if authentication is needed
-    def initialize(uri,user=nil,pass=nil)
+    def initialize(uri,api_version,user,pass)
       @user = user
       @pass = pass
+      @api_version = api_version.nil? ? "sid" : api_version
       if (user.nil? or pass.nil?)
         @endpoint = uri # Inside Grid'5000
       else
@@ -85,6 +94,8 @@ module Cute
         pass_escaped = CGI.escape(pass)
         @endpoint = "https://#{user_escaped}:#{pass_escaped}@#{uri.split("https://")[1]}"
       end
+
+
       @api = RestClient::Resource.new(@endpoint, :timeout => 15)
       test_connection
     end
@@ -132,12 +143,18 @@ module Cute
         raise
       end
     end
+
+    # @returns the parent link
+    def follow_parent(obj)
+      get_json(obj.rel_parent)
+    end
+
     private
 
     # Test the connection and raises an error in case of a problem
     def test_connection
       begin
-        return get_json("/#{API_VERSION}/")
+        return get_json("/#{@api_version}/")
         rescue RestClient::Unauthorized
           raise "Your Grid'5000 credentials are not recognized"
       end
@@ -146,18 +163,24 @@ module Cute
   end
 
   # Implements high level functions to get status information form Grid'5000 and
-  # performs operations such as submitting jobs in the platform and deploying system images.
+  # perform operations such as submitting jobs in the platform and deploying system images.
   class G5KAPI
 
-    API_VERSION = "sid"
     # Initializes a REST connection for Grid'5000 API
-    # @param uri [String] resource identifier which normally is the url of the Rest API
-    # @param user [String] user if authentication is needed
-    # @param pass [String] password if authentication is needed
-    def initialize(uri,user=nil,pass=nil)
-      @user = user
-      @pass = pass
-      @g5k_connection = G5KRest.new(uri,user,pass)
+    # @param params [Hash] contains initilization parameters.
+    def initialize(params)
+      config = {}
+      config = YAML.load(File.open(params[:conf_file],'r')) unless params[:conf_file].nil?
+      @user = params[:user] || config["username"]
+      @pass = params[:pass] || config["password"]
+      @uri = params[:uri] || config["uri"]
+      @api_version = params[:api_version] || config["version"] || "sid"
+      @g5k_connection = G5KRest.new(@uri,@api_version,@user,@pass)
+    end
+
+    # @returns the rest point for perfoming low REST requests
+    def rest
+      @g5k_connection
     end
 
     # @return [String] Grid'5000 user
@@ -175,6 +198,13 @@ module Cute
       return clusters(site).uids
     end
 
+    # @return [Array] environment identifiers that can be used directly
+    def environment_uids(site)
+      # environments are returning by the api in the format squeeze-x64-big-1.8
+      # it returns environments without the version
+      return environments(site).uids.map{ |e| /(.*)-(.*)/.match(e)[1]}.uniq
+    end
+
     # @return [Hash] all the status information of a given Grid'5000 site
     # @param site [String] a valid Grid'5000 site name
     def site_status(site)
@@ -183,7 +213,7 @@ module Cute
 
     # @return [Hash] the nodes state (e.g, free, busy, etc) that belong to a given Grid'5000 site
     # @param site [String] a valid Grid'5000 site name
-    def get_nodes_status(site)
+    def nodes_status(site)
       nodes = {}
       site_status(site).nodes.each do |node|
         name = node[0]
@@ -204,13 +234,17 @@ module Cute
       @g5k_connection.get_json(api_uri("sites/#{site}/clusters")).items
     end
 
+    def environments(site)
+      @g5k_connection.get_json(api_uri("sites/#{site}/environments")).items
+    end
     # @return [Hash] all the jobs submitted in a given Grid'5000 site,
     #         if a uid is provided only the jobs owned by the user are shown.
     # @param site [String] a valid Grid'5000 site name
     # @param uid [String] user name in Grid'5000
     def get_jobs(site, uid = nil, state)
       filter = uid.nil? ? "" : "&user=#{uid}"
-      @g5k_connection.get_json(api_uri("/sites/#{site}/jobs/?state=#{state}#{filter}")).items
+      jobs_running = @g5k_connection.get_json(api_uri("/sites/#{site}/jobs/?state=#{state}#{filter}")).items
+      jobs_running.map{ |j| @g5k_connection.get_json(j.rel_self)}
     end
 
     # @return [Hash] information concerning a given job submitted in a Grid'5000 site
@@ -289,6 +323,7 @@ module Cute
     # reserve_nodes
     # :nodes => 1, :time => '01:00:00', :site => "nancy", :type => :normal
     # :name => "my reservation", :cluster=> "graphene", :subnets => [prefix_size, 2]
+    # :env => "wheezy-x64-big"
     def reserve_nodes(opts)
 
       nodes = opts.fetch(:nodes, 1)
@@ -296,7 +331,6 @@ module Cute
       at = opts[:at]
       site = opts[:site]
       type = opts.fetch(:type, :normal)
-      keep = opts[:keep]
       name = opts.fetch(:name, 'rubyCute job')
       command = opts[:cmd]
       async = opts[:async]
@@ -305,6 +339,8 @@ module Cute
       vlan = opts[:vlan]
       cluster = opts[:cluster]
       subnets = opts[:subnets]
+
+      type = :deploy unless opts[:env].nil?
 
       raise 'At least nodes, time and site must be given'  if [nodes, time, site].any? { |x| x.nil? }
 
@@ -361,23 +397,16 @@ module Cute
         raise
       end
 
-      # it may be a different thread that releases reservations
-      # therefore we need to dereference proxy which
-      # in fact uses Thread.current and is local to the thread...
-
-      # I'm deactivating the code below because the engine method is
-      # defined in an Activity
-
-      # engine = proxy.engine
-
-      # engine.on_finish do
-      #   engine.verbose("Releasing job at #{r.rel_self}")
-      #   release(r)
-      # end if keep != true
 
       job = @g5k_connection.get_json(r.rel_self)
       job = wait_for_job(job) if async != true
-      return job
+      ref = {:job => job}
+      # We deploy if necessary
+      if type == :deploy
+        deploy_ref = deploy(job,opts)
+        ref.merge!({:deploy => deploy_ref})
+      end
+      return ref
 
     end
 
@@ -406,6 +435,62 @@ module Cute
       return job
     end
 
+    # deploy an environment in a set of reserved nodes using Kadeploy
+    # @param job [Hash] job structure
+    # @param opts [Hash] options structure, it expects :env and optionally :public_key
+    def deploy(job, opts = {})
+
+      nodes = job['assigned_nodes']
+      env = opts[:env]
+
+      site = @g5k_connection.follow_parent(job).uid
+
+      if opts[:public_key].nil? then
+        public_key_file = File.read(File.expand_path("~/.ssh/id_rsa.pub"))
+      else
+        uri = URI.parse(opts[:public_key])
+        case uri
+        when URI::HTTP, URI::HTTPS
+          public_key_file = uri.to_s
+        else
+        public_key_file = File.read(File.expand_path(opts[:public_key]))
+        end
+      end
+
+      raise "Environment must be given" if env.nil?
+
+      payload = {
+                 'nodes' => nodes,
+                 'environment' => env,
+                 'key' => public_key_file,
+                }
+
+      vlan = job.resources["vlans"]
+
+      if !vlan.nil?
+        payload['vlan'] = vlan[:uid]
+        info "Found VLAN with uid = #{vlan[:uid]}"
+      end
+
+      info "Creating deployment"
+
+      begin
+        r = @g5k_connection.post_json(api_uri("sites/#{site}/deployments"), payload)
+      rescue => e
+        raise e
+      end
+
+      return r
+
+    end
+
+    def deploy_status(r)
+      return nil if r.nil?
+      r = r.refresh(@g5k_connection)
+      r.delete "links"
+      r
+    end
+
     private
     # Handle the output of messages within the module
     # @param msg [String] message to show
@@ -421,7 +506,7 @@ module Cute
     # it avoids "//"
     def api_uri(path)
       path = path[1..-1] if path.start_with?('/')
-      return "#{API_VERSION}/#{path}"
+      return "#{@api_version}/#{path}"
     end
 
   end
