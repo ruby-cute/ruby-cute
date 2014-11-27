@@ -144,7 +144,7 @@ module Cute
       end
     end
 
-    # @returns the parent link
+    # @return the parent link
     def follow_parent(obj)
       get_json(obj.rel_parent)
     end
@@ -168,17 +168,35 @@ module Cute
 
     # Initializes a REST connection for Grid'5000 API
     # @param params [Hash] contains initilization parameters.
-    def initialize(params)
+    def initialize(params={})
       config = {}
+      default_file = "#{ENV['HOME']}/.grid5000_api.yml"
+
+      if params[:conf_file].nil? then
+        params[:conf_file] =  default_file if File.exist?(default_file)
+      end
+
       config = YAML.load(File.open(params[:conf_file],'r')) unless params[:conf_file].nil?
       @user = params[:user] || config["username"]
       @pass = params[:pass] || config["password"]
       @uri = params[:uri] || config["uri"]
       @api_version = params[:api_version] || config["version"] || "sid"
-      @g5k_connection = G5KRest.new(@uri,@api_version,@user,@pass)
+      begin
+        @g5k_connection = G5KRest.new(@uri,@api_version,@user,@pass)
+      rescue
+        msg_create_file = ""
+        if (not File.exist?(default_file)) && params[:conf_file].nil? then
+          msg_create_file = "Please create the file: ~/.grid5000_api.yml and
+                          put the necessary credentials or use the option
+                          :conf_file to indicate another file for the credentials"
+        end
+        raise "Unable to authorize against the Grid'5000 API.
+               #{msg_create_file}"
+
+      end
     end
 
-    # @returns the rest point for perfoming low REST requests
+    # @return the rest point for perfoming low REST requests
     def rest
       @g5k_connection
     end
@@ -300,7 +318,7 @@ module Cute
     def release_all(site)
       Timeout.timeout(20) do
         jobs = my_jobs(site)
-        pass if jobs.length == 0
+        break if jobs.length == 0
         begin
           jobs.each { |j| release(j) }
         rescue RestClient::InternalServerError => e
@@ -323,7 +341,7 @@ module Cute
     # reserve_nodes
     # :nodes => 1, :time => '01:00:00', :site => "nancy", :type => :normal
     # :name => "my reservation", :cluster=> "graphene", :subnets => [prefix_size, 2]
-    # :env => "wheezy-x64-big"
+    # :env => "wheezy-x64-big", :vlan => :routed, :properties => "wattmeter='YES'"
     def reserve_nodes(opts)
 
       nodes = opts.fetch(:nodes, 1)
@@ -335,12 +353,23 @@ module Cute
       command = opts[:cmd]
       async = opts[:async]
       ignore_dead = opts[:ignore_dead]
-      props = nil
-      vlan = opts[:vlan]
       cluster = opts[:cluster]
+      switches = opts[:switches]
+      cpus = opts[:cpus]
+      cores = opts[:cores]
       subnets = opts[:subnets]
-
+      properties = opts[:properties]
       type = :deploy unless opts[:env].nil?
+
+      vlan_opts = {:routed => "kavlan",:global => "kavlan-global",:local => "kavlan-local"}
+      vlan = nil
+      unless opts[:vlan].nil?
+        if vlan_opts.include?(opts[:vlan]) then
+          vlan = vlan_opts.fetch(opts[:vlan])
+        else
+          raise 'Option for vlan not recognized'
+        end
+      end
 
       raise 'At least nodes, time and site must be given'  if [nodes, time, site].any? { |x| x.nil? }
 
@@ -353,7 +382,7 @@ module Cute
         removed_nodes = all_nodes - nodes
         info "Ignored nodes #{removed_nodes}." unless removed_nodes.empty?
         hosts = nodes.map { |n| "'#{n}'" }.sort.join(',')
-        props = "host in (#{hosts})"
+        properties = "host in (#{hosts})"
         nodes = nodes.length
       end
 
@@ -362,11 +391,15 @@ module Cute
       command = "sleep #{secs}" if command.nil?
       type = type.to_sym
 
-      resources = "/nodes=#{nodes},walltime=#{time}"
+      resources = ""
+      resources = "/switch=#{switches}" unless switches.nil?
+      resources = resources+"/nodes=#{nodes}"
+      resources = resources+"/cpu=#{cpus}" unless cpus.nil?
+      resources = resources+"/core=#{cores}" unless cores.nil?
+      resources = resources+",walltime=#{time}"
       resources = "{cluster='#{cluster}'}" + resources unless cluster.nil?
-      resources = "{type='kavlan'}/vlan=1+" + resources if vlan == true
+      resources = "{type='#{vlan}'}/vlan=1+" + resources unless vlan.nil?
       resources = "slash_#{subnets[0]}=#{subnets[1]}+" + resources unless subnets.nil?
-
 
       payload = {
                  'resources' => resources,
@@ -376,12 +409,12 @@ module Cute
 
       info "Reserving resources: #{resources} (type: #{type}) (in #{site})"
 
+      payload['properties'] = properties unless properties.nil?
 
-      payload['properties'] = props unless props.nil?
       if type == :deploy
         payload['types'] = [ 'deploy' ]
       else
-        payload['types'] = [ 'allow_classic_ssh' ]
+        payload['types'] = [ 'allow_classic_ssh' ] if (cores.nil? && cpus.nil?)
       end
 
       unless at.nil?
@@ -396,7 +429,6 @@ module Cute
         info "Fail posting the json to the API"
         raise
       end
-
 
       job = @g5k_connection.get_json(r.rel_self)
       job = wait_for_job(job) if async != true
@@ -446,7 +478,8 @@ module Cute
       site = @g5k_connection.follow_parent(job).uid
 
       if opts[:public_key].nil? then
-        public_key_file = File.read(File.expand_path("~/.ssh/id_rsa.pub"))
+        public_key_path = File.expand_path("~/.ssh/id_rsa.pub")
+        public_key_file = File.exist?(public_key_path) ? File.read(public_key_path) : ""
       else
         uri = URI.parse(opts[:public_key])
         case uri
@@ -465,11 +498,10 @@ module Cute
                  'key' => public_key_file,
                 }
 
-      vlan = job.resources["vlans"]
-
-      if !vlan.nil?
-        payload['vlan'] = vlan[:uid]
-        info "Found VLAN with uid = #{vlan[:uid]}"
+      if !job.resources["vlans"].nil?
+        vlan = job.resources["vlans"].first
+        payload['vlan'] = vlan
+        info "Found VLAN with uid = #{vlan}"
       end
 
       info "Creating deployment"
