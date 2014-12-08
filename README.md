@@ -20,7 +20,7 @@ From sources:
 
 
 This module helps you to access Grid'5000 REST API.
-Thus, the most common actions such as reservation of nodes and deployment can be eaisly scripted.
+Thus, the most common actions such as reservation of nodes and deployment can be easily scripted.
 To simplify the use of the module, it is better to create a file with the following information:
 
     $ cat > ~/.grid5000_api.yml << EOF
@@ -30,7 +30,7 @@ To simplify the use of the module, it is better to create a file with the follow
     $ version: 3.0
     $ EOF
 
-*username* and *password* are not neccesary if you are using the module from inside Grid'5000.
+*username* and *password* are not necessary if you are using the module from inside Grid'5000.
 
 You can specify another file using the option :conf_file, for example:
 
@@ -38,7 +38,7 @@ You can specify another file using the option :conf_file, for example:
 
 Or you can specify other parameter to use:
 
-    g5k = Cute::G5KAPI.new({:uri =>"https://api.grid5000.fr"})
+    g5k = Cute::G5KAPI.new({:uri => "https://api.grid5000.fr"})
 
 ## Examples
 ### Reserving a node in a given site.
