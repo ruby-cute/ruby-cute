@@ -1,0 +1,597 @@
+#!/usr/bin/ruby
+#
+# distem-bootstrap is a script to configure a set of nodes as distem nodes
+# after they have been successfully deployed. Example usage:
+#   oarsub -t deploy -l nodes=10,walltime=1 \
+#      'katapult3 -e squeeze-x64-min -c --sleep -- distem-bootstrap'
+#   see distem-bootstrap --help for more info.
+#
+####
+# distem-bootstrap is Copyright (C) 2011 Luc Sarzyniec <luc.sarzyniec@inria.fr>
+# Secondary contact: Lucas Nussbaum <lucas.nussbaum@loria.fr>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+######
+require 'rubygems'
+require 'net/ssh/multi'
+require 'socket'
+require 'tmpdir'
+require 'net/scp'
+require 'etc'
+require 'yaml'
+require 'optparse'
+require 'timeout'
+require 'logger'
+require 'bundler'
+require 'pry'
+Bundler.setup
+require 'cute'
+
+
+
+logger = Logger.new(STDOUT)
+
+def g5k?
+  `hostname --fqdn`.chomp =~ /grid5000\.fr$/
+end
+
+def site
+  p = `hostname`.chop
+  /^.*\.(.*).*\.grid5000.fr/.match(p)[1]
+end
+
+PKG_NAME          = 'distem'
+DEB_REPOSITORY    = 'http://distem.gforge.inria.fr/deb'
+HTTP_PROXY        = 'proxy:3128'
+SSH_KEYS_PATH     = File.join(ENV['HOME'],'.ssh')
+PATH_DISTEMD_LOGS = '/var/log/distem'
+TMP_DIR           = '/tmp/distem'
+VAR_DISTEM_NODES  = 'DISTEM_NODES'
+VAR_DISTEM_COORD  = 'DISTEM_COORDINATOR'
+STATS_PORT        = 12345
+if g5k?
+  GIT_REPOSITORY  = "https://gforge.inria.fr/git/distem/distem.git"
+  GERRIT_REPOSITORY = "http://gerrit.nancy.grid5000.fr:8080/gerrit/p/distem"
+  STATS_SERV      = "carol.nancy.grid5000.fr"
+else
+  GIT_REPOSITORY  = "https://gforge.inria.fr/git/distem/distem.git"
+  GERRIT_REPOSITORY = "https://intranet.grid5000.fr/gerrit/p/distem"
+  STATS_SERV      = ""
+end
+
+ULIMIT_OPEN_FILES = 65535 # to be removed
+
+pkg_utils=[
+           'htop'
+          ]
+
+pkg_tmp_dependencies=[]
+
+pkg_build=[
+           'git',
+           'rake'
+          ]
+
+pkg_build_gem=[
+               #'rake-compiler'
+              ]
+
+options = {}
+@options = options
+
+
+
+module Net; module SSH; module Multi
+
+  def self.logger= v
+    @logger = v
+  end
+
+  def self.logger
+    @logger
+  end
+
+module SessionActions
+
+
+  def exec(command, &block)
+
+    outs = {}
+    errs = {}
+
+    main =open_channel do |channel|
+      channel.exec(command) do |ch, success|
+        raise "could not execute command: #{command.inspect} (#{ch[:host]})" unless success
+        Multi.logger.debug("Executing #{command} on [#{ch.connection.host}]")
+
+        channel.on_data do |ch, data|
+          if block
+            block.call(ch, :stdout, data)
+          else
+            outs[ch.connection.host] = [] unless outs[ch.connection.host]
+            outs[ch.connection.host] << data.strip
+
+            Multi.logger.debug("[#{ch.connection.host}] #{data.strip}")
+          end
+        end
+        channel.on_extended_data do |ch, type, data|
+          if block
+            block.call(ch, :stderr, data)
+          else
+            errs[ch.connection.host] = [] unless errs[ch.connection.host]
+            errs[ch.connection.host] << data.strip
+            Multi.logger.debug("[#{ch.connection.host}] #{data.strip}")
+          end
+        end
+        channel.on_request("exit-status") do |ch, data|
+          ch[:exit_status] = data.read_long
+          Multi.logger.debug("Status returned #{ch[:exit_status]}")
+          if ch[:exit_status] != 0
+            Multi.logger.debug("execution of '#{command}' on #{ch.connection.host}
+                            failed with return status #{ch[:exit_status].to_s}")
+            Multi.logger.debug("--- stdout dump ---")
+            outs[ch.connection.host].each {|out| Multi.logger.debug(out)} if outs[ch.connection.host]
+            Multi.logger.debug("--stderr dump ---")
+            errs[ch.connection.host].each {|err| Multi.logger.debug(err)} if errs[ch.connection.host]
+          end
+        end
+        # need to decide severity level if the command fails
+      end
+    end
+    main.wait # we have to wait the channel otherwise we will have void results
+    return outs#,errs
+  end
+
+end
+end; end; end
+
+
+$startt = Time::now
+
+options[:init_pnodes] = true
+options[:coordinator] = nil
+options[:node_list]   = nil
+options[:debpackages] = []
+options[:gempackages] = []
+options[:git]         = nil
+options[:gerrit]      = nil
+options[:ssh_key]     = nil
+options[:debug]       = false
+options[:distem_version] = nil
+options[:debug_distem] = false
+options[:stats]       = true
+options[:git_url]     = GIT_REPOSITORY
+options[:verbose]     = false
+options[:max_vifaces] = nil
+options[:cow] = nil
+options[:ci] = nil
+options[:network_mode] = 'classical'
+options[:network_interface] = nil
+options[:num_nodes] = 2
+options[:walltime] = "2:00:00"
+
+args = ARGV.dup
+
+optparse = OptionParser.new do |opts|
+  opts.banner = "Usage: #{$0} [options] [<script_to_execute>]"
+  opts.separator ""
+  opts.separator "distem-bootstrap automatically sets up a distem environment."
+  opts.separator "When run without options, it will create a distem environment with the latest"
+  opts.separator "released version of distem. It will perform a reservation as follows:"
+  opts.separator "slash_22=1+/nodes=2,walltime=02:00 --name=distem --type=deploy"
+  opts.separator "and deploy the environment: \"wheezy-x64-nfs\""
+  opts.separator ""
+  opts.separator "Options:"
+
+  opts.on( '--nodes <number of nodes>', Integer,'Number of nodes to reserve on Grid5000') do |n|
+    options[:num_nodes] = n.to_i
+  end
+  opts.on( '-t', '--time <walltime>', 'Walltime for the reservation on Grid5000') do |n|
+    options[:walltime] = n
+  end
+  opts.on( '-c', '--coordinator <coordinator_address>', 'Address of the coordinator (default: first node)' ) do |c|
+    options[:coordinator] = c || nil
+  end
+  opts.on( '-x', '--no-init-pnodes', 'Do not initialize all pnodes' ) do |c|
+    options[:init_pnodes] = false
+  end
+  opts.on( '--max-vifaces <nb>', 'Set the maximum number of vifaces on a physical node (used only without --no-init-pnodes)' ) do |n|
+    options[:max_vifaces] = n
+  end
+  opts.on( '-d', '--debug', 'Debug mode (display commands executed on nodes)' ) do
+    options[:debug] = true
+  end
+  opts.on( '-D', '--distem-debug', 'Show distem output when executing distem commands (script, node init)' ) do
+    options[:debug_distem] = true
+  end
+  opts.on( '-k', '--ssh-key [<ssh_key_file>]', 'Path of the ssh private key to use' ) do |k|
+    options[:ssh_key] = k
+  end
+  opts.on( '-p', '--debpackages <package1>,<package2>,<...>', Array, 'Additional debian packages to install on coordinator' ) do |p|
+    options[:debpackages] = p
+  end
+  opts.on( '-r', '--gempackages <package1>,<package2>,<...>', Array, 'Additional gem packages to install on coordinator' ) do |p|
+    options[:gempackages] = p
+  end
+  opts.on( '--distem-version <distem_version>', 'Version of distem to install (default: latest)' ) do |v|
+    options[:distem_version] = v
+  end
+  opts.on( '-g', '--git [<git_hash|git_tag>]', "Install a git snapshot of distem (default: master). Additional packages are installed on the coordinator to rebuild the Debian package" ) do |n|
+    options[:git] = n || :git_last
+  end
+  opts.on( '-U', '--git-url <git_repository>', "Overwrite the default distem git repository" ) do |repo|
+    options[:git_url] = repo
+  end
+  opts.on( '-G', '--gerrit <gerrit_ref>', "Checkout a gerrit ref (e.g refs/changes/94/94/1) and rebuild a Debian package" ) do |n|
+    options[:gerrit] = n
+  end
+  opts.on( '-S', '--stealth-mode', 'Do not report usage statistics (Grid\'5000 only)' ) do |c|
+    options[:stats] = false
+  end
+  opts.on( '--btrfs-format <tmp_device>', 'Format the device with btrfs support to allow COW on Vnodes (experimental)' ) do |d|
+    options[:cow] = d
+  end
+  opts.on( '--ci <path>', 'Path to the distem source directory (used only for CI purpose)' ) do |path|
+   options[:ci] = path
+  end
+  opts.on( '-n', '--network-mode <mode>', 'Define the network mode (classical or vxlan)') do |mode|
+    case mode
+    when 'classical'
+    when 'vxlan'
+    else
+      puts 'Invalid network mode'
+      exit 1
+    end
+    options[:network_mode] = mode
+  end
+  opts.on( '-i', '--network-interface <iface>', 'Define the root network interface for inter-pnode communication (use only with vxlan network mode)') do |iface|
+    options[:network_interface] = iface
+  end
+  opts.on( '--verbose', 'Activate the verbose mode on Distem servers' ) do
+    options[:verbose] = true
+  end
+  opts.on( '-h', '--help', 'Display this screen' ) do
+    puts opts
+    exit
+  end
+  opts.separator ""
+  opts.separator "When executing a script, the file containing the list of nodes is available in the #{VAR_DISTEM_NODES}"
+  opts.separator "environment variable, while the address of the coordinator is in #{VAR_DISTEM_COORD}."
+  opts.separator ""
+  opts.separator "Examples:"
+  opts.separator "# run script.rb against the latest git snapshot of distem"
+  opts.separator "distem-bootstrap --nodes=4 --no-init-pnodes --git -- script.rb"
+  opts.separator "# setup distem, installing additional packages"
+  opts.separator "distem-bootstrap --nodes=10 -t \"04:00:00\" -p htop -r restfully -f nodes"
+
+end
+
+begin
+  optparse.parse!
+rescue OptionParser::InvalidOption => e
+  logger.error(e.to_s)
+end
+
+logger.level = Logger::INFO
+logger.level = Logger::DEBUG if options[:debug]
+
+## performing reservation with ruby-cute
+
+reserv_param = {:site => site, :nodes => options[:num_nodes], :name => 'distem',
+                :time => options[:walltime], :env =>'wheezy-x64-nfs', :subnets => [22,1]}
+
+reserv_param[:public_key] = options[:ssh_key] unless options[:ssh_key].nil?
+
+g5k = Cute::G5KAPI.new()
+g5k.logger = logger
+# we verify if we have already submit a job
+old_jobs = g5k.get_my_jobs(site).select{ |j| j["name"] == "distem"}
+
+job = old_jobs.empty? ? g5k.reserve_nodes(reserv_param) : old_jobs.first
+
+nodelist = job.resources["cores"].uniq
+## wait for the deploy
+
+while g5k.deploy_status(job)["status"] == "processing" do
+  logger.info("Waiting for the deployment of machines")
+  sleep 4
+end
+
+
+
+allnodes = nodelist.dup
+
+# Generating ssh keys"
+
+key_dir = Dir.mktmpdir("keys")
+system "ssh-keygen -P \'\' -f #{key_dir}/keys"
+logger.info "Keys generated in #{key_dir}"
+
+nodelist.each do |node|
+
+  Net::SCP.start(node, "root") do |scp|
+    logger.debug "Transfering key to #{node}"
+    scp.upload! "#{key_dir}/keys.pub", "/root/.ssh/id_rsa.pub"
+    scp.upload! "#{key_dir}/keys", "/root/.ssh/id_rsa"
+  end
+
+end
+
+# Deletating keys
+FileUtils.rm_rf(key_dir)
+
+if options[:coordinator]
+  coordinator = options[:coordinator]
+else
+  coordinator = nodelist[0]
+end
+
+if nodelist.include?(coordinator)
+  nodelist.delete(coordinator)
+else
+  tmp = nodelist.select { |node| node =~ /^#{coordinator}/ }
+  if tmp.empty?
+   logger.warn("Coordinator not present in <nodes_file>")
+  else
+    logger.warn("Coordinator '#{coordinator}' assumed to be '#{tmp[0]}' (which is present in <nodes_file>)")
+    coordinator = tmp[0]
+  end
+end
+
+
+logger.info("Establishing SSH connections to all nodes")
+
+Net::SSH::Multi.logger = logger # setting the default logger.
+
+Net::SSH::Multi.start do |session|
+  nodeobjlist = {}
+  begin
+    session.group :coord do
+      nodeobjlist[coordinator] = session.use("root@#{coordinator}")
+    end
+    #test connection
+    session.with(:coord).exec "hostname"
+  rescue SocketError
+    logger.error("can't connect to #{coordinator}")
+  end
+
+  begin
+    session.group :nodes do
+      nodelist.each{ |node| session.use("root@#{node}")}
+    end
+    #test connection
+    session.with(:nodes).exec "hostname"
+  rescue SocketError
+    logger.error("can't connect to #{node}")
+  end
+
+
+  # Check nfs paths ## comment: this is probably unnecessary given that now we are controlling the deployment with rubycute.
+  tmp = session.exec "ls -a #{ENV['HOME']}"
+  nopath = allnodes - tmp.keys
+  nopath.each do |node|
+    logger.warn("NFS do not seems to be mounted on #{node} (check that you have deployed with NFS env")
+  end
+
+  # generating ssh password less connection
+  session.exec "cat .ssh/id_rsa.pub >> .ssh/authorized_keys"
+
+  if options[:cow]
+    logger.infor("Format #{options[:cow]} to Btrfs")
+    session.exec "(umount /tmp || true) && mkfs.btrfs #{options[:cow]} && mount -o compress=lzo #{options[:cow]} /tmp && chmod 1777 /tmp"
+  end
+
+  #setting up ulimit-open_files, to be removed
+  rule="root hard nofile"
+  session.exec "grep -q '#{rule}' /etc/security/limits.conf; true || echo '#{rule} #{ULIMIT_OPEN_FILES}' >> /etc/security/limits.conf"
+  rule="root soft nofile"
+  session.exec "grep -q '#{rule}' /etc/security/limits.conf; true || echo '#{rule} #{ULIMIT_OPEN_FILES}' >> /etc/security/limits.conf"
+
+  # setup Debian repo
+  session.exec "grep -q '#{DEB_REPOSITORY}' /etc/apt/sources.list || echo 'deb #{DEB_REPOSITORY} ./\ndeb-src #{DEB_REPOSITORY} ./' >> /etc/apt/sources.list"
+
+  logger.info "Updating debian packages list"
+  session.exec "apt-get update -q"
+
+  if options[:git] or options[:gerrit]
+    logger.info("Installing debian build packages on #{coordinator}")
+    session.with(:coord).exec "apt-get build-dep -y --force-yes distem"
+    session.with(:coord).exec "DEBIAN_FRONTEND=noninteractive apt-get install -q -y #{pkg_build * ' '}" unless pkg_build.empty?
+    unless pkg_build_gem.empty?
+      logger.info("Installing gems build packages on #{coordinator}")
+      session.with(:corrd).exec "export http_proxy=#{HTTP_PROXY}; gem install #{pkg_build_gem * ' '}"
+    end
+
+    gitdir = "#{TMP_DIR}/git"
+    session.exec "mkdir -p #{TMP_DIR}"
+    session.with(:coord).exec "rm -Rf #{gitdir}"
+
+    if options[:git]
+      if options[:ci] != nil
+        logger.info("Syncing source repository on #{coordinator} with the current Gerrit repository")
+        system("rsync -rlut --delete #{options[:ci]}/* root@#{options[:coordinator]}:#{gitdir}")
+      else
+        logger.info("Retrieving '#{options[:git_url]}' repository on #{coordinator}")
+        if g5k?
+          session.with(:coord).exec "https_proxy=#{HTTP_PROXY} GIT_SSL_NO_VERIFY=1 git clone #{options[:git_url]} #{gitdir}"
+        else
+          session.with(:coord).exec "GIT_SSL_NO_VERIFY=1 git clone #{options[:git_url]} #{gitdir}"
+        end
+        unless options[:git] == :git_last
+          logger.info("Setting up git repository ref:#{options[:git]} on #{coordinator}")
+          session.with(:corrd).exec "git --git-dir=#{gitdir}/.git reset --hard #{options[:git]}"
+        end
+      end
+    else # gerrit
+      logger.info("Setting up git repository from gerrit ref:#{options[:gerrit]} on #{coordinator}")
+      session.with(:coord).exec "git clone #{GERRIT_REPOSITORY} #{gitdir}"
+      session.with(:coord).exec "cd #{gitdir} && git fetch #{GERRIT_REPOSITORY} #{options[:gerrit]} && git checkout FETCH_HEAD"
+    end
+    logger.info("Building debian package of distem on #{coordinator}")
+    session.with(:coord).exec "rm -f #{TMP_DIR}/*.deb #{TMP_DIR}/*.changes #{TMP_DIR}/*.dsc #{TMP_DIR}/*.tar.gz"
+    session.with(:coord).exec "cd #{gitdir}; rake snapshot"
+
+    debarchivefile = session.with(:coord).exec "find #{TMP_DIR} -maxdepth 1 -name *.deb"
+
+    session.with(:coord).exec "Copying generated debian package #{File.basename(debarchivefile)}"
+
+    #exec(session,"cp #{debarchivefile} #{TMP_DIR}",:coord,true)
+    nodelist.each {|node| session.with(:coord).exec "scp -o StrictHostKeyChecking=no #{debarchivefile} root@#{node}:#{TMP_DIR}"}
+    logger.info("Installing generated debian package #{File.basename(debarchivefile)}")
+    depends = session.with(:coord).exec "dpkg -I #{debarchivefile} | grep 'Depends:'"
+
+    depends = depends.split("|").last.gsub!(' ','')
+    session.exec "dpkg --ignore-depends #{depends} -i #{TMP_DIR}/#{File.basename(debarchivefile)}"
+
+    session.exec "DEBIAN_FRONTEND=noninteractive apt-get install -q -y --force-yes -f"
+    logger.info("Cleaning installation files on #{coordinator}")
+    session.with(:coord).exec "rm -Rf #{gitdir}"
+    session.with(:coord).exec "rm -f #{TMP_DIR}/*.deb #{TMP_DIR}/*.changes #{TMP_DIR}/*.dsc #{TMP_DIR}/*.tar.gz"
+  else
+    logger.info("Installing debian distem packages")
+    distempkg = options[:distem_version] ? "#{PKG_NAME}=#{options[:distem_version]}":PKG_NAME
+    session.exec "DEBIAN_FRONTEND=noninteractive apt-get install -q -y --allow-unauthenticated #{distempkg}"
+  end
+
+  logger.info("Installing debian misc packages")
+  session.exec "DEBIAN_FRONTEND=noninteractive apt-get install -q -y #{pkg_tmp_dependencies * ' '}" unless pkg_tmp_dependencies.empty?
+  session.exec "DEBIAN_FRONTEND=noninteractive apt-get install -q -y #{pkg_utils * ' '}" unless pkg_utils.empty?
+  options[:debpackages].each do |debpkg|
+    logger.info("Installing additional debian package '#{debpkg}'")
+    session.exec "DEBIAN_FRONTEND=noninteractive apt-get install -q -y #{debpkg}"
+  end
+  options[:gempackages].each do |gempkg|
+    logger.info "Installing additional gem package '#{gempkg}'"
+    session.with(:coord).exec "export http_proxy=#{HTTP_PROXY}; gem install #{gempkg}"
+  end
+
+  if options[:init_pnodes] or ARGV[0]
+    launched = session.exec "lsof -Pnl -i4 | egrep ':4567 |:4568'"
+    unless launched.empty?
+      tokill = launched.keys
+
+      session.group :tokill do
+        tokill.each{ |node| session.use "root@#{node}"
+          logger.debug("Distem detected on #{node}")
+        }
+      end
+      tokill.collect!{ |node| nodeobjlist[node] }
+      tokill.each { |node|
+        logger.info("Killing previous run of distem on #{node}")
+      }
+      session.with(:tokill).exec "killall distemd"
+      time_start = Time.now
+      until !launched or launched.empty?
+        session.with(:tokill).exec 'kill -9 `ps aux|grep "distemd"|grep -v grep|sed "s/ \{1,\}/ /g"|cut -f 2 -d" "`' if (Time.now - time_start) > 2
+        launched = session.with(:tokill).exec "lsof -Pnl -i4 | egrep ':4567 |:4568 '"
+
+        if launched and !launched.empty?
+          tokill = launched.keys
+          tokill.collect!{ |node| nodeobjlist[node] }
+        end
+      end
+    end
+    logger.info("Starting coordinator daemon on #{coordinator}")
+    session.with(:coord).exec "mkdir -p #{PATH_DISTEMD_LOGS}"
+    begin
+      Timeout.timeout(10) do
+        root_iface_opt = options[:network_interface] ? "--network-interface #{options[:network_interface]}" : ''
+        distem_cmd = "LANG=C distemd #{options[:verbose] ? '--verbose' : ''} --network-mode "+
+                     "#{options[:network_mode]} #{root_iface_opt} -d &>#{File.join(PATH_DISTEMD_LOGS,'distemd.log')}&"
+
+        session.with(:coord).exec distem_cmd
+
+        [ '4567', '4568' ].each do |port|
+          launched = []
+          until launched and !launched.empty?
+            launched = session.with(:coord).exec "lsof -Pnl -i4 | grep ':#{port} '"
+            launched[coordinator]
+            sleep(1)
+          end
+        end
+      end
+      rescue Timeout::Error
+        logger.error("Timeout reached")
+    end
+
+    if options[:init_pnodes]
+      begin
+        Timeout.timeout(180) do
+          logger.info("Initializing node #{coordinator}")
+          if options[:max_vifaces]
+            session.with(:coord).exec "distem --coordinator host=#{coordinator} --init-pnode #{coordinator} --max-vifaces #{options[:max_vifaces]}"
+            # options[:debug_distem],options[:debug_distem]) this would be controlled using the logger.
+          else
+            session.with(:coord).exec "distem --coordinator host=#{coordinator} --init-pnode #{coordinator}" # the same for this I have to add debug
+          end
+          if nodelist.length > 0
+            logger.info("Initializing nodes #{nodelist.join(',')}")
+            if options[:max_vifaces]
+              session.with(:coord).exec "distem --coordinator host=#{coordinator} --init-pnode #{nodelist.join(',')} --max-vifaces #{options[:max_vifaces]}"
+            else
+              session.with(:coord).exec "distem --coordinator host=#{coordinator} --init-pnode #{nodelist.join(',')}"
+            end
+          end
+        end
+        rescue Timeout::Error
+          logger.error("Timeout reached")
+      end
+    end
+
+  end
+
+  logger.info('Install done')
+
+  if ARGV[0]
+    begin
+      File.open(ARGV[0], 'r') do |f|
+        filename = exec(session,'tempfile',:coord)[coordinator][0]
+        logger.info("Copying script file in '#{filename}' on #{coordinator}")
+        `scp #{ARGV[0]} root@#{coordinator}:#{filename}`
+        session.with(:coord).exec "chmod +x #{filename}"
+        logger.info("Executing script file '#{filename}' on #{coordinator}")
+
+        argv_dup = ARGV.dup
+        argv_dup.shift
+        script_args = (argv_dup.length > 0 ? argv_dup.join(" ") : "")
+        session.with(:coord).exec "export #{VAR_DISTEM_NODES}='#{(nodelist + [coordinator]) * "\n"}'; export #{VAR_DISTEM_COORD}='#{coordinator}';#{filename} #{script_args}"
+        session.with(:coord).exec "rm #{filename}"
+      end
+      logger.info 'Script execution done'
+    rescue Errno::ENOENT
+      logger.error "script file '#{ARGV[0]}' not found"
+    end
+  end
+
+  logger.info("Coordinator: #{coordinator}") if options[:init_pnodes] or ARGV[0]
+
+  # Send stats record to stats server
+  if g5k? and options[:stats]
+    begin
+      stats = {
+        :time => Time.now.to_i,
+        :site => Socket.gethostname,
+        :user => ENV['USER'],
+        :oar   => ENV['OAR_JOB_ID'].to_i,
+        :nodes => allnodes,
+        :params => args * ' ',
+        :length => (Time.now - $startt).to_i
+      }
+      sock = TCPSocket.open(STATS_SERV, STATS_PORT)
+      sock.send(stats.to_yaml,0)
+      sock.close
+    rescue SocketError, Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::ETIMEDOUT, Errno::EHOSTUNREACH
+    end
+  end
+end
