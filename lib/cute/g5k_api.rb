@@ -3,6 +3,7 @@ require 'yaml'
 require 'json'
 require 'ipaddress'
 require 'uri'
+require 'pry'
 
 module Cute
 
@@ -95,7 +96,8 @@ module Cute
         @endpoint = "https://#{user_escaped}:#{pass_escaped}@#{uri.split("https://")[1]}"
       end
 
-
+      machine =`uname -ov`.chop
+      @user_agent = "ruby-cute/#{VERSION} (#{machine}) Ruby #{RUBY_VERSION}"
       @api = RestClient::Resource.new(@endpoint, :timeout => 15)
       test_connection
     end
@@ -130,7 +132,8 @@ module Cute
     def post_json(path, json)
       r = resource(path).post(json.to_json,
                               :content_type => "application/json",
-                              :accept => "application/json")
+                              :accept => "application/json",
+                              :user_agent => @user_agent)
       return G5KJson.parse(r)
     end
 
@@ -166,6 +169,7 @@ module Cute
   # perform operations such as submitting jobs in the platform and deploying system images.
   class G5KAPI
 
+    attr_accessor :logger
     # Initializes a REST connection for Grid'5000 API
     # @param params [Hash] contains initilization parameters.
     def initialize(params={})
@@ -181,6 +185,8 @@ module Cute
       @pass = params[:pass] || config["password"]
       @uri = params[:uri] || config["uri"]
       @api_version = params[:api_version] || config["version"] || "sid"
+      @logger = nil
+
       begin
         @g5k_connection = G5KRest.new(@uri,@api_version,@user,@pass)
       rescue
@@ -252,6 +258,7 @@ module Cute
       @g5k_connection.get_json(api_uri("sites/#{site}/clusters")).items
     end
 
+    # @return [Array] the description of all environments registered in a Grid'5000 site
     def environments(site)
       @g5k_connection.get_json(api_uri("sites/#{site}/environments")).items
     end
@@ -263,6 +270,13 @@ module Cute
       filter = uid.nil? ? "" : "&user=#{uid}"
       jobs_running = @g5k_connection.get_json(api_uri("/sites/#{site}/jobs/?state=#{state}#{filter}")).items
       jobs_running.map{ |j| @g5k_connection.get_json(j.rel_self)}
+    end
+
+    # @return [Hash] the last 50 deployments performed in a Grid'5000 site
+    # @param site [String] a valid Grid'5000 site name
+    # @param uid [String] user name in Grid'5000
+    def get_deployments(site, uid = nil)
+      @g5k_connection.get_json(api_uri("sites/#{site}/deployments/?user=#{uid}")).items
     end
 
     # @return [Hash] information concerning a given job submitted in a Grid'5000 site
@@ -301,14 +315,18 @@ module Cute
 
     # @return [Array] all my jobs submitted to a given site
     # @param site [String] a valid Grid'5000 site name
-    def my_jobs(site,state="running")
-      return get_jobs(site, g5k_user,state)
+    def get_my_jobs(site, state="running")
+      jobs = get_jobs(site, g5k_user,state)
+      deployments = get_deployments(site, g5k_user)
+      # filtering deployments
+      jobs.map{ |j| j["deploy"] = deployments.select{ |d| d["created_at"] > j["started_at"]} }
+      return jobs
     end
 
     # @return [Array] with the subnets reserved
     # @param site [String] a valid Grid'5000 site name
     def get_subnets(site)
-      jobs = my_jobs(site)
+      jobs = get_my_jobs(site)
       subnets = []
       jobs.each{ |j| subnets += @g5k_connection.get_json(j.rel_self).resources["subnets"] }
       subnets.map!{|s| IPAddress::IPv4.new s }
@@ -317,8 +335,8 @@ module Cute
     # releases all jobs on a site
     def release_all(site)
       Timeout.timeout(20) do
-        jobs = my_jobs(site)
-        break if jobs.length == 0
+        jobs = get_my_jobs(site)
+        break if jobs.empty?
         begin
           jobs.each { |j| release(j) }
         rescue RestClient::InternalServerError => e
@@ -342,7 +360,7 @@ module Cute
     # :nodes => 1, :time => '01:00:00', :site => "nancy", :type => :normal
     # :name => "my reservation", :cluster=> "graphene", :subnets => [prefix_size, 2]
     # :env => "wheezy-x64-big", :vlan => :routed, :properties => "wattmeter='YES'"
-    def reserve_nodes(opts)
+    def reserve(opts)
 
       nodes = opts.fetch(:nodes, 1)
       time = opts.fetch(:time, '01:00:00')
@@ -432,13 +450,10 @@ module Cute
 
       job = @g5k_connection.get_json(r.rel_self)
       job = wait_for_job(job) if async != true
-      ref = {:job => job}
+      #ref = {:job => job}
       # We deploy if necessary
-      if type == :deploy
-        deploy_ref = deploy(job,opts)
-        ref.merge!({:deploy => deploy_ref})
-      end
-      return ref
+      job["deploy"] = deploy(job,opts) if type == :deploy
+      return job
 
     end
 
@@ -474,6 +489,7 @@ module Cute
 
       nodes = job['assigned_nodes']
       env = opts[:env]
+
 
       site = @g5k_connection.follow_parent(job).uid
 
@@ -516,7 +532,8 @@ module Cute
 
     end
 
-    def deploy_status(r)
+    def deploy_status(job)
+      r = job["deploy"].is_a?(Array)? job["deploy"].first : job["deploy"]
       return nil if r.nil?
       r = r.refresh(@g5k_connection)
       r.delete "links"
@@ -531,6 +548,8 @@ module Cute
         t = Time.now
         s = t.strftime('%Y-%m-%d %H:%M:%S.%L')
         puts "#{s} => #{msg}"
+      else
+        @logger.info(msg)
       end
     end
 

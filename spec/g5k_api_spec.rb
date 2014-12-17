@@ -3,9 +3,8 @@ require 'spec_helper'
 describe Cute::G5KAPI do
 
   before :all do
-    config_file = "#{ENV['HOME']}/.grid5000_api.yml"
-    config = {}
-    @p = File.exists?(config_file) ? Cute::G5KAPI.new({:conf_file => config_file}) : Cute::G5KAPI.new({:uri =>"https://api.grid5000.fr"})
+
+    @p = Cute::G5KAPI.new()
     @sites = @p.site_uids
     #Choosing a random site
     @rand_site = @sites[rand(@sites.length-1)]
@@ -39,7 +38,7 @@ describe Cute::G5KAPI do
   end
 
   it "it should not return any job" do
-    expect(@p.my_jobs(@sites.first).empty?).to eq(true)
+    expect(@p.get_my_jobs(@sites.first).empty?).to eq(true)
   end
 
   it "it should return the same information" do
@@ -50,12 +49,12 @@ describe Cute::G5KAPI do
 
   it "it should submit a job" do
     cluster = @p.cluster_uids(@rand_site).first
-    expect(@p.reserve_nodes(:site => @rand_site,
+    expect(@p.reserve(:site => @rand_site,
                       :nodes => 1, :time => '00:10:00',
-                      :subnets => [22,2], :cluster => cluster).class).to eq(Hash)
+                      :subnets => [22,2], :cluster => cluster).class).to eq(Cute::G5KJson)
     sleep 1
     # It verifies that the job has been submitted
-    expect(@p.my_jobs(@rand_site).empty? && @p.my_jobs(@rand_site,"waiting").empty?).to eq(false)
+    expect(@p.get_my_jobs(@rand_site).empty? && @p.get_my_jobs(@rand_site,"waiting").empty?).to eq(false)
   end
 
   it "it should return job subnets" do
@@ -68,24 +67,29 @@ describe Cute::G5KAPI do
     # Deleting the job
     @p.release_all(@rand_site)
     sleep 3
-    expect(@p.my_jobs(@rand_site).empty? && @p.my_jobs(@rand_site,"waiting").empty?).to eq(true)
+    expect(@p.get_my_jobs(@rand_site).empty? && @p.get_my_jobs(@rand_site,"waiting").empty?).to eq(true)
   end
 
   it "it should submit a job deploy" do
     environment = @p.environment_uids(@rand_site).first
-    ref = @p.reserve_nodes(:site => @rand_site,
+    job = @p.reserve(:site => @rand_site,
                      :nodes => 1, :time => '00:40:00',
                      :env => environment)
-    # It verifies that the job has been submitted
-    expect(@p.my_jobs(@rand_site).empty? && @p.my_jobs(@rand_site,"waiting").empty?).to eq(false)
-    expect(@p.deploy_status(ref[:deploy])["status"].class).to eq(String)
+    # It verifies that the job has been submitted with deploy
+    expect(@p.get_my_jobs(@rand_site).empty? && @p.get_my_jobs(@rand_site,"waiting").empty?).to eq(false)
+    expect(@p.get_my_jobs(@rand_site).first["deploy"].empty?).to eq(false)
+    expect(@p.deploy_status(job)["status"].class).to eq(String)
+    while @p.deploy_status(job)["status"] == "processing" do
+      sleep 4
+    end
+    expect(@p.deploy_status(job)["status"]).to eq("terminated")
   end
 
   it "it should delete a job" do
     # Deleting the job
     @p.release_all(@rand_site)
     sleep 3
-    expect(@p.my_jobs(@rand_site).empty? && @p.my_jobs(@rand_site,"waiting").empty?).to eq(true)
+    expect(@p.get_my_jobs(@rand_site).empty? && @p.get_my_jobs(@rand_site,"waiting").empty?).to eq(true)
   end
 
 end
