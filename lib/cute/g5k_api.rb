@@ -109,7 +109,7 @@ module Cute
       return @api[path]
     end
 
-    # Returns the HTTP response as a Ruby Hash
+    # Returns the HTTP response as a Hash
     # @param path [String] this complements the URI to address to a specific resource
     def get_json(path)
       maxfails = 3
@@ -171,7 +171,7 @@ module Cute
 
     attr_accessor :logger
     # Initializes a REST connection for Grid'5000 API
-    # @param params [Hash] contains initilization parameters.
+    # @param params [Hash] contains initialization parameters.
     def initialize(params={})
       config = {}
       default_file = "#{ENV['HOME']}/.grid5000_api.yml"
@@ -184,7 +184,7 @@ module Cute
       @user = params[:user] || config["username"]
       @pass = params[:pass] || config["password"]
       @uri = params[:uri] || config["uri"]
-      @api_version = params[:api_version] || config["version"] || "sid"
+      @api_version = params[:version] || config["version"] || "sid"
       @logger = nil
 
       begin
@@ -289,7 +289,7 @@ module Cute
     # @return [Hash] switches information available in a given Grid'5000 site.
     # @param site [String] a valid Grid'5000 site name
     def get_switches(site)
-      items = @g5k_connection.get_json("/sites/#{site}/network_equipments").items
+      items = @g5k_connection.get_json(api_uri("/sites/#{site}/network_equipments")).items
       items = items.select { |x| x['kind'] == 'switch' }
       # extract nodes connected to those switches
       items.each { |switch|
@@ -363,7 +363,7 @@ module Cute
     def reserve(opts)
 
       nodes = opts.fetch(:nodes, 1)
-      time = opts.fetch(:time, '01:00:00')
+      walltime = opts.fetch(:walltime, '01:00:00')
       at = opts[:at]
       site = opts[:site]
       type = opts.fetch(:type, :normal)
@@ -377,6 +377,7 @@ module Cute
       cores = opts[:cores]
       subnets = opts[:subnets]
       properties = opts[:properties]
+      resources = opts.fetch(:resources, "")
       type = :deploy unless opts[:env].nil?
 
       vlan_opts = {:routed => "kavlan",:global => "kavlan-global",:local => "kavlan-local"}
@@ -389,10 +390,10 @@ module Cute
         end
       end
 
-      raise 'At least nodes, time and site must be given'  if [nodes, time, site].any? { |x| x.nil? }
+      raise 'At least nodes, time and site must be given'  if [nodes, walltime, site].any? { |x| x.nil? }
 
-      secs = time.to_secs
-      time = time.to_time
+      secs = walltime.to_secs
+      walltime = walltime.to_time
 
       if nodes.is_a?(Array)
         all_nodes = nodes
@@ -409,15 +410,17 @@ module Cute
       command = "sleep #{secs}" if command.nil?
       type = type.to_sym
 
-      resources = ""
-      resources = "/switch=#{switches}" unless switches.nil?
-      resources = resources+"/nodes=#{nodes}"
-      resources = resources+"/cpu=#{cpus}" unless cpus.nil?
-      resources = resources+"/core=#{cores}" unless cores.nil?
-      resources = resources+",walltime=#{time}"
-      resources = "{cluster='#{cluster}'}" + resources unless cluster.nil?
-      resources = "{type='#{vlan}'}/vlan=1+" + resources unless vlan.nil?
-      resources = "slash_#{subnets[0]}=#{subnets[1]}+" + resources unless subnets.nil?
+      if resources == ""
+        resources = "/switch=#{switches}" unless switches.nil?
+        resources += "/nodes=#{nodes}"
+        resources += "/cpu=#{cpus}" unless cpus.nil?
+        resources += "/core=#{cores}" unless cores.nil?
+        resources = "{cluster='#{cluster}'}" + resources unless cluster.nil?
+        resources = "{type='#{vlan}'}/vlan=1+" + resources unless vlan.nil?
+        resources = "slash_#{subnets[0]}=#{subnets[1]}+" + resources unless subnets.nil?
+      end
+
+      resources += ",walltime=#{walltime}" unless resources.include?("walltime")
 
       payload = {
                  'resources' => resources,
@@ -432,7 +435,7 @@ module Cute
       if type == :deploy
         payload['types'] = [ 'deploy' ]
       else
-        payload['types'] = [ 'allow_classic_ssh' ] if (cores.nil? && cpus.nil?)
+        # payload['types'] = [ 'allow_classic_ssh' ] if (cores.nil? && cpus.nil?)
       end
 
       unless at.nil?
@@ -445,13 +448,13 @@ module Cute
         r = @g5k_connection.post_json(api_uri("sites/#{site}/jobs"),payload)  # This makes reference to the same class
       rescue => e
         info "Fail posting the json to the API"
+        info e.message
+        info e.http_body
         raise
       end
 
       job = @g5k_connection.get_json(r.rel_self)
       job = wait_for_job(job) if async != true
-      #ref = {:job => job}
-      # We deploy if necessary
       job["deploy"] = deploy(job,opts) if type == :deploy
       return job
 
