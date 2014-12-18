@@ -1,5 +1,19 @@
 #!/usr/bin/ruby -w
+require 'tmpdir'
 
-require 'optparse'
+ROOT_DIR= File.expand_path('../..',__FILE__)
+BIN_DIR= File.join(ROOT_DIR,"bin")
 
-puts "Hello World!"
+if `which pry` && $?.success? then
+  PRY_BIN="pry"
+else
+  PRY_BIN="~/.gem/bin/pry"
+end
+
+
+cute_init_file = File.open("#{Dir.mktmpdir}/cute_init.rb",'w+')
+cute_init_file.puts "require 'bundler'\nBundler.setup\nrequire 'cute'\n$g5k = Cute::G5KAPI.new()"
+cute_init_file.close
+
+
+exec("#{PRY_BIN} -r #{cute_init_file.path}")
