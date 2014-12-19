@@ -154,7 +154,7 @@ module Cute
 
     private
 
-    # Test the connection and raises an error in case of a problem
+    # Tests the connection and raises an error in case of a problem
     def test_connection
       begin
         return get_json("/#{@api_version}/")
@@ -202,7 +202,14 @@ module Cute
       end
     end
 
-    # @return the rest point for perfoming low REST requests
+    # @return [String] the site name where the method is called on
+    def site
+      p = `hostname`.chop
+      res = /^.*\.(.*).*\.grid5000.fr/.match(p)
+      res[1] unless res.nil?
+    end
+
+    # @return the rest point for performing low REST requests
     def rest
       @g5k_connection
     end
@@ -541,6 +548,22 @@ module Cute
       r = r.refresh(@g5k_connection)
       r.delete "links"
       r
+    end
+
+    # wait for a deployment to have a terminated status
+    # @param job [Hash] job data structure
+    # @param wait_time [Fixnum] wait time before raising an exception, default 10h
+    def wait_for_deploy(job,wait_time = 36000)
+      did = job["deploy"].is_a?(Array)? job["deploy"].first : job["deploy"]
+      Timeout.timeout(wait_time) do
+        while deploy_status(job)["status"] == "processing" do
+          info "Waiting for deployment #{did["uid"]}"
+          sleep 4
+        end
+        status = deploy_status(job)["status"]
+        info "Deployment status: #{status}"
+        return status
+      end
     end
 
     private

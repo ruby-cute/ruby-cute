@@ -79,9 +79,7 @@ describe Cute::G5KAPI do
     expect(@p.get_my_jobs(@rand_site).empty? && @p.get_my_jobs(@rand_site,"waiting").empty?).to eq(false)
     expect(@p.get_my_jobs(@rand_site).first["deploy"].empty?).to eq(false)
     expect(@p.deploy_status(job)["status"].class).to eq(String)
-    while @p.deploy_status(job)["status"] == "processing" do
-      sleep 4
-    end
+    @p.wait_for_deploy(job)
     expect(@p.deploy_status(job)["status"]).to eq("terminated")
   end
 
