@@ -73,7 +73,7 @@ describe Cute::G5KAPI do
   it "it should submit a job deploy" do
     environment = @p.environment_uids(@rand_site).first
     job = @p.reserve(:site => @rand_site,
-                     :nodes => 1, :time => '00:40:00',
+                     :nodes => 1, :walltime => '00:40:00',
                      :env => environment)
     # It verifies that the job has been submitted with deploy
     expect(@p.get_my_jobs(@rand_site).empty? && @p.get_my_jobs(@rand_site,"waiting").empty?).to eq(false)
@@ -90,6 +90,15 @@ describe Cute::G5KAPI do
     @p.release_all(@rand_site)
     sleep 3
     expect(@p.get_my_jobs(@rand_site).empty? && @p.get_my_jobs(@rand_site,"waiting").empty?).to eq(true)
+  end
+
+  it "it should submit a job with OAR hierarchy" do
+   job1 = @p.reserve(:site => @rand_site, :switches => 2, :nodes=>1, :cpus => 1, :cores => 1,:walltime => '00:10:00')
+   job2 = @p.reserve(:site => @rand_site, :resources => "/switch=2/nodes=1/cpu=1/core=1",:walltime => '00:10:00')
+
+   expect(@p.get_my_jobs(@rand_site).length).to eq(2)
+
+   @p.release_all(@rand_site)
   end
 
 end
