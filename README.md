@@ -41,6 +41,7 @@ Or you can specify other parameter to use:
     g5k = Cute::G5KAPI.new({:uri => "https://api.grid5000.fr"})
 
 ## Examples
+
 ### Reserving a node in a given site.
 The following script will reserve a node in Nancy for 10 minutes.
 
@@ -67,7 +68,7 @@ you can specify another path for your key with the option *:public_key*.
 
 The method {Cute::G5KAPI#reserve reserve} support several parameters to perform more complex reservations.
 The script below reserves 2 nodes in the cluster *chirloute* located in Lille for 1 hour as well as 2 /22 subnets.
-2048 ip addresses will be available that can be used, for example, in virtual machines.
+2048 IP addresses will be available that can be used, for example, in virtual machines.
 
     require 'cute'
 
@@ -114,7 +115,7 @@ This syntax allow to express more complex reservations. For example, combining O
 
     job = g5k.reserve(:site => "grenoble", :resources => "{ib10g='YES' and memnode=24160}/cluster=1/nodes=2/core=1")
 
-if we want 2 nodes with the following constraints:
+If we want 2 nodes with the following constraints:
 1) nodes on 2 different clusters of the same site, 2) nodes with virtualization capability enabled
 3) 1 /22 subnet. The reservation will be like:
 

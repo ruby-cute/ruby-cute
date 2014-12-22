@@ -1,18 +1,24 @@
 # Extends the Net SSH modules
 
+# This monkey patch extends the capabilities of the module Multi
 module Net; module SSH; module Multi
 
+  # sets logger to be used by net-ssh-multi module
   def self.logger= v
     @logger = v
   end
 
+  # @return logger
   def self.logger
     @logger
   end
 
 module SessionActions
 
-
+  # Monkey patch for the exec method.
+  # It adds stdout and stderr management for debugging purposes.
+  # @see http://net-ssh.github.io/net-ssh-multi/classes/Net/SSH/Multi/SessionActions.html More information about exec method.
+  # @return [Hash] the host names and their associated stdout
   def exec(command, &block)
 
     outs = {}
