@@ -46,11 +46,6 @@ def g5k?
   `hostname --fqdn`.chomp =~ /grid5000\.fr$/
 end
 
-def site
-  p = `hostname`.chop
-  /^.*\.(.*).*\.grid5000.fr/.match(p)[1]
-end
-
 PKG_NAME          = 'distem'
 DEB_REPOSITORY    = 'http://distem.gforge.inria.fr/deb'
 HTTP_PROXY        = 'proxy:3128'
@@ -89,72 +84,6 @@ pkg_build_gem=[
 
 options = {}
 @options = options
-
-
-
-module Net; module SSH; module Multi
-
-  def self.logger= v
-    @logger = v
-  end
-
-  def self.logger
-    @logger
-  end
-
-module SessionActions
-
-
-  def exec(command, &block)
-
-    outs = {}
-    errs = {}
-
-    main =open_channel do |channel|
-      channel.exec(command) do |ch, success|
-        raise "could not execute command: #{command.inspect} (#{ch[:host]})" unless success
-        Multi.logger.debug("Executing #{command} on [#{ch.connection.host}]")
-
-        channel.on_data do |ch, data|
-          if block
-            block.call(ch, :stdout, data)
-          else
-            outs[ch.connection.host] = [] unless outs[ch.connection.host]
-            outs[ch.connection.host] << data.strip
-
-            Multi.logger.debug("[#{ch.connection.host}] #{data.strip}")
-          end
-        end
-        channel.on_extended_data do |ch, type, data|
-          if block
-            block.call(ch, :stderr, data)
-          else
-            errs[ch.connection.host] = [] unless errs[ch.connection.host]
-            errs[ch.connection.host] << data.strip
-            Multi.logger.debug("[#{ch.connection.host}] #{data.strip}")
-          end
-        end
-        channel.on_request("exit-status") do |ch, data|
-          ch[:exit_status] = data.read_long
-          Multi.logger.debug("Status returned #{ch[:exit_status]}")
-          if ch[:exit_status] != 0
-            Multi.logger.debug("execution of '#{command}' on #{ch.connection.host}
-                            failed with return status #{ch[:exit_status].to_s}")
-            Multi.logger.debug("--- stdout dump ---")
-            outs[ch.connection.host].each {|out| Multi.logger.debug(out)} if outs[ch.connection.host]
-            Multi.logger.debug("--stderr dump ---")
-            errs[ch.connection.host].each {|err| Multi.logger.debug(err)} if errs[ch.connection.host]
-          end
-        end
-        # need to decide severity level if the command fails
-      end
-    end
-    main.wait # we have to wait the channel otherwise we will have void results
-    return outs#,errs
-  end
-
-end
-end; end; end
 
 
 $startt = Time::now
@@ -286,29 +215,25 @@ end
 logger.level = Logger::INFO
 logger.level = Logger::DEBUG if options[:debug]
 
+g5k = Cute::G5KAPI.new()
+g5k.logger = logger
 ## performing reservation with ruby-cute
 
-reserv_param = {:site => site, :nodes => options[:num_nodes], :name => 'distem',
+reserv_param = {:site => g5k.site, :nodes => options[:num_nodes], :name => 'distem',
                 :time => options[:walltime], :env =>'wheezy-x64-nfs', :subnets => [22,1]}
 
 reserv_param[:public_key] = options[:ssh_key] unless options[:ssh_key].nil?
 
-g5k = Cute::G5KAPI.new()
-g5k.logger = logger
-# we verify if we have already submit a job
-old_jobs = g5k.get_my_jobs(site).select{ |j| j["name"] == "distem"}
 
-job = old_jobs.empty? ? g5k.reserve_nodes(reserv_param) : old_jobs.first
+# we verify if we have already submit a job
+old_jobs = g5k.get_my_jobs(g5k.site).select{ |j| j["name"] == "distem"}
+
+job = old_jobs.empty? ? g5k.reserve(reserv_param) : old_jobs.first
 
 nodelist = job.resources["cores"].uniq
 ## wait for the deploy
 
-while g5k.deploy_status(job)["status"] == "processing" do
-  logger.info("Waiting for the deployment of machines")
-  sleep 4
-end
-
-
+g5k.wait_for_deploy(job)
 
 allnodes = nodelist.dup
 

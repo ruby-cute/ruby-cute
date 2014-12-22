@@ -34,7 +34,7 @@ To simplify the use of the module, it is better to create a file with the follow
 
 You can specify another file using the option :conf_file, for example:
 
-    g5k = Cute::G5KAPI.new({:conf_file => "config file path"})
+    g5k = Cute::G5KAPI.new({:conf_file =>"config file path"})
 
 Or you can specify other parameter to use:
 
