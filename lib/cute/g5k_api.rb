@@ -81,7 +81,7 @@ module Cute
 
     attr_reader :user
     # Initializes a REST connection
-    # @param uri [String] resource identifier which normally is the url of the Rest API
+    # @param uri [String] resource identifier which normally is the URL of the Rest API
     # @param user [String] user if authentication is needed
     # @param pass [String] password if authentication is needed
     def initialize(uri,api_version,user,pass)
@@ -109,7 +109,7 @@ module Cute
       return @api[path]
     end
 
-    # Returns the HTTP response as a Hash
+    # @return [Hash] the HTTP response
     # @param path [String] this complements the URI to address to a specific resource
     def get_json(path)
       maxfails = 3
@@ -137,7 +137,7 @@ module Cute
       return G5KJson.parse(r)
     end
 
-    # Delete a resource on the server
+    # Deletes a resource on the server
     # @param path [String] this complements the URI to address to a specific resource
     def delete_json(path)
       begin
@@ -269,6 +269,7 @@ module Cute
     def environments(site)
       @g5k_connection.get_json(api_uri("sites/#{site}/environments")).items
     end
+
     # @return [Hash] all the jobs submitted in a given Grid'5000 site,
     #         if a uid is provided only the jobs owned by the user are shown.
     # @param site [String] a valid Grid'5000 site name
@@ -320,7 +321,7 @@ module Cute
       return s
     end
 
-    # @return [Array] all my jobs submitted to a given site
+    # @return [Array] all my submitted jobs to a given site and their associated deployments.
     # @param site [String] a valid Grid'5000 site name
     def get_my_jobs(site, state="running")
       jobs = get_jobs(site, g5k_user,state)
@@ -352,7 +353,7 @@ module Cute
       end
     end
 
-    # Release a resource
+    # releases a resource
     def release(r)
       begin
         return @g5k_connection.delete_json(r.rel_self)
@@ -542,6 +543,8 @@ module Cute
 
     end
 
+    # @return deploy status
+    # @param job [Hash] job structure
     def deploy_status(job)
       r = job["deploy"].is_a?(Array)? job["deploy"].first : job["deploy"]
       return nil if r.nil?
@@ -550,8 +553,8 @@ module Cute
       r
     end
 
-    # wait for a deployment to have a terminated status
-    # @param job [Hash] job data structure
+    # waits for a deployment to have a terminated status
+    # @param job [Hash] job structure
     # @param wait_time [Fixnum] wait time before raising an exception, default 10h
     def wait_for_deploy(job,wait_time = 36000)
       did = job["deploy"].is_a?(Array)? job["deploy"].first : job["deploy"]
