@@ -3,7 +3,6 @@ require 'yaml'
 require 'json'
 require 'ipaddress'
 require 'uri'
-require 'pry'
 
 module Cute
 
@@ -231,7 +230,7 @@ module Cute
 
     # @return [Array] environment identifiers that can be used directly
     def environment_uids(site)
-      # environments are returning by the api in the format squeeze-x64-big-1.8
+      # environments are returned by the API following the format squeeze-x64-big-1.8
       # it returns environments without the version
       return environments(site).uids.map{ |e| /(.*)-(.*)/.match(e)[1]}.uniq
     end
@@ -259,7 +258,7 @@ module Cute
       @g5k_connection.get_json(api_uri("sites")).items
     end
 
-    # @return [Array] the description of the clusters that belong to a given Grid'5000 site
+    # @return [Array] the description of clusters that belong to a given Grid'5000 site
     # @param site [String] a valid Grid'5000 site name
     def clusters(site)
       @g5k_connection.get_json(api_uri("sites/#{site}/clusters")).items
@@ -443,7 +442,7 @@ module Cute
       if type == :deploy
         payload['types'] = [ 'deploy' ]
       else
-        # payload['types'] = [ 'allow_classic_ssh' ] if (cores.nil? && cpus.nil?)
+        payload['types'] = [ 'allow_classic_ssh' ] if (cores.nil? && cpus.nil?)
       end
 
       unless at.nil?
