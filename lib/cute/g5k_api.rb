@@ -97,7 +97,7 @@ module Cute
 
       machine =`uname -ov`.chop
       @user_agent = "ruby-cute/#{VERSION} (#{machine}) Ruby #{RUBY_VERSION}"
-      @api = RestClient::Resource.new(@endpoint, :timeout => 15)
+      @api = RestClient::Resource.new(@endpoint, :timeout => 30)
       test_connection
     end
 
@@ -115,7 +115,7 @@ module Cute
       fails = 0
       while true
         begin
-          r = resource(path).get()
+          r = resource(path).get(:content_type => "application/json")
           return G5KJson.parse(r)
         rescue RestClient::RequestTimeout
           fails += 1
@@ -273,10 +273,15 @@ module Cute
     #         if a uid is provided only the jobs owned by the user are shown.
     # @param site [String] a valid Grid'5000 site name
     # @param uid [String] user name in Grid'5000
-    def get_jobs(site, uid = nil, state)
-      filter = uid.nil? ? "" : "&user=#{uid}"
-      jobs_running = @g5k_connection.get_json(api_uri("/sites/#{site}/jobs/?state=#{state}#{filter}")).items
-      jobs_running.map{ |j| @g5k_connection.get_json(j.rel_self)}
+    def get_jobs(site, uid = nil, state = nil)
+      filter = "?"
+      filter += state.nil? ? "" : "state=#{state}"
+      filter += uid.nil? ? "" : "&user=#{uid}"
+      filter += "limit=25" if (state.nil? and uid.nil?)
+      jobs = @g5k_connection.get_json(api_uri("/sites/#{site}/jobs/#{filter}")).items
+      jobs.map{ |j| @g5k_connection.get_json(j.rel_self)}
+      # This request sometime is could take a little long when all jobs are requested
+      # The API return by default 50 the limit was set to 25 (e.g., 23 seconds).
     end
 
     # @return [Hash] the last 50 deployments performed in a Grid'5000 site
@@ -340,6 +345,7 @@ module Cute
     end
 
     # releases all jobs on a site
+    # @param site [String] a valid Grid'5000 site name
     def release_all(site)
       Timeout.timeout(20) do
         jobs = get_my_jobs(site)
@@ -373,7 +379,7 @@ module Cute
       walltime = opts.fetch(:walltime, '01:00:00')
       at = opts[:at]
       site = opts[:site]
-      type = opts.fetch(:type, :normal)
+      type = opts[:type]
       name = opts.fetch(:name, 'rubyCute job')
       command = opts[:cmd]
       async = opts[:async]
@@ -386,6 +392,7 @@ module Cute
       properties = opts[:properties]
       resources = opts.fetch(:resources, "")
       type = :deploy unless opts[:env].nil?
+      keys = opts[:keys]
 
       vlan_opts = {:routed => "kavlan",:global => "kavlan-global",:local => "kavlan-local"}
       vlan = nil
@@ -413,9 +420,9 @@ module Cute
       end
 
       raise 'Nodes must be an integer.' unless nodes.is_a?(Integer)
-      raise 'Type must be either :deploy or :normal' unless (type.respond_to?(:to_sym) && [ :normal, :deploy ].include?(type.to_sym))
+
       command = "sleep #{secs}" if command.nil?
-      type = type.to_sym
+      type = type.to_sym unless type.nil?
 
       if resources == ""
         resources = "/switch=#{switches}" unless switches.nil?
@@ -439,10 +446,16 @@ module Cute
 
       payload['properties'] = properties unless properties.nil?
 
-      if type == :deploy
-        payload['types'] = [ 'deploy' ]
-      else
-        payload['types'] = [ 'allow_classic_ssh' ] if (cores.nil? && cpus.nil?)
+
+      payload['types'] = [ type.to_s ] unless type.nil?
+
+
+      if not type == :deploy
+        if opts[:keys]
+          payload['import-job-key-from-file'] = [ File.expand_path(keys) ]
+        else
+          payload['types'] = [ 'allow_classic_ssh' ]
+        end
       end
 
       unless at.nil?
@@ -452,7 +465,18 @@ module Cute
       end
 
       begin
-        r = @g5k_connection.post_json(api_uri("sites/#{site}/jobs"),payload)  # This makes reference to the same class
+        # Support for the option "import-job-key-from-file"
+        # The request has to be redirected to the OAR API given that Grid'5000 API
+        # does not support some OAR options.
+        if payload['import-job-key-from-file'] then
+          # Adding double quotes otherwise we have a syntax error from OAR API
+          payload["resources"] = "\"#{payload["resources"]}\""
+          temp = @g5k_connection.post_json(api_uri("sites/#{site}/internal/oarapi/jobs"),payload)
+          sleep 1 # This is for being sure that our job appears on the list
+          r = get_my_jobs(site,nil).select{ |j| j["uid"] == temp["id"] }.first
+        else
+          r = @g5k_connection.post_json(api_uri("sites/#{site}/jobs"),payload)  # This makes reference to the same class
+        end
       rescue => e
         info "Fail posting the json to the API"
         info e.message
@@ -503,17 +527,11 @@ module Cute
 
       site = @g5k_connection.follow_parent(job).uid
 
-      if opts[:public_key].nil? then
+      if opts[:keys].nil? then
         public_key_path = File.expand_path("~/.ssh/id_rsa.pub")
         public_key_file = File.exist?(public_key_path) ? File.read(public_key_path) : ""
       else
-        uri = URI.parse(opts[:public_key])
-        case uri
-        when URI::HTTP, URI::HTTPS
-          public_key_file = uri.to_s
-        else
-        public_key_file = File.read(File.expand_path(opts[:public_key]))
-        end
+        public_key_file = File.read("#{File.expand_path(opts[:keys])}.pub")
       end
 
       raise "Environment must be given" if env.nil?

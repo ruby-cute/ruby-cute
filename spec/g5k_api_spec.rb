@@ -8,6 +8,7 @@ describe Cute::G5KAPI do
     @sites = @p.site_uids
     #Choosing a random site
     @rand_site = @sites[rand(@sites.length-1)]
+    puts "Warning G5K_USER environment variable has to be defined for some tests" if ENV['G5K_USER'].nil?
   end
 
   it "It should return an array with the site ids" do
@@ -15,7 +16,7 @@ describe Cute::G5KAPI do
   end
 
   it "It should return an array with the clusters ids" do
-    expect(@p.cluster_uids(@sites.first).class).to eq(Array)
+    expect(@p.cluster_uids(@rand_site).class).to eq(Array)
   end
 
 
@@ -25,11 +26,11 @@ describe Cute::G5KAPI do
   end
 
   it "It should return a Json Hash with the status of a site" do
-    expect(@p.site_status(@sites.first).class).to eq(Cute::G5KJson)
+    expect(@p.site_status(@rand_site).class).to eq(Cute::G5KJson)
   end
 
   it "It should return a Hash with nodes status" do
-    expect(@p.nodes_status(@sites.first).class).to eq(Hash)
+    expect(@p.nodes_status(@rand_site).class).to eq(Hash)
     expect(@p.nodes_status(@rand_site).length).to be > 1
   end
 
@@ -38,7 +39,7 @@ describe Cute::G5KAPI do
   end
 
   it "it should not return any job" do
-    expect(@p.get_my_jobs(@sites.first).empty?).to eq(true)
+    expect(@p.get_my_jobs(@rand_site).empty?).to eq(true)
   end
 
   it "it should return the same information" do
@@ -91,8 +92,10 @@ describe Cute::G5KAPI do
   end
 
   it "it should submit a job with OAR hierarchy" do
-   job1 = @p.reserve(:site => @rand_site, :switches => 2, :nodes=>1, :cpus => 1, :cores => 1,:walltime => '00:10:00')
-   job2 = @p.reserve(:site => @rand_site, :resources => "/switch=2/nodes=1/cpu=1/core=1",:walltime => '00:10:00')
+   job1 = @p.reserve(:site => @rand_site, :switches => 2, :nodes=>1, :cpus => 1, :cores => 1,
+                      :keys => "/home/#{ENV['G5K_USER']}/.ssh/id_rsa",:walltime => '00:10:00')
+   job2 = @p.reserve(:site => @rand_site, :resources => "/switch=2/nodes=1/cpu=1/core=1",
+                     :keys => "/home/#{ENV['G5K_USER']}/.ssh/id_rsa",:walltime => '00:10:00')
 
    expect(@p.get_my_jobs(@rand_site).length).to eq(2)
 

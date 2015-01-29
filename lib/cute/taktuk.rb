@@ -334,7 +334,7 @@ module Cute
                       'worksteal-behavior', 'time-granularity', 'no-numbering', 'timeout',
                       'cache-limit', 'window','window-adaptation','not-root','debug'
                      ]
-      WRAPPER_VALID = [ 'streams' ]
+      WRAPPER_VALID = [ 'streams', 'port', 'keys', 'user', 'config' ] # user is an alias for login
 
       def check(optname)
         ret = optname.to_s.gsub(/_/,'-').strip
@@ -343,6 +343,8 @@ module Cute
       end
 
       def to_cmd
+
+        self[:login] = self[:user] if keys.include?(:user)
         self.keys.inject([]) do |ret,opt|
           if not WRAPPER_VALID.include?(opt.to_s) then
             ret << "--#{check(opt)}"
@@ -450,12 +452,10 @@ module Cute
 
       def initialize(hostlist,options = {:connector => 'ssh'})
         @binary = 'taktuk'
-        @options = Options[options]
-
-        options.merge!({ :streams => [:output, :error, :status ] }) if options[:streams].nil?
+        @options = Options[options.merge({ :streams => [:output, :error, :status ] })] if options[:streams].nil?
 
         @streams = { }
-        options[:streams].each{ |str|
+        @options[:streams].each{ |str|
           raise ArgumentError.new("'Invalid Stream for taktuk '#{str}'") unless VALID_STREAMS.include?(str)
           case str
           when :output
@@ -498,6 +498,9 @@ module Cute
           @args << '-o'
           @args << "#{name.to_s}#{temp}"
         end
+        connector = build_connector
+        @args += ["--connector", "#{connector}"] unless connector.nil?
+
         @args += @hostlist.to_cmd
         @args += @commands.to_cmd
 
@@ -534,6 +537,21 @@ module Cute
         @curthread = nil
 
         results
+      end
+
+      def build_connector()
+        ssh_options = [:keys, :port, :config]
+        connector = nil
+        if @options.keys.map{ |opt| ssh_options.include?(opt)}.any?
+          connector = "ssh"
+          connector += " -p #{@options[:port]}" if @options[:port]
+          if @options[:keys]
+            keys = @options[:keys].is_a?(Array) ? @options[:keys].first : @options[:keys]
+            connector += " -i #{keys}"
+          end
+          connector += " -F #{@options[:config]}" if @options[:config]
+        end
+        return connector
       end
 
       # It executes the commands so far stored in the @commands variable
