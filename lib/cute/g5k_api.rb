@@ -340,7 +340,7 @@ module Cute
     def get_subnets(site)
       jobs = get_my_jobs(site)
       subnets = []
-      jobs.each{ |j| subnets += @g5k_connection.get_json(j.rel_self).resources["subnets"] }
+      jobs.each{ |j| subnets += j.resources["subnets"]}
       subnets.map!{|s| IPAddress::IPv4.new s }
     end
 
@@ -358,7 +358,7 @@ module Cute
       end
     end
 
-    # releases a resource
+    # releases a resource, it can be a job or a deploy.
     def release(r)
       begin
         return @g5k_connection.delete_json(r.rel_self)

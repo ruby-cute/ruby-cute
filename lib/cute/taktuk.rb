@@ -609,6 +609,16 @@ module Cute
         @commands << ';' # TakTuk command separator
       end
 
+      # It transfer a file specified in source into dest
+      def put(source,dest)
+        mode = "broadcast"
+        @commands << "#{mode} put"
+        @commands << "[ #{source} ]"
+        @commands << "[ #{dest} ]"
+        @commands << ';' # TakTuk command separator
+      end
+
+
       # It executes a command on multiple hosts capturing the output,
       # and other information related with the execution.
       # It blocks until the command finishes.
