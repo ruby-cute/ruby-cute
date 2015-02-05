@@ -1,10 +1,10 @@
 require 'spec_helper'
 
-describe Cute::G5KAPI do
+describe Cute::G5K::API do
 
   before :all do
 
-    @p = Cute::G5KAPI.new()
+    @p = Cute::G5K::API.new()
     @sites = @p.site_uids
     #Choosing a random site
     @rand_site = @sites[rand(@sites.length-1)]
@@ -26,7 +26,7 @@ describe Cute::G5KAPI do
   end
 
   it "It should return a Json Hash with the status of a site" do
-    expect(@p.site_status(@rand_site).class).to eq(Cute::G5KJson)
+    expect(@p.site_status(@rand_site).class).to eq(Cute::G5K::G5KJSON)
   end
 
   it "It should return a Hash with nodes status" do
@@ -35,7 +35,7 @@ describe Cute::G5KAPI do
   end
 
   it "It should return an array with site status" do
-    expect(@p.sites.class).to eq(Cute::G5KArray)
+    expect(@p.sites.class).to eq(Cute::G5K::G5KArray)
   end
 
   it "it should not return any job" do
@@ -45,14 +45,14 @@ describe Cute::G5KAPI do
   it "it should return the same information" do
     #low level REST access
     jobs_running = @p.rest.get_json("sid/sites/#{@rand_site}/jobs/?state=running").items.length
-    expect(@p.get_jobs(@rand_site,"running").length).to eq(jobs_running)
+    expect(@p.get_jobs(@rand_site,nil,"running").length).to eq(jobs_running)
   end
 
   it "it should submit a job" do
     cluster = @p.cluster_uids(@rand_site).first
     expect(@p.reserve(:site => @rand_site,
                       :nodes => 1, :time => '00:10:00',
-                      :subnets => [22,2], :cluster => cluster).class).to eq(Cute::G5KJson)
+                      :subnets => [22,2], :cluster => cluster).class).to eq(Cute::G5K::G5KJSON)
     sleep 1
     # It verifies that the job has been submitted
     expect(@p.get_my_jobs(@rand_site).empty? && @p.get_my_jobs(@rand_site,"waiting").empty?).to eq(false)
@@ -67,7 +67,7 @@ describe Cute::G5KAPI do
   it "it should delete a job" do
     # Deleting the job
     @p.release_all(@rand_site)
-    sleep 3
+    sleep 5
     expect(@p.get_my_jobs(@rand_site).empty? && @p.get_my_jobs(@rand_site,"waiting").empty?).to eq(true)
   end
 

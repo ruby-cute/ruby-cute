@@ -6,13 +6,16 @@ BIN_DIR= File.join(ROOT_DIR,"bin")
 
 if `which pry` && $?.success? then
   PRY_BIN="pry"
-else
+elsif File.exist?("~/.gem/bin/pry")
   PRY_BIN="~/.gem/bin/pry"
+else
+  # We use the default ruby interactive shell
+  PRY_BIN="irb"
 end
 
 
 cute_init_file = File.open("#{Dir.mktmpdir}/cute_init.rb",'w+')
-cute_init_file.puts "require 'bundler'\nBundler.setup\nrequire 'cute'\n$g5k = Cute::G5KAPI.new()"
+cute_init_file.puts "require 'cute'\n$g5k = Cute::G5K::API.new()"
 cute_init_file.close
 
 

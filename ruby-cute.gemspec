@@ -17,13 +17,13 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib"]
   s.add_development_dependency "bundler", "~> 1.7"
   s.add_development_dependency "rake", "~> 10.0"
-  s.add_development_dependency "rspec"
+  s.add_development_dependency "rspec", "~> 3.1"
   s.add_development_dependency "pry", "~> 0.10"
 
   s.add_dependency 'rest-client', '1.6.7'
   s.add_dependency 'json', '~> 1.8.1'
-  s.add_dependency 'ipaddress', '~>0.8.0'
-  s.add_dependency 'net-ssh-multi', '~>1.2.0'
+  s.add_dependency 'ipaddress', '~>0.8'
+  s.add_dependency 'net-ssh-multi', '~>1.2'
 
   s.extra_rdoc_files = ['README.md', 'LICENSE']
   s.license = 'CeCILL-B'
