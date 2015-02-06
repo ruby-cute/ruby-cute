@@ -255,28 +255,6 @@ module Cute
     #                                :env => 'wheezy-x64-base')
     #
     #
-    # == Complex reservation
-    #
-    # The method {Cute::G5K::API#reserve reserve} support several parameters to perform more complex reservations.
-    # The script below reserves 2 nodes in the cluster *chirloute* located in Lille for 1 hour as well as 2 /22 subnets.
-    # 2048 IP addresses will be available that can be used, for example, in virtual machines.
-    #
-    #     require 'cute'
-    #
-    #     g5k = Cute::G5K::API.new()
-    #
-    #     job = g5k.reserve(:site => 'lille', :cluster => 'chirloute', :nodes => 2,
-    #                            :time => '01:00:00', :env => 'wheezy-x64-xen',
-    #                            :keys => "~/.ssh/id_rsa",
-    #                            :subnets => [22,2])
-    #
-    # *VLANS* are supported by adding the parameter *:vlan => type* where type can be: *:routed*, *:local*, *:global*.
-    # If walltime is not specified, 1 hour walltime will be assigned to the reservation.
-    #
-    #     job = g5k.reserve(:nodes => 1, :site => 'nancy',
-    #                            :vlan => :local, :env => 'wheezy-x64-xen')
-    #
-    #
     # In order to deploy your own environment,
     # you have to put the tar file that contains the operating system you want to deploy and
     # the environment description file, under the public directory of a given site.
@@ -285,7 +263,66 @@ module Cute
     #     job = g5k.reserve(:site => "lille", :nodes => 1,
     #                            :env => 'https://public.lyon.grid5000.fr/~user/debian_custom_img.yaml')
     #
+    # == Subnet reservation and network isolation
     #
+    # The script below reserves 2 nodes in the cluster *chirloute* located in Lille for 1 hour as well as 2 /22 subnets.
+    # We will get 2048 IP addresses that can be used, for example, in virtual machines.
+    #
+    #     require 'cute'
+    #
+    #     g5k = Cute::G5K::API.new()
+    #
+    #     job = g5k.reserve(:site => 'lille', :cluster => 'chirloute', :nodes => 2,
+    #                            :time => '01:00:00', :env => 'wheezy-x64-xen',
+    #                            :keys => "~/my_ssh_jobkey",
+    #                            :subnets => [22,2])
+    #
+    # *VLANS* are supported by adding the parameter *:vlan => type* where type can be: *:routed*, *:local*, *:global*.
+    # If walltime is not specified, 1 hour walltime will be assigned to the reservation.
+    #
+    #     job = g5k.reserve(:nodes => 1, :site => 'nancy',
+    #                            :vlan => :local, :env => 'wheezy-x64-xen')
+    #
+    # These parameters are shortcuts, you can specify the same thing using OAR syntax:
+    #
+    #    job = g5k.reserve(:site => 'nancy', :resources => "{type='kavlan-local'}/vlan=1,nodes=1", :env => 'wheezy-x64-xen')
+    #
+    # == Another useful methods
+    #
+    # For getting a list of sites available in Grid'5000 you can use:
+    #
+    #     g5k.site_uids() #=> ["grenoble", "lille", "luxembourg", "lyon",...]
+    #
+    # We can get the status of nodes in a given site by using:
+    #
+    #     g5k.nodes_status("lyon") #=> {"taurus-2.lyon.grid5000.fr"=>"besteffort",
+    #                              #    "taurus-16.lyon.grid5000.fr"=>"besteffort",
+    #                              #    "taurus-15.lyon.grid5000.fr"=>"besteffort", ...}
+    #
+    # It is possible to redeploy an environment over the reserved resources using the {Cute::G5K::API#deploy deploy} method,
+    # you need to specify an environment and optionally a key for your deployment.
+    # This method will not block until the deployment is done, for that you have to use the {Cute::G5K::API#wait_for_deploy wait_for_deploy} method.
+    #
+    #    g5k.deploy(job,"squeeze-x64-nfs",:keys => "~/my_ssh_jobkey") #=> deploy data structure
+    #
+    # This method will return a job data structure and update the job passed as a parameter.
+    # Either can be used with the method {Cute::G5K::API#wait_for_deploy wait_for_deploy}.
+    #
+    #    g5k.wait_for_deploy(job)
+    #
+    # We can get information about our submitted jobs by using:
+    #
+    #    g5k.get_my_jobs("grenoble") #=> [{"uid"=>1679094,
+    #                                #     "user_uid"=>"cruizsanabria",
+    #                                #     "user"=>"cruizsanabria",
+    #                                #     "walltime"=>3600,
+    #                                #     "queue"=>"default",
+    #                                #     "state"=>"running", ...}, ...]
+    #
+    # If we are done with our experiment, we can release the submitted job or all jobs in a given site as follows:
+    #
+    #    g5k.release(job)
+    #    g5k.release_all("grenoble")
     class API
 
       attr_accessor :logger
@@ -457,7 +494,7 @@ module Cute
         return jobs
       end
 
-      # @return [Array] with the subnets reserved
+      # @return [Array] all the subnets reserved in a given site
       # @param site [String] a valid Grid'5000 site name
       def get_subnets(site)
         jobs = get_my_jobs(site)
@@ -466,7 +503,7 @@ module Cute
         subnets.map!{|s| IPAddress::IPv4.new s }
       end
 
-      # releases all jobs on a site
+      # Releases all jobs on a site
       # @param site [String] a valid Grid'5000 site name
       def release_all(site)
         Timeout.timeout(20) do
@@ -480,7 +517,7 @@ module Cute
         end
       end
 
-      # releases a resource, it can be a job or a deploy.
+      # Releases a resource, it can be a job or a deploy.
       def release(r)
         begin
           return @g5k_connection.delete_json(r.rel_self)
@@ -618,7 +655,7 @@ module Cute
 
         job = @g5k_connection.get_json(r.rel_self)
         job = wait_for_job(job) if async != true
-        job["deploy"] = deploy(job,opts) if type == :deploy
+        deploy(job,opts) if type == :deploy
         return job
 
       end
@@ -648,7 +685,7 @@ module Cute
         return job
       end
 
-      # deploy an environment in a set of reserved nodes using Kadeploy
+      # Deploy an environment in a set of reserved nodes using Kadeploy
       # @param job [Hash] job structure
       # @param opts [Hash] options structure, it expects :env and optionally :public_key
       def deploy(job, opts = {})
@@ -687,8 +724,9 @@ module Cute
         rescue => e
           raise e
         end
+        job["deploy"] = r
 
-        return r
+        return job
 
       end
 
@@ -708,7 +746,7 @@ module Cute
       def wait_for_deploy(job,wait_time = 36000)
         did = job["deploy"].is_a?(Array)? job["deploy"].first : job["deploy"]
         Timeout.timeout(wait_time) do
-          while deploy_status(job)["status"] == "processing" do
+          while deploy_status(job)["status"] != "terminated" do
             info "Waiting for deployment #{did["uid"]}"
             sleep 4
           end
