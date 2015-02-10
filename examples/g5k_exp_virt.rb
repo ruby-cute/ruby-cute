@@ -47,7 +47,7 @@ template = ERB.new(File.read("#{vm_dir}/vm-template.xml"))
 vms = []
 
 G5K_SITES.each{ |site|
-  subnet  = g5k.get_subnets(site).first
+  subnet  = jobs[site].resources["subnets"]
   ips = subnet.map{ |ip| ip.to_s }
   num_vm.times{ |n|
     @vm_name = "node#{n}.#{site}"

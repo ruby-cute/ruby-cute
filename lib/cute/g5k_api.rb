@@ -28,9 +28,61 @@ module Cute
 
     end
 
-    # Provides an abstraction for handling G5K responses
+    # Provides an abstraction for handling G5K responses.
     # @api private
     # @see https://api.grid5000.fr/doc/3.0/reference/grid5000-media-types.html
+    # When this structure is used to describe jobs, it is expected to have the
+    # following fields which depend on the version of the API.
+    #      {"uid"=>604692,
+    #       "user_uid"=>"name",
+    #       "user"=>"name",
+    #       "walltime"=>3600,
+    #       "queue"=>"default",
+    #       "state"=>"running",
+    #       "project"=>"default",
+    #       "name"=>"rubyCute job",
+    #       "types"=>["deploy"],
+    #       "mode"=>"PASSIVE",
+    #       "command"=>"./oarapi.subscript.ZzvnM",
+    #       "submitted_at"=>1423575384,
+    #       "scheduled_at"=>1423575386,
+    #       "started_at"=>1423575386,
+    #       "message"=>"FIFO scheduling OK",
+    #       "properties"=>"(deploy = 'YES') AND maintenance = 'NO'",
+    #       "directory"=>"/home/name",
+    #       "events"=>[],
+    #       "links"=>[{"rel"=>"self", "href"=>"/sid/sites/nancy/jobs/604692", "type"=>"application/vnd.grid5000.item+json"},
+    #                 {"rel"=>"parent", "href"=>"/sid/sites/nancy", "type"=>"application/vnd.grid5000.item+json"}],
+    #       "resources_by_type"=>
+    #        {"cores"=>
+    #           ["griffon-8.nancy.grid5000.fr",
+    #            "griffon-8.nancy.grid5000.fr",
+    #            "griffon-8.nancy.grid5000.fr",
+    #            "griffon-8.nancy.grid5000.fr",
+    #            "griffon-9.nancy.grid5000.fr",
+    #            "griffon-9.nancy.grid5000.fr",
+    #            "griffon-9.nancy.grid5000.fr",
+    #            "griffon-9.nancy.grid5000.fr",
+    #            "griffon-77.nancy.grid5000.fr",
+    #            "griffon-77.nancy.grid5000.fr",
+    #            "griffon-77.nancy.grid5000.fr",
+    #            "griffon-77.nancy.grid5000.fr",
+    #            "vlans"=>["5"]},
+    #       "assigned_nodes"=>["griffon-8.nancy.grid5000.fr", "griffon-9.nancy.grid5000.fr", "griffon-77.nancy.grid5000.fr"],
+    #       "deploy"=>
+    #          {"created_at"=>1423575401,
+    #           "environment"=>"http://public.sophia.grid5000.fr/~nniclausse/openmx.dsc",
+    #           "key"=>"https://api.grid5000.fr/sid/sites/nancy/files/cruizsanabria-key-84f3f1dbb1279bc1bddcd618e26c960307d653c5",
+    #           "nodes"=>["griffon-8.nancy.grid5000.fr", "griffon-9.nancy.grid5000.fr", "griffon-77.nancy.grid5000.fr"],
+    #           "site_uid"=>"nancy",
+    #           "status"=>"processing",
+    #           "uid"=>"D-751096de-0c33-461a-9d27-56be1b2dd980",
+    #           "updated_at"=>1423575401,
+    #           "user_uid"=>"cruizsanabria",
+    #           "vlan"=>5,
+    #           "links"=>
+    #              [{"rel"=>"self", "href"=>"/sid/sites/nancy/deployments/D-751096de-0c33-461a-9d27-56be1b2dd980", "type"=>"application/vnd.grid5000.item+json"},
+
     class G5KJSON < Hash
 
       def items
@@ -503,6 +555,19 @@ module Cute
         subnets.map!{|s| IPAddress::IPv4.new s }
       end
 
+      # @return [Array] all the nodes in the VLAN
+      # @param job [G5KJSON] as described in {Cute::G5K::G5KJSON job}
+      def get_kvlan_nodes(job)
+        if job["deploy"].nil?
+          return nil
+        else
+          vlan_id = job["deploy"].is_a?(Array)? job["deploy"].first["vlan"] : job["deploy"]["vlan"]
+        end
+        nodes = job["assigned_nodes"]
+        reg = /^(\w+-\d+)(\..*)$/
+        nodes.map {|name| reg.match(name)[1]+"-kavlan-"+vlan_id.to_s+reg.match(name)[2]}
+      end
+
       # Releases all jobs on a site
       # @param site [String] a valid Grid'5000 site name
       def release_all(site)
@@ -542,6 +607,7 @@ module Cute
       #                )
       #
       # The parameter :resources can replace :site, : walltime, :cluster, etc, which are shortcuts for OAR syntax.
+      # @return [G5KJSON] as described in {Cute::G5K::G5KJSON job}
       # @param opts [Hash] options compatible with OAR
       def reserve(opts)
 
@@ -686,8 +752,9 @@ module Cute
       end
 
       # Deploy an environment in a set of reserved nodes using Kadeploy
-      # @param job [Hash] job structure
+      # @param job [G5KJSON] as described in {Cute::G5K::G5KJSON job}
       # @param opts [Hash] options structure, it expects :env and optionally :public_key
+      # @return [G5KJSON] a job with deploy information as described in {Cute::G5K::G5KJSON job}
       def deploy(job, opts = {})
 
         nodes = job['assigned_nodes']
@@ -731,7 +798,7 @@ module Cute
       end
 
       # @return deploy status
-      # @param job [Hash] job structure
+      # @param job [G5KJSON] as described in {Cute::G5K::G5KJSON job}
       def deploy_status(job)
         r = job["deploy"].is_a?(Array)? job["deploy"].first : job["deploy"]
         return nil if r.nil?
@@ -741,7 +808,7 @@ module Cute
       end
 
       # waits for a deployment to have a terminated status
-      # @param job [Hash] job structure
+      # @param job [G5KJSON] as described in {Cute::G5K::G5KJSON job}
       # @param wait_time [Fixnum] wait time before raising an exception, default 10h
       def wait_for_deploy(job,wait_time = 36000)
         did = job["deploy"].is_a?(Array)? job["deploy"].first : job["deploy"]
