@@ -174,11 +174,13 @@ For example, some sites do not have the filed 'ib20g' to YES, they probabily hav
 
 Ruby-Cute is maintained by the Algorille team at LORIA/Inria Nancy - Grand Est, and specifically by:
 
-* Sébastien Badia <sebastien.badia@inria.fr>
-* Tomasz Buchert <tomasz.buchert@inria.fr>
+* Cristian Ruiz <cristian.ruiz@inria.fr>
 * Emmanuel Jeanvoine <emmanuel.jeanvoine@inria.fr>
 * Lucas Nussbaum <lucas.nussbaum@loria.fr>
+
+Past contributors include:
+* Sébastien Badia <sebastien.badia@inria.fr>
+* Tomasz Buchert <tomasz.buchert@inria.fr>
 * Luc Sarzyniec <luc.sarzyniec@inria.fr>
-* Cristian Ruiz <cristian.ruiz@inria.fr>
 
 Questions/comments should be directed to Lucas Nussbaum and Emmanuel Jeanvoine.
