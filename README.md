@@ -179,6 +179,7 @@ Ruby-Cute is maintained by the Algorille team at LORIA/Inria Nancy - Grand Est, 
 * Lucas Nussbaum <lucas.nussbaum@loria.fr>
 
 Past contributors include:
+
 * Sébastien Badia <sebastien.badia@inria.fr>
 * Tomasz Buchert <tomasz.buchert@inria.fr>
 * Luc Sarzyniec <luc.sarzyniec@inria.fr>
