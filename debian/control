@@ -2,14 +2,16 @@ Source: ruby-cute
 Section: ruby
 Priority: optional
 Maintainer: Lucas Nussbaum <lucas@debian.org>
-Build-Depends: debhelper (>= 8~), gem2deb (>= 0.3.0~), rake, yard, ruby-redcloth, bc
-Standards-Version: 3.9.3
+Build-Depends: debhelper (>= 8~), gem2deb, ruby-rspec, rake, yard
+Standards-Version: 3.9.5
 Homepage: http://ruby-cute.gforge.inria.fr/
+Testsuite: autopkgtest
 XS-Ruby-Versions: all
 
 Package: ruby-cute
 Architecture: all
 XB-Ruby-Versions: ${ruby:Versions}
 Depends: ${shlibs:Depends}, ${misc:Depends}, ruby | ruby-interpreter
+# bundler (~> 1.7, development), rake (~> 10.0, development), rspec (~> 3.1, development), pry (~> 0.10, development), rest-client (= 1.6.7), json (~> 1.8.1), ipaddress (~> 0.8), net-ssh-multi (~> 1.2)
 Description: Critically Useful Tools for Experiments
-
+ Ruby library for controlling experiments
