@@ -2,14 +2,15 @@ require 'spec_helper'
 
 describe Cute::G5K::API do
 
-  before :all do
 
+  before :each do
     @p = Cute::G5K::API.new()
     @sites = @p.site_uids
     #Choosing a random site
     @rand_site = @sites[rand(@sites.length-1)]
     puts "Warning G5K_USER environment variable has to be defined for some tests" if ENV['G5K_USER'].nil?
   end
+
 
   it "It should return an array with the site ids" do
     expect(@p.site_uids.class).to eq(Array)
