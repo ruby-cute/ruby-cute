@@ -793,9 +793,9 @@ module Cute
             r = @g5k_connection.post_json(api_uri("sites/#{site}/jobs"),payload)  # This makes reference to the same class
           end
         rescue => e
-          info "Fail posting the json to the API"
+          info "Fail to submit job"
           info e.message
-          info e.http_body
+          e.http_body.split("\\n").each{ |line| info line}
           raise
         end
 
@@ -874,7 +874,6 @@ module Cute
                    'environment' => env,
                    'key' => public_key_file,
                   }
-
         if !job.resources["vlans"].nil?
           vlan = job.resources["vlans"].first
           payload['vlan'] = vlan
@@ -886,8 +885,12 @@ module Cute
         begin
           r = @g5k_connection.post_json(api_uri("sites/#{site}/deployments"), payload)
         rescue => e
-          raise e
+          info "Fail to deploy"
+          info e.message
+          e.http_body.split("\\n").each{ |line| info line}
+          raise
         end
+
         job["deploy"] = [] if job["deploy"].nil?
 
         job["deploy"].push(r)
