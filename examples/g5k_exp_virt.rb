@@ -1,17 +1,16 @@
+# = Virtualization example on Grid'5000
+
+# This script implements the example virtualization and subnet reservation in Grid'5000.
+# In a nutshell, a machine and a sub network is reserved per site.
+# Configuration files are generated to make kvm vms take the IPs addresses reserved, then several virtual
+# machines are booted per machine (default 2). At the end all virtual machines are contacted via SSH.
+# The example is described in https://www.grid5000.fr/mediawiki/index.php/Virtualization_on_Grid%275000
+
 require 'grid5000/subnets'
-require 'bundler'
-Bundler.setup  # Use this when working in development mode.
 require 'cute'
 require 'net/scp'
 
-
-# This script implements the example Virtualization on Grid'5000 and subnet reservation in Grid'5000.
-# In a nutshell, a machine and a sub network is reserved per site.
-# Configuration files are generated to make kvm vms take the IPs addresses reserved, then several virtual
-# machines are booted per machine (default 2). At the end all virtual machines are contacted vis SSH.
-# The example is described in https://www.grid5000.fr/mediawiki/index.php/Virtualization_on_Grid%275000
-
-g5k = Cute::G5KAPI.new()
+g5k = Cute::G5K::API.new()
 # We reuse a job if there is one available.
 G5K_SITES = [:lille, :rennes, :lyon, :grenoble]
 
@@ -47,7 +46,7 @@ template = ERB.new(File.read("#{vm_dir}/vm-template.xml"))
 vms = []
 
 G5K_SITES.each{ |site|
-  subnet  = jobs[site].resources["subnets"]
+  subnet  = g5k.get_subnets(jobs[site]).first
   ips = subnet.map{ |ip| ip.to_s }
   num_vm.times{ |n|
     @vm_name = "node#{n}.#{site}"
@@ -66,8 +65,7 @@ puts("vm's ip assigned #{vms.inspect}")
 Cute::TakTuk.start(nodes, grid5000_opt) do |tak|
 
   tak.exec!("mkdir -p ~/vm_definitions")
-  #Taktuk put doest work with big files
-  # tak.put("/home/cruizsanabria/wheezy-x64-base.qcow2","/tmp/wheezy-x64-base.qcow2")
+
   tak.exec("wget -q -O /tmp/wheezy-x64-base.qcow2 http://public.nancy.grid5000.fr/~cruizsanabria/wheezy-x64-base.qcow2")
   puts("Transfering configuration files")
   Dir.entries(vm_dir).each{ |vm_file|
@@ -108,6 +106,7 @@ end
 
 puts("Waiting for the machines to start")
 sleep 60
+
 # Executing some commands on the vms
 
 Net::SSH::Multi.start do |session|
