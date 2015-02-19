@@ -475,8 +475,13 @@ module Cute
       #
       #     g5k = Cute::G5K::API.new(:on_error => :ignore)
       #
-      # Other valid parameters are :username, :password.
-      # @param params [Hash] contains initialization parameters.
+      # @param [Hash] params contains initialization parameters.
+      # @option params [String] :conf_file Path for configuration file
+      # @option params [String] :uri REST API URI to contact
+      # @option params [String] :version Version of the REST API to use
+      # @option params [String] :username Username to access the REST API
+      # @option params [String] :password Password to access the REST API
+      # @option params [Symbol] :on_error Set to :ignore if you want to ignore {Cute::G5K::RequestFailed ResquestFailed} exceptions.
       def initialize(params={})
         config = {}
         default_file = "#{ENV['HOME']}/.grid5000_api.yml"
@@ -728,21 +733,7 @@ module Cute
         end
       end
 
-      # Helper for making the reservations the easy way. These are the supported parameters:
-      #
-      #     reserve(:nodes => 1, # number of nodes to reserve
-      #             :walltime => '01:00:00', # walltime of the reservation
-      #             :site => "nancy", # Grid'5000 site
-      #             :type => :deploy, # type of reservation: :deploy, :allow_classic_ssh
-      #             :name => "my reservation", # name to be assigned to the reservation
-      #             :cluster=> "graphene", # name of the cluster
-      #             :subnets => [prefix_size, 2], # subnet reservation
-      #             :env => "wheezy-x64-big", # environment name for kadeploy
-      #             :vlan => :routed, # VLAN type
-      #             :properties => "wattmeter='YES'", #
-      #             :resources => "{cluster='graphene'}/nodes=2+{cluster='griffon'}/nodes=3", # OAR syntax for complex submissions.
-      #             :wait => true # whether or not to wail until the job is running
-      #             )
+      # Performs a reservation in Grid'5000.
       #
       # = Examples
       #
@@ -814,7 +805,19 @@ module Cute
       # If walltime is not specified, 1 hour walltime will be assigned to the reservation.
       #
       # @return [G5KJSON] as described in {Cute::G5K::G5KJSON job}
-      # @param opts [Hash] options compatible with OAR
+      # @param [Hash] opts  Options for reservation in Grid'5000
+      # @option opts [Numeric] :nodes Number of nodes to reserve
+      # @option opts [String] :walltime Walltime of the reservation
+      # @option opts [String] :site Grid'5000 site
+      # @option opts [Symbol] :type Type of reservation: :deploy, :allow_classic
+      # @option opts [String] :name Reservation name
+      # @option opts [String] :cluster Valid Grid'5000 cluster
+      # @option opts [Array] :subnets prefix_size, number subnet reservation
+      # @option opts [String] :env Environment name for {http://kadeploy3.gforge.inria.fr/ Kadeploy}
+      # @option opts [Symbol] :vlan Vlan type: :routed, :local, :global
+      # @option opts [String] :properties OAR properties defined in the cluster
+      # @option opts [String] :resources OAR syntax for complex submissions
+      # @option opts [Boolean] :wait Whether or not to wait until the job is running (default is true)
       def reserve(opts)
 
         nodes = opts.fetch(:nodes, 1)
@@ -989,7 +992,7 @@ module Cute
         return job
       end
 
-      # Deploy an environment in a set of reserved nodes using {http://kadeploy3.gforge.inria.fr/ Kadeploy}.
+      # Deploys an environment in a set of reserved nodes using {http://kadeploy3.gforge.inria.fr/ Kadeploy}.
       # A job structure returned by {Cute::G5K::API#reserve reserve} or {Cute::G5K::API#get_my_jobs get_my_jobs} methods
       # is mandatory as a parameter as well as the environment to deploy.
       # By default this method do not block, for that you have to set the option :wait to 'true'.
@@ -1005,7 +1008,11 @@ module Cute
       #    deploy(job, :nodes => ["genepi-2.grid5000.fr"], :env => "wheezy-x64-xen", :keys => "~/my_key")
       #
       # @param job [G5KJSON] as described in {Cute::G5K::G5KJSON job}
-      # @param opts [Hash] options structure
+      # @param [Hash] opts Deploy options
+      # @option opts [String] :env {http://kadeploy3.gforge.inria.fr/ Kadeploy} environment to deploy
+      # @option opts [String] :nodes Specifies the nodes to deploy on
+      # @option opts [String] :keys Specifies the SSH keys to copy for the deployment
+      # @option opts [Boolean] :wait Whether or not to wait until the deployment is done (default is false)
       # @return [G5KJSON] a job with deploy information as described in {Cute::G5K::G5KJSON job}
       def deploy(job, opts = {})
 
