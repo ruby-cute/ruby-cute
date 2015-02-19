@@ -48,18 +48,14 @@ describe Cute::G5K::API do
     expect(@p.get_jobs(@rand_site,nil,"running").length).to eq(jobs_running)
   end
 
-  it "it should submit a job" do
+  it "it should submit a job with subnet reservation" do
     cluster = @p.cluster_uids(@rand_site).first
-    expect(@p.reserve(:site => @rand_site,
-                      :nodes => 1, :time => '00:10:00',
-                      :subnets => [22,2], :cluster => cluster).class).to eq(Cute::G5K::G5KJSON)
+    job = @p.reserve(:site => @rand_site, :nodes => 1, :time => '00:10:00',:subnets => [22,2], :cluster => cluster)
+    expect(job.class).to eq(Cute::G5K::G5KJSON)
     sleep 1
     # It verifies that the job has been submitted
     expect(@p.get_my_jobs(@rand_site).empty? && @p.get_my_jobs(@rand_site,"waiting").empty?).to eq(false)
-  end
-
-  it "it should return job subnets" do
-    subnets = @p.get_subnets(@rand_site)
+    subnets = @p.get_subnets(job)
     expect(subnets.first.class).to eq(IPAddress::IPv4)
     expect(subnets.length).to eq(2)
   end
@@ -67,7 +63,7 @@ describe Cute::G5K::API do
   it "it should delete a job" do
     # Deleting the job
     @p.release_all(@rand_site)
-    sleep 5
+    sleep 20
     expect(@p.get_my_jobs(@rand_site).empty? && @p.get_my_jobs(@rand_site,"waiting").empty?).to eq(true)
   end
 
@@ -79,15 +75,15 @@ describe Cute::G5K::API do
     # It verifies that the job has been submitted with deploy
     expect(@p.get_my_jobs(@rand_site).empty? && @p.get_my_jobs(@rand_site,"waiting").empty?).to eq(false)
     expect(@p.get_my_jobs(@rand_site).first["deploy"].empty?).to eq(false)
-    expect(@p.deploy_status(job)["status"].class).to eq(String)
+    expect(@p.deploy_status(job).class).to eq(Array)
     @p.wait_for_deploy(job)
-    expect(@p.deploy_status(job)["status"]).to eq("terminated")
+    expect(@p.deploy_status(job)).to eq(["terminated"])
   end
 
   it "it should delete a job" do
     # Deleting the job
     @p.release_all(@rand_site)
-    sleep 3
+    sleep 20
     expect(@p.get_my_jobs(@rand_site).empty? && @p.get_my_jobs(@rand_site,"waiting").empty?).to eq(true)
   end
 
