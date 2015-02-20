@@ -820,6 +820,11 @@ module Cute
       # @option opts [Boolean] :wait Whether or not to wait until the job is running (default is true)
       def reserve(opts)
 
+        # checking valid options
+        valid_opts = [:nodes, :walltime, :site, :type, :name, :cluster, :subnets, :env, :vlan, :properties, :resources, :wait]
+        unre_opts = opts.keys - valid_opts
+        raise ArgumentError, "Unrecognized option #{unre_opts}" unless unre_opts.empty?
+
         nodes = opts.fetch(:nodes, 1)
         walltime = opts.fetch(:walltime, '01:00:00')
         at = opts[:at]
@@ -1015,6 +1020,11 @@ module Cute
       # @option opts [Boolean] :wait Whether or not to wait until the deployment is done (default is false)
       # @return [G5KJSON] a job with deploy information as described in {Cute::G5K::G5KJSON job}
       def deploy(job, opts = {})
+
+        # checking valid options
+        valid_opts = [:env, :nodes, :keys, :wait]
+        unre_opts = opts.keys - valid_opts
+        raise ArgumentError, "Unrecognized option #{unre_opts}" unless unre_opts.empty?
 
         nodes = opts[:nodes].nil? ? job['assigned_nodes'] : opts[:nodes]
         raise "Unrecognized nodes format" unless nodes.is_a?(Array)
