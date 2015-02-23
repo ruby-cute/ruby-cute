@@ -23,7 +23,8 @@ end
 desc "Generate basic Documentation"
 
 YARD::Rake::YardocTask.new do |t|
-  t.files   = ['lib/**/*.rb', '-', 'docs/g5k_exp_virt.md']
+
+t.files   = ['lib/**/*.rb', '-', 'examples/*.rb']
   t.options = ['--title',"Ruby CUTE #{get_version}"]
 end
 
