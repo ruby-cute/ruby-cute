@@ -564,7 +564,12 @@ module Cute
       def environment_uids(site)
         # environments are returned by the API following the format squeeze-x64-big-1.8
         # it returns environments without the version
-        return environments(site).uids.map{ |e| /(.*)-(.*)/.match(e)[1]}.uniq
+        environment_uids = environments(site).uids.map{ |e|
+          e_match = /(.*)-(.*)/.match(e)
+          new_name = e_match.nil? ? "" : e_match[1]
+        }
+
+        return environment_uids.uniq
       end
 
       # @return [Hash] all the status information of a given Grid'5000 site
@@ -821,7 +826,8 @@ module Cute
       def reserve(opts)
 
         # checking valid options
-        valid_opts = [:nodes, :walltime, :site, :type, :name, :cluster, :subnets, :env, :vlan, :properties, :resources, :wait]
+        valid_opts = [:site, :cluster, :switches, :cpus, :cores, :nodes, :walltime,
+                      :type, :name, :subnets, :env, :vlan, :properties, :resources, :wait, :keys]
         unre_opts = opts.keys - valid_opts
         raise ArgumentError, "Unrecognized option #{unre_opts}" unless unre_opts.empty?
 
@@ -1021,15 +1027,21 @@ module Cute
       # @return [G5KJSON] a job with deploy information as described in {Cute::G5K::G5KJSON job}
       def deploy(job, opts = {})
 
-        # checking valid options
-        valid_opts = [:env, :nodes, :keys, :wait]
+        # checking valid options, same as reserve option even though some option dont make any sense
+        valid_opts = [:site, :cluster, :switches, :cpus, :cores, :nodes, :walltime,
+                      :type, :name, :subnets, :env, :vlan, :properties, :resources, :wait, :keys]
+
         unre_opts = opts.keys - valid_opts
         raise ArgumentError, "Unrecognized option #{unre_opts}" unless unre_opts.empty?
 
-        nodes = opts[:nodes].nil? ? job['assigned_nodes'] : opts[:nodes]
-        raise "Unrecognized nodes format" unless nodes.is_a?(Array)
+        raise ArgumentError, "Unrecognized job format" unless job.is_a?(G5KJSON)
 
         env = opts[:env]
+        raise ArgumentError, "Environment must be given" if env.nil?
+
+        nodes = opts[:nodes].nil? ? job['assigned_nodes'] : opts[:nodes]
+        raise "Unrecognized nodes format. They should be specified using an Array" unless nodes.is_a?(Array)
+
         site = @g5k_connection.follow_parent(job).uid
 
         if opts[:keys].nil? then
@@ -1039,13 +1051,12 @@ module Cute
           public_key_file = File.read("#{File.expand_path(opts[:keys])}.pub")
         end
 
-        raise "Environment must be given" if env.nil?
-
         payload = {
                    'nodes' => nodes,
                    'environment' => env,
                    'key' => public_key_file,
                   }
+
         if !job.resources["vlans"].nil?
           vlan = job.resources["vlans"].first
           payload['vlan'] = vlan
@@ -1068,6 +1079,7 @@ module Cute
         job["deploy"].push(r)
 
         job = wait_for_deploy(job) if opts[:wait] == true
+
         return job
 
       end
@@ -1145,7 +1157,7 @@ module Cute
               status = deploy_status(job,{:nodes => nodes, :status => "processing"})
             end
             info "Deployment finished"
-            return status
+            return job
           end
         rescue Timeout::Error
           raise EventTimeout.new("Timeout triggered")
