@@ -247,7 +247,10 @@ module Cute
     #     require 'cute'
     #
     #     g5k = Cute::G5K::API.new()
+    #
     #     job = g5k.reserve(:nodes => 3, :site => 'nancy', :walltime => '01:00:00')
+    #
+    #     puts "Assigned nodes : #{job['assigned_nodes']}"
     #
     # If that is all you want to do, you can write that into a file, let's say *example.rb* and execute it using the Ruby interpreter.
     #
@@ -270,13 +273,16 @@ module Cute
     #
     #     g5k.wait_for_deploy(job)
     #
+    #     puts "Assigned nodes : #{job['assigned_nodes']}"
+    #
     # Your public ssh key located in ~/.ssh will be copied by default on the deployed machines,
     # you can specify another path for your keys with the option *:keys*.
     # In order to deploy your own environment, you have to put the tar file that contains the operating system you want to deploy and
     # the environment description file, under the public directory of a given site.
     # *VLANS* are supported by adding the parameter :vlan => type where type can be: *:routed*, *:local*, *:global*.
     # The following example, reserves 10 nodes in the Lille site, starts the deployment of a custom environment over the nodes
-    # and puts the nodes under a local isolated VLAN.
+    # and puts the nodes under a routed VLAN. We used the method {Cute::G5K::API#get_vlan_nodes get_vlan_nodes} to get the
+    # new hostnames assigned to your nodes.
     #
     #     require 'cute'
     #
@@ -284,7 +290,11 @@ module Cute
     #
     #     job = g5k.reserve(:site => "lille", :nodes => 10,
     #                       :env => 'https://public.lyon.grid5000.fr/~user/debian_custom_img.yaml',
-    #                       :vlan => :local, :keys => "~/my_ssh_key")
+    #                       :vlan => :routed, :keys => "~/my_ssh_key")
+    #
+    #     g5k.wait_for_deploy(job)
+    #
+    #     puts "Log in into the nodes using the following hostnames: #{g5k.get_vlan_nodes(job)}"
     #
     # If you do not want that the method {Cute::G5K::API#reserve reserve} perform the deployment for you, you have to use the option :type => :deploy.
     # This can be useful when deploying different environments in your reserved nodes. For example deploying the environments for a small HPC cluster.
@@ -297,13 +307,16 @@ module Cute
     #
     #     nodes = job["assigned_nodes"]
     #
-    #     master = nodes[0]
     #     slaves = nodes[1..4]
+    #     master = nodes-slaves
     #
     #     g5k.deploy(job,:nodes => master, :env => 'https://public.lyon.grid5000.fr/~user/debian_master_img.yaml')
     #     g5k.deploy(job,:nodes => slaves, :env => 'https://public.lyon.grid5000.fr/~user/debian_slaves_img.yaml')
     #
     #     g5k.wait_for_deploy(job)
+    #
+    #     puts "master node: #{master}"
+    #     puts "slaves nodes: #{slaves}"
     #
     # You can check out the documentation of {Cute::G5K::API#reserve reserve} and {Cute::G5K::API#deploy deploy} methods
     # to know all the parameters supported and more complex uses.
@@ -348,19 +361,31 @@ module Cute
     #    [13] pry(main)> $g5k.release_all("grenoble")
     class API
 
+      # Assigns a logger
+      #
+      # = Examples
+      # You can use this attribute to control how to log all messages produce by {Cute::G5K::API G5K::API}.
+      # For example, below we use the logger available in Ruby standard library.
+      #
+      #     require 'cute'
+      #     require 'logger'
+      #
+      #     g5k = Cute::G5K::API.new()
+      #
+      #     g5k.logger = Logger.new(File.new('experiment_1.log'))
       attr_accessor :logger
       # Initializes a REST connection for Grid'5000 API
       #
       # = Examples
       # You can specify another configuration file using the option :conf_file, for example:
       #
-      #     g5k = Cute::G5K::API.new({:conf_file =>"config file path"})
+      #     g5k = Cute::G5K::API.new(:conf_file =>"config file path")
       #
       # Or you can specify other parameter to use:
       #
-      #     g5k = Cute::G5K::API.new({:uri => "https://api.grid5000.fr"})
+      #     g5k = Cute::G5K::API.new(:uri => "https://api.grid5000.fr", :version => "sid")
       #
-      # Other valid parameters are :username, :password, :version.
+      # Other valid parameters are :username, :password.
       # @param params [Hash] contains initialization parameters.
       def initialize(params={})
         config = {}
@@ -628,7 +653,8 @@ module Cute
       #             :resources => "{cluster='graphene'}/nodes=2+{cluster='griffon'}/nodes=3" # OAR syntax for complex submissions.
       #             )
       #
-      # = Examples of reservations with properties:
+      # = Examples
+      # == Reserving with properties
       #
       #     job = g5k.reserve(:site => 'lyon', :nodes => 2, :properties => "wattmeter='YES'")
       #
@@ -636,19 +662,7 @@ module Cute
       #
       #     job = g5k.reserve(:site => 'nancy', :nodes => 1, :properties => "cputype='Intel Xeon E5-2650'")
       #
-      # = Subnet reservation and network isolation
-      #
-      # The example below reserves 2 nodes in the cluster *chirloute* located in Lille for 1 hour as well as 2 /22 subnets.
-      # We will get 2048 IP addresses that can be used, for example, in virtual machines.
-      #
-      #     job = g5k.reserve(:site => 'lille', :cluster => 'chirloute', :nodes => 2,
-      #                            :time => '01:00:00', :env => 'wheezy-x64-xen',
-      #                            :keys => "~/my_ssh_jobkey",
-      #                            :subnets => [22,2])
-      #
-      # If walltime is not specified, 1 hour walltime will be assigned to the reservation.
-      #
-      # = Reserving with OAR hierarchy
+      # == Reserving with OAR hierarchy
       #
       # All non-deploy reservations are submitted by default with the OAR option "-allow_classic_ssh"
       # which does not take advantage of the CPU/core management level.
@@ -686,6 +700,18 @@ module Cute
       # reservation using a local VLAN
       #
       #     job = g5k.reserve(:site => 'nancy', :resources => "{type='kavlan-local'}/vlan=1,nodes=1", :env => 'wheezy-x64-xen')
+      #
+      # == Subnet reservation and network isolation
+      #
+      # The example below reserves 2 nodes in the cluster *chirloute* located in Lille for 1 hour as well as 2 /22 subnets.
+      # We will get 2048 IP addresses that can be used, for example, in virtual machines.
+      #
+      #     job = g5k.reserve(:site => 'lille', :cluster => 'chirloute', :nodes => 2,
+      #                            :time => '01:00:00', :env => 'wheezy-x64-xen',
+      #                            :keys => "~/my_ssh_jobkey",
+      #                            :subnets => [22,2])
+      #
+      # If walltime is not specified, 1 hour walltime will be assigned to the reservation.
       #
       # @return [G5KJSON] as described in {Cute::G5K::G5KJSON job}
       # @param opts [Hash] options compatible with OAR
@@ -844,7 +870,7 @@ module Cute
       # Other parameters you can specify are :nodes [Array] for deploying on specific nodes within a job and
       # :keys [String] to specify the public key to use during the deployment.
       #
-      #    deploy(job, :nodes => ["genepi-2.grid5000.fr"], :env => "wheezy-x64-xen", :keys => "~/my_key.pub")
+      #    deploy(job, :nodes => ["genepi-2.grid5000.fr"], :env => "wheezy-x64-xen", :keys => "~/my_key")
       #
       # @param job [G5KJSON] as described in {Cute::G5K::G5KJSON job}
       # @param opts [Hash] options structure
