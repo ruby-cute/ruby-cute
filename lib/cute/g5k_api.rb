@@ -240,7 +240,7 @@ module Cute
     # Consequently, these activities can be easily scripted using Ruby.
     # The advantage of this is that you can use all Ruby constructs (e.g., loops, conditionals, blocks, iterators, etc) to script your experiments,
     # some methods proposed by {Cute::G5K::API G5K::API} raise exceptions that you can handle to decide the workflow of your experiment
-    # (see {Cute::G5K::API#wait_for_deploy wait_for_deploy}).
+    # (see {Cute::G5K::API#wait_for_deploy wait_for_deploy} and {Cute::G5K::API#wait_for_deploy wait_for_job}).
     # Let's show how {Cute::G5K::API G5K::API} is used through an example, suppose we want to reserve 3 nodes in Nancy site for 1 hour.
     # In order to do that we would write something like this:
     #
@@ -256,22 +256,20 @@ module Cute
     #
     #     $ ruby example.rb
     #
-    # The execution will block until you got the reservation. You can then interact with the nodes you reserved the way you used to or
+    # The execution will block until you got the reservation. Then, you can interact with the nodes you reserved the way you used to or
     # add more code to the previous script for controlling your experiment with Ruby-Cute as shown in this {file:docs/g5k_exp_virt.md  example}.
     # We have just used the method {Cute::G5K::API#reserve reserve} that allow us to reserve resources in Grid'5000.
     # This method can be used to reserve resources in deployment mode and deploy our own software environment on them using
     # {http://kadeploy3.gforge.inria.fr/ Kadeploy}. For this we use the option *:env* of the {Cute::G5K::API#reserve reserve} method.
     # Therefore, it will first reserve the resources and then deploy the specified environment.
-    # In this case {Cute::G5K::API#reserve reserve} will not block until the deployment is done, for that you have to execute
-    # the method {Cute::G5K::API#wait_for_deploy wait_for_deploy}. The following Ruby script illustrates all we have just said.
+    # The method {Cute::G5K::API#reserve reserve} will block until the deployment is done.
+    # The following Ruby script illustrates all we have just said.
     #
     #     require 'cute'
     #
     #     g5k = Cute::G5K::API.new()
     #
     #     job = g5k.reserve(:nodes => 1, :site => 'grenoble', :walltime => '00:40:00', :env => 'wheezy-x64-base')
-    #
-    #     g5k.wait_for_deploy(job)
     #
     #     puts "Assigned nodes : #{job['assigned_nodes']}"
     #
@@ -292,12 +290,14 @@ module Cute
     #                       :env => 'https://public.lyon.grid5000.fr/~user/debian_custom_img.yaml',
     #                       :vlan => :routed, :keys => "~/my_ssh_key")
     #
-    #     g5k.wait_for_deploy(job)
     #
     #     puts "Log in into the nodes using the following hostnames: #{g5k.get_vlan_nodes(job)}"
     #
     # If you do not want that the method {Cute::G5K::API#reserve reserve} perform the deployment for you, you have to use the option :type => :deploy.
     # This can be useful when deploying different environments in your reserved nodes. For example deploying the environments for a small HPC cluster.
+    # You have to use the method {Cute::G5K::API#deploy deploy} for performing the deploy.
+    # This method do not block, that is why you have to use the method {Cute::G5K::API#wait_for_deploy wait_for_deploy} in order to block the execution
+    # until the deployment is done.
     #
     #     require 'cute'
     #
@@ -572,11 +572,11 @@ module Cute
       # Valid states are specified in {https://api.grid5000.fr/doc/4.0/reference/spec.html Grid'5000 API spec}
       # @return [Array] all my submitted jobs to a given site and their associated deployments.
       # @param site [String] a valid Grid'5000 site name
-      def get_my_jobs(site, state="running")
-        jobs = get_jobs(site, g5k_user,state)
+      def get_my_jobs(site, state = "running")
+        jobs = get_jobs(site, g5k_user, state)
         deployments = get_deployments(site, g5k_user)
-        # filtering deployments
-        jobs.map{ |j| j["deploy"] = deployments.select{ |d| d["created_at"] > j["started_at"]} }
+        # filtering deployments only the job in state running make sense
+        jobs.map{ |j| j["deploy"] = deployments.select{ |d| d["created_at"] > j["started_at"]} if j["state"] == "running"}
         return jobs
       end
 
@@ -619,7 +619,7 @@ module Cute
       # @param site [String] a valid Grid'5000 site name
       def release_all(site)
         Timeout.timeout(20) do
-          jobs = get_my_jobs(site)
+          jobs = get_my_jobs(site,"running") + get_my_jobs(site,"waiting")
           break if jobs.empty?
           begin
             jobs.each { |j| release(j) }
@@ -650,10 +650,20 @@ module Cute
       #             :env => "wheezy-x64-big", # environment name for kadeploy
       #             :vlan => :routed, # VLAN type
       #             :properties => "wattmeter='YES'", #
-      #             :resources => "{cluster='graphene'}/nodes=2+{cluster='griffon'}/nodes=3" # OAR syntax for complex submissions.
+      #             :resources => "{cluster='graphene'}/nodes=2+{cluster='griffon'}/nodes=3", # OAR syntax for complex submissions.
+      #             :wait => true # whether or not to wail until the job is running
       #             )
       #
       # = Examples
+      #
+      # By default this method blocks until the reservation is ready,
+      # if we want this method to return after creating the reservation we set the option :wait to 'false'.
+      # Then, you can use the method {Cute::G5K::API#wait_for_job wait_for_job} to wait for the reservation.
+      #
+      #     job = g5k.reserve(:nodes => 25, :site => 'luxembourg', :walltime => '01:00:00', :wait => false)
+      #
+      #     job = g5k.wait_for_job(job, :wait_time => 100)
+      #
       # == Reserving with properties
       #
       #     job = g5k.reserve(:site => 'lyon', :nodes => 2, :properties => "wattmeter='YES'")
@@ -724,7 +734,7 @@ module Cute
         type = opts[:type]
         name = opts.fetch(:name, 'rubyCute job')
         command = opts[:cmd]
-        async = opts[:async]
+        opts[:wait] = true if opts[:wait].nil?
         ignore_dead = opts[:ignore_dead]
         cluster = opts[:cluster]
         switches = opts[:switches]
@@ -826,21 +836,48 @@ module Cute
         end
 
         job = @g5k_connection.get_json(r.rel_self)
-        job = wait_for_job(job) if async != true
+        job = wait_for_job(job) if opts[:wait] == true
         opts.delete(:nodes) # to not collapse with deploy options
         deploy(job,opts) unless opts[:env].nil? #type == :deploy
         return job
 
       end
 
-      # waits for a job to be in a running state
-      # @param job [String] valid job identifier
-      # @param wait_time [Fixnum] wait time before raising an exception, default 10h
-      def wait_for_job(job,wait_time = 36000)
-
-        jid = job
+      # Blocks until job is in running state,
+      # you can passe the parameter :wait_time that allows you to timeout the submission (by default is 10h).
+      # The method will throw a Timeout::Error exception
+      # that you can catch and react upon.
+      #
+      # = Example
+      # This method along with the parameter :wait_time can be used to decide what to do if a job takes to long to be assigned.
+      # The following example shows how can be used, let's suppose we want to find 5 nodes available for
+      # 3 hours. We can try in each site using the script below.
+      #
+      #    require 'cute'
+      #
+      #    g5k = Cute::G5K::API.new()
+      #
+      #    sites = g5k.site_uids
+      #
+      #    sites.each{ |site|
+      #       job = g5k.reserve(:site => site, :nodes => 5, :wait => false, :walltime => "03:00:00")
+      #       begin
+      #         job = g5k.wait_for_job(job, :wait_time => 60)
+      #         puts "Nodes assigned #{job['assigned_nodes']}"
+      #         break
+      #       rescue  Timeout::Error
+      #         puts "We waited too long in site #{site} let's release the job and try in another site"
+      #         g5k.release(job)
+      #       end
+      #    }
+      #
+      # @param job [G5KJSON] as described in {Cute::G5K::G5KJSON job}
+      # @param opts [Hash] options
+      def wait_for_job(job,opts={})
+        opts[:wait_time] = 36000 if opts[:wait_time].nil?
+        jid = job['uid']
         info "Waiting for reservation #{jid}"
-        Timeout.timeout(wait_time) do
+        Timeout.timeout(opts[:wait_time]) do
           while true
             job = job.refresh(@g5k_connection)
             t = job['scheduled_at']
@@ -861,11 +898,12 @@ module Cute
       # Deploy an environment in a set of reserved nodes using {http://kadeploy3.gforge.inria.fr/ Kadeploy}.
       # A job structure returned by {Cute::G5K::API#reserve reserve} or {Cute::G5K::API#get_my_jobs get_my_jobs} methods
       # is mandatory as a parameter as well as the environment to deploy.
+      # By default this method do not block, for that you have to set the option :wait to 'true'.
       #
       # = Examples
-      # Deploying the production environment *wheezy-x64-base* on all the reserved nodes:
+      # Deploying the production environment *wheezy-x64-base* on all the reserved nodes and wait until the deployment is done:
       #
-      #    deploy(job, :env => "wheezy-x64-base")
+      #    deploy(job, :env => "wheezy-x64-base", :wait => true)
       #
       # Other parameters you can specify are :nodes [Array] for deploying on specific nodes within a job and
       # :keys [String] to specify the public key to use during the deployment.
@@ -878,12 +916,9 @@ module Cute
       def deploy(job, opts = {})
 
         nodes = opts[:nodes].nil? ? job['assigned_nodes'] : opts[:nodes]
-
         raise "Unrecognized nodes format" unless nodes.is_a?(Array)
 
         env = opts[:env]
-
-
         site = @g5k_connection.follow_parent(job).uid
 
         if opts[:keys].nil? then
@@ -921,6 +956,7 @@ module Cute
 
         job["deploy"].push(r)
 
+        job = wait_for_deploy(job) if opts[:wait] == true
         return job
 
       end
@@ -981,9 +1017,12 @@ module Cute
       # @param job [G5KJSON] as described in {Cute::G5K::G5KJSON job}
       # @param opts [Hash] options
       def wait_for_deploy(job,opts = {})
+
+        raise "Deploy information not present in the given job" if job["deploy"].nil?
+
         opts.merge!({:wait_time => 36000}) if opts[:wait_time].nil?
         nodes = opts[:nodes]
-#        did = job["deploy"].is_a?(Array)? job["deploy"].first : job["deploy"]
+
         Timeout.timeout(opts[:wait_time]) do
           # it will ask just for processing status
           status = deploy_status(job,{:nodes => nodes, :status => "processing"})
@@ -995,6 +1034,7 @@ module Cute
           info "Deployment finished"
           return status
         end
+
       end
 
       private
