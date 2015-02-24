@@ -382,7 +382,7 @@ module Cute
     # If you do not want that the method {Cute::G5K::API#reserve reserve} perform the deployment for you, you have to use the option :type => :deploy.
     # This can be useful when deploying different environments in your reserved nodes. For example deploying the environments for a small HPC cluster.
     # You have to use the method {Cute::G5K::API#deploy deploy} for performing the deploy.
-    # This method do not block, that is why you have to use the method {Cute::G5K::API#wait_for_deploy wait_for_deploy} in order to block the execution
+    # This method do not block by default, that is why you have to use the method {Cute::G5K::API#wait_for_deploy wait_for_deploy} in order to block the execution
     # until the deployment is done.
     #
     #     require 'cute'
@@ -463,7 +463,7 @@ module Cute
       # Initializes a REST connection for Grid'5000 API
       #
       # = Example
-      # You can specify another configuration file using the option :conf_file, for example:
+      # You can specify another configuration file using the option *:conf_file*, for example:
       #
       #     g5k = Cute::G5K::API.new(:conf_file =>"config file path")
       #
@@ -743,7 +743,7 @@ module Cute
       # = Examples
       #
       # By default this method blocks until the reservation is ready,
-      # if we want this method to return after creating the reservation we set the option :wait to 'false'.
+      # if we want this method to return after creating the reservation we set the option *:wait* to *false*.
       # Then, you can use the method {Cute::G5K::API#wait_for_job wait_for_job} to wait for the reservation.
       #
       #     job = g5k.reserve(:nodes => 25, :site => 'luxembourg', :walltime => '01:00:00', :wait => false)
@@ -774,12 +774,13 @@ module Cute
       #
       #     job = g5k.reserve(:site => "grenoble", :switches => 3, :nodes => 1, :cpus => 1, :cores => 1, :keys => "~/my_ssh_jobkey")
       #
-      # The previous reservation can be done as well using the OAR syntax:
+      # The parameter *:resources* can be used instead of parameters such as: *:cluster*, *:nodes*, *:cpus*, *:walltime*, etc, which are shortcuts for OAR syntax.
+      # Using the parameter *:resources* allows to express more flexible and complex reservations by using directly the OAR syntax.
+      # The previous reservation can be done as well using the parameter *:resources*.
       #
       #     job = g5k.reserve(:site => "grenoble", :resources => "/switch=3/nodes=1/cpu=1/core=1", :keys => "~/my_ssh_jobkey")
       #
-      # The parameter :resources can replace :site, : walltime, :cluster, etc, which are shortcuts for OAR syntax.
-      # This syntax allow to express more complex reservations. For example, combining OAR hierarchy with properties:
+      # Combining OAR hierarchy with properties:
       #
       #     job = g5k.reserve(:site => "grenoble", :resources => "{ib10g='YES' and memnode=24160}/cluster=1/nodes=2/core=1", :keys => "~/my_ssh_jobkey")
       #
@@ -793,7 +794,7 @@ module Cute
       #
       #     job = g5k.reserve(:site => "nancy", :resources => "{cluster='graphene'}/nodes=2+{cluster='griffon'}/nodes=3")
       #
-      # reservation using a local VLAN
+      # Reservation using a local VLAN
       #
       #     job = g5k.reserve(:site => 'nancy', :resources => "{type='kavlan-local'}/vlan=1,nodes=1", :env => 'wheezy-x64-xen')
       #
@@ -950,7 +951,7 @@ module Cute
       # Blocks until job is in *running* state
       #
       # = Example
-      # You can pass the parameter :wait_time that allows you to timeout the submission (by default is 10h).
+      # You can pass the parameter *:wait_time* that allows you to timeout the submission (by default is 10h).
       # The method will throw a {Cute::G5K::EventTimeout Timeout} exception
       # that you can catch and react upon.
       # The following example shows how can be used, let's suppose we want to find 5 nodes available for
@@ -1006,15 +1007,15 @@ module Cute
       # Deploys an environment in a set of reserved nodes using {http://kadeploy3.gforge.inria.fr/ Kadeploy}.
       # A job structure returned by {Cute::G5K::API#reserve reserve} or {Cute::G5K::API#get_my_jobs get_my_jobs} methods
       # is mandatory as a parameter as well as the environment to deploy.
-      # By default this method do not block, for that you have to set the option :wait to 'true'.
+      # By default this method do not block, for that you have to set the option *:wait* to *true*.
       #
       # = Examples
       # Deploying the production environment *wheezy-x64-base* on all the reserved nodes and wait until the deployment is done:
       #
       #    deploy(job, :env => "wheezy-x64-base", :wait => true)
       #
-      # Other parameters you can specify are :nodes [Array] for deploying on specific nodes within a job and
-      # :keys [String] to specify the public key to use during the deployment.
+      # Other parameters you can specify are *:nodes* [Array] for deploying on specific nodes within a job and
+      # *:keys* [String] to specify the public key to use during the deployment.
       #
       #    deploy(job, :nodes => ["genepi-2.grid5000.fr"], :env => "wheezy-x64-xen", :keys => "~/my_key")
       #
@@ -1117,11 +1118,11 @@ module Cute
       #
       #    wait_for_deploy(job)
       #
-      # You can wait for specific deployments using the option :nodes. This can be useful when performing different deployments on the reserved resources.
+      # You can wait for specific deployments using the option *:nodes*. This can be useful when performing different deployments on the reserved resources.
       #
       #    wait_for_deploy(job, :nodes => ["adonis-10.grenoble.grid5000.fr"])
       #
-      # Another parameter you can specify is :wait_time that allows you to timeout the deployment (by default is 10h).
+      # Another parameter you can specify is *:wait_time* that allows you to timeout the deployment (by default is 10h).
       # The method will throw a {Cute::G5K::EventTimeout Timeout} exception
       # that you can catch and react upon. This example illustrates how this can be used.
       #
