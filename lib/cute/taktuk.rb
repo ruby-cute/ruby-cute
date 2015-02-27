@@ -446,7 +446,7 @@ module Cute
 
     class TakTuk
       attr_accessor :streams,:binary
-      attr_reader :stdout,:stderr,:status, :args, :exec, :commands
+      attr_reader :stdout,:stderr,:status, :args, :exec_cmd, :commands
 
       VALID_STREAMS = [:output, :error, :status, :connector, :state, :info, :message, :taktuk ]
 
@@ -480,7 +480,7 @@ module Cute
         @stderr = nil
         @status = nil
 
-        @exec = nil
+        @exec_cmd = nil
         @curthread = nil
       end
 
@@ -506,12 +506,12 @@ module Cute
 
         hosts = @hostlist.to_a
         outputs_size = opts[:outputs_size] || 0
-        @exec = Execute[@binary,*@args].run!(
+        @exec_cmd = Execute[@binary,*@args].run!(
                                              :stdout_size => outputs_size * hosts.size,
                                              :stderr_size => outputs_size * hosts.size,
                                              :stdin => false
                                             )
-        @status, @stdout, @stderr, emptypipes = @exec.wait({:checkstatus=>false})
+        @status, @stdout, @stderr, emptypipes = @exec_cmd.wait({:checkstatus=>false})
 
 
         unless @status.success?
