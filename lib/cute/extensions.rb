@@ -2,14 +2,14 @@
 class String
 
   def to_secs
-    #return self.to_f if s.is_a?(Numeric)
+
     return Infinity if [ 'always', 'forever', 'infinitely' ].include?(self.to_s)
-    parts = self.to_s.split(':').map { |x| Integer(x) rescue nil }
+    parts = self.split(':').map { |x| x.to_i rescue nil }
     if parts.all? && [ 2, 3 ].include?(parts.length)
       secs = parts.zip([ 3600, 60, 1 ]).map { |x, y| x * y }.reduce(:+)
       return secs
     end
-    m = /^(\d+|\d+\.\d*)\s*(\w*)?$/.match(s)
+    m = /^(\d+|\d+\.\d*)\s*(\w*)?$/.match(self)
     num, unit = m.captures
     mul = case unit
           when '' then 1
