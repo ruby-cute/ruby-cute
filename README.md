@@ -10,18 +10,24 @@ Grid'5000.
 
 From sources:
 
-    $ git clone https://gforge.inria.fr/git/ruby-cute/ruby-cute.git
-    $ cd ruby-cute
-    $ gem build ruby-cute.gemspec
-    $ gem install ruby-cute-*.gem
+```bash
+$ git clone https://gforge.inria.fr/git/ruby-cute/ruby-cute.git
+$ cd ruby-cute
+$ gem build ruby-cute.gemspec
+$ gem install ruby-cute-*.gem
+```
 
 In Grid'5000 the installation procedure goes as follows:
 
+```bash
     $ gem install --user-install ruby-cute-*.gem
+```
 
 Then, type the following for having ruby cute in your path (this is only necessary if you want to use interactive mode).
 
+```bash
     $ export PATH=$PATH:$(ruby -e 'puts "#{Gem.user_dir}/bin"')
+```
 
 ## Overview
 
@@ -31,49 +37,64 @@ Ruby-Cute is structured in different modules that allows you to:
 
 - execute commands in several remote machines in parallel. Two modules are available for that:
 
-    - {Net::SSH::Multi Net::SSH::Multi} that uses the SSH protocol.
-    - {Cute::TakTuk Taktuk} which is a wrapper of {http://taktuk.gforge.inria.fr/  taktuk} parallel command executor.
+    - [Net::SSH::Multi](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Net/SSH/Multi) that uses the SSH protocol.
+    - [Taktuk](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/TakTuk)
+      which is a wrapper of [taktuk](http://taktuk.gforge.inria.fr) parallel command executor.
 
-An example of use of Ruby-Cute in a real use case is available in {file:docs/g5k_exp_virt.md  Virtualization on Grid'5000}.
+An example of use of Ruby-Cute in a real use case is available in
+[Virtualization on Grid'5000](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/file.g5k_exp_virt.html)
 
 ## Using pry -- an interactive ruby shell
 
 Sometimes it may be useful to work in interactive mode. For this we can use an interactive ruby shell such as irb that is shipped by default with
-Ruby, however, we highly recommend to use {http://pryrepl.org/ pry}, it features syntax highlighting, method auto completion and command shell integration.
+Ruby, however, we highly recommend to use [pry](http://pryrepl.org/), it features syntax highlighting, method auto completion and command shell integration.
 For installing pry type the following:
 
-    $ gem install pry
+```bash
+$ gem install pry
+```
 
 or, for installing in the user home directory:
 
-    $ gem install --user-install pry
+```bash
+$ gem install --user-install pry
+```
 
 When Ruby-Cute is installed, it provides a wrapper for an interactive shell that will
 automatically load the necessary libraries. The following will get a *pry* prompt (if installed).
 
-    $ cute
-    [1] pry(main)>
+```bash
+$ cute
+[1] pry(main)>
+```
 
 The variable *$g5k* is available which can be used to access the Grid'5000 API through the {Cute::G5K::API G5K Module}. For example,
 let's request the name of the sites available in Grid'5000.
 
-    [2] pry(main)> $g5k.site_uids()
-    => ["grenoble", "lille", "luxembourg", "lyon", "nancy", "nantes", "reims", "rennes", "sophia", "toulouse"]
+```bash
+[2] pry(main)> $g5k.site_uids()
+ => ["grenoble", "lille", "luxembourg", "lyon", "nancy", "nantes", "reims", "rennes", "sophia", "toulouse"]
+```
 
 We can get the status of nodes in a given site by using:
 
-    [8] pry(main)> $g5k.nodes_status("lyon")
-    => {"taurus-2.lyon.grid5000.fr"=>"besteffort", "taurus-16.lyon.grid5000.fr"=>"besteffort", "taurus-15.lyon.grid5000.fr"=>"besteffort", ...}
+```bash
+[8] pry(main)> $g5k.nodes_status("lyon")
+ => {"taurus-2.lyon.grid5000.fr"=>"besteffort", "taurus-16.lyon.grid5000.fr"=>"besteffort", "taurus-15.lyon.grid5000.fr"=>"besteffort", ...}
+```
 
-Within this shell you have preloaded {Cute::G5K::API G5K Module}, {Cute::TakTuk Taktuk} and {Net::SSH::Multi Net::SSH::Multi},
+Within this shell you have preloaded [G5K Module](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/G5K/API),
+[Taktuk](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/TakTuk) and
+[Net::SSH::Multi](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Net/SSH/Multi),
 you can go directly to their respective documentation to know how to take advantage of them.
 
 ### Experiment example
 
-The following example shows how to use the {Cute::G5K::API G5K Module} in an experiment.
+The following example shows how to use the [G5K Module](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/G5K/API) in an experiment.
 This example implements the experiment described in
-{https://www.grid5000.fr/mediawiki/index.php/Run_MPI_On_Grid%275000#Setting_up_and_starting_Open_MPI_to_use_high_performance_interconnect MPI on Grid5000}.
+[MPI on Grid5000](https://www.grid5000.fr/mediawiki/index.php/Run_MPI_On_Grid%275000#Setting_up_and_starting_Open_MPI_to_use_high_performance_interconnect).
 
+```ruby
     require 'cute'
     require 'net/scp'
 
@@ -112,7 +133,7 @@ This example implements the experiment described in
     end
 
     g5k.release(job) # Frees resources.
-
+```
 
 ## Contact information
 
