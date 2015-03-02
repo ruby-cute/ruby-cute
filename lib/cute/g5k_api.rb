@@ -825,18 +825,21 @@ module Cute
       # @option opts [String] :site Grid'5000 site
       # @option opts [Symbol] :type Type of reservation: :deploy, :allow_classic
       # @option opts [String] :name Reservation name
+      # @option opts [String] :cmd The command to execute when the job starts (e.g. ./my-script.sh).
       # @option opts [String] :cluster Valid Grid'5000 cluster
       # @option opts [Array]  :subnets 1) prefix_size, 2) number of subnets
       # @option opts [String] :env Environment name for {http://kadeploy3.gforge.inria.fr/ Kadeploy}
       # @option opts [Symbol] :vlan Vlan type: :routed, :local, :global
       # @option opts [String] :properties OAR properties defined in the cluster
       # @option opts [String] :resources OAR syntax for complex submissions
+      # @option opts [String] :reservation Request a job to be scheduled a specific date.
+      #                        The date format is "YYYY-MM-DD HH:MM:SS".
       # @option opts [Boolean] :wait Whether or not to wait until the job is running (default is true)
       def reserve(opts)
 
         # checking valid options
-        valid_opts = [:site, :cluster, :switches, :cpus, :cores, :nodes, :walltime,
-                      :type, :name, :subnets, :env, :vlan, :properties, :resources, :wait, :keys]
+        valid_opts = [:site, :cluster, :switches, :cpus, :cores, :nodes, :walltime, :cmd,
+                      :type, :name, :subnets, :env, :vlan, :properties, :resources, :reservation, :wait, :keys]
         unre_opts = opts.keys - valid_opts
         raise ArgumentError, "Unrecognized option #{unre_opts}" unless unre_opts.empty?
 
@@ -855,6 +858,7 @@ module Cute
         cores = opts[:cores]
         subnets = opts[:subnets]
         properties = opts[:properties]
+        reservation = opts[:reservation]
         resources = opts.fetch(:resources, "")
         type = :deploy if opts[:env]
         keys = opts[:keys]
@@ -910,9 +914,8 @@ module Cute
         info "Reserving resources: #{resources} (type: #{type}) (in #{site})"
 
         payload['properties'] = properties unless properties.nil?
-
-
         payload['types'] = [ type.to_s ] unless type.nil?
+        payload['reservation'] = reservation unless reservation.nil?
 
         if not type == :deploy
           if opts[:keys]
@@ -1037,8 +1040,8 @@ module Cute
       def deploy(job, opts = {})
 
         # checking valid options, same as reserve option even though some option dont make any sense
-        valid_opts = [:site, :cluster, :switches, :cpus, :cores, :nodes, :walltime,
-                      :type, :name, :subnets, :env, :vlan, :properties, :resources, :wait, :keys]
+        valid_opts = [:site, :cluster, :switches, :cpus, :cores, :nodes, :walltime, :cmd,
+                      :type, :name, :subnets, :env, :vlan, :properties, :resources, :reservation, :wait, :keys]
 
         unre_opts = opts.keys - valid_opts
         raise ArgumentError, "Unrecognized option #{unre_opts}" unless unre_opts.empty?
