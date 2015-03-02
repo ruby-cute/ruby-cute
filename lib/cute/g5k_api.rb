@@ -755,6 +755,17 @@ module Cute
       #
       #     job = g5k.wait_for_job(job, :wait_time => 100)
       #
+      # == Subnet reservation
+      #
+      # The example below reserves 2 nodes in the cluster *chirloute* located in Lille for 1 hour as well as 2 /22 subnets.
+      # We will get 2048 IP addresses that can be used, for example, in virtual machines.
+      # If walltime is not specified, 1 hour walltime will be assigned to the reservation.
+      #
+      #     job = g5k.reserve(:site => 'lille', :cluster => 'chirloute', :nodes => 2,
+      #                            :time => '01:00:00', :env => 'wheezy-x64-xen',
+      #                            :keys => "~/my_ssh_jobkey",
+      #                            :subnets => [22,2])
+      #
       # == Reserving with properties
       #
       #     job = g5k.reserve(:site => 'lyon', :nodes => 2, :properties => "wattmeter='YES'")
@@ -763,8 +774,7 @@ module Cute
       #
       #     job = g5k.reserve(:site => 'nancy', :nodes => 1, :properties => "cputype='Intel Xeon E5-2650'")
       #
-      # == Reserving with OAR hierarchy
-      #
+      # == Before using OAR hierarchy
       # All non-deploy reservations are submitted by default with the OAR option "-allow_classic_ssh"
       # which does not take advantage of the CPU/core management level.
       # Therefore, in order to take advantage of this capability, SSH keys have to be specified at the moment of reserving resources.
@@ -775,14 +785,18 @@ module Cute
       #
       # The reserved nodes can be accessed using "oarsh" or by configuring the SSH connection as shown in {https://www.grid5000.fr/mediawiki/index.php/OAR2 OAR2}.
       # You have to specify different keys per reservation if you want several jobs running at the same time in the same site.
-      # Examples using the OAR hierarchy:
+      # Example using the OAR hierarchy:
       #
       #     job = g5k.reserve(:site => "grenoble", :switches => 3, :nodes => 1, :cpus => 1, :cores => 1, :keys => "~/my_ssh_jobkey")
       #
-      # The parameter *:resources* can be used instead of parameters such as: *:cluster*, *:nodes*, *:cpus*, *:walltime*, etc, which are shortcuts for OAR syntax.
-      # Using the parameter *:resources* allows to express more flexible and complex reservations by using directly the OAR syntax.
-      # The previous reservation can be done as well using the parameter *:resources*.
+      # == Using OAR syntax
       #
+      # The parameter *:resources* can be used instead of parameters such as: *:cluster*, *:nodes*, *:cpus*, *:walltime*, *:vlan*, *:subnets*, *:properties*, etc,
+      # which are shortcuts for OAR syntax.
+      # Using the parameter *:resources* allows to express more flexible and complex reservations by using directly the OAR syntax.
+      # Therefore, the two examples shown below are equivalent:
+      #
+      #     job = g5k.reserve(:site => "grenoble", :switches => 3, :nodes => 1, :cpus => 1, :cores => 1, :keys => "~/my_ssh_jobkey")
       #     job = g5k.reserve(:site => "grenoble", :resources => "/switch=3/nodes=1/cpu=1/core=1", :keys => "~/my_ssh_jobkey")
       #
       # Combining OAR hierarchy with properties:
@@ -803,17 +817,6 @@ module Cute
       #
       #     job = g5k.reserve(:site => 'nancy', :resources => "{type='kavlan-local'}/vlan=1,nodes=1", :env => 'wheezy-x64-xen')
       #
-      # == Subnet reservation and network isolation
-      #
-      # The example below reserves 2 nodes in the cluster *chirloute* located in Lille for 1 hour as well as 2 /22 subnets.
-      # We will get 2048 IP addresses that can be used, for example, in virtual machines.
-      #
-      #     job = g5k.reserve(:site => 'lille', :cluster => 'chirloute', :nodes => 2,
-      #                            :time => '01:00:00', :env => 'wheezy-x64-xen',
-      #                            :keys => "~/my_ssh_jobkey",
-      #                            :subnets => [22,2])
-      #
-      # If walltime is not specified, 1 hour walltime will be assigned to the reservation.
       #
       # @return [G5KJSON] as described in {Cute::G5K::G5KJSON job}
       # @param [Hash] opts  Options for reservation in Grid'5000
@@ -823,7 +826,7 @@ module Cute
       # @option opts [Symbol] :type Type of reservation: :deploy, :allow_classic
       # @option opts [String] :name Reservation name
       # @option opts [String] :cluster Valid Grid'5000 cluster
-      # @option opts [Array] :subnets prefix_size, number subnet reservation
+      # @option opts [Array]  :subnets 1) prefix_size, 2) number of subnets
       # @option opts [String] :env Environment name for {http://kadeploy3.gforge.inria.fr/ Kadeploy}
       # @option opts [Symbol] :vlan Vlan type: :routed, :local, :global
       # @option opts [String] :properties OAR properties defined in the cluster
