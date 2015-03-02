@@ -22,19 +22,19 @@ class Execute
     @emptypipes = false
   end
 
-  #Free the command, stdout stderr string.
+  # Free the command, stdout stderr string.
   def free
     @command = nil
     @stdout = nil
     @stderr = nil
   end
 
-  #Same as new function
+  # Same as new function
   def self.[](*cmd)
     self.new(*cmd)
   end
 
-  #Initialize the pipes and return one array for parent and one array for child.
+  # Initialize the pipes and return one array for parent and one array for child.
   def self.init_ios(opts={:stdin => false})
     if opts[:stdin]
       in_r, in_w = IO::pipe
@@ -50,11 +50,12 @@ class Execute
   end
 
   # Launch the command provided by the constructor
-  #
-  # Arguments
-  #   opts: hash
-  #     :stdin, :stdout, :stderr  boolean to enable or disable pipe in respectively stdin,stdout and stderr.
-  #     :stdout_size, :stderr_size is number to limit the number of byte read by execute respectively on stdout or stderr.
+  # @param [Hash] opts run options
+  # @option opts [Boolean] :stdin enable or disable pipe in stdin
+  # @option opts [Boolean] :stdout enable or disable pipe in stdout
+  # @option opts [Boolean] :stderr enable or disable pipe in stderr
+  # @option opts [Fixnum] :stdout_size number to limit the number of byte read by execute stdout
+  # @option opts [Fixnum] :stderr_size number to limit the number of byte read by execute stderr
   def run(opts={:stdin => false})
     @lock.synchronize do
       if @run_thread
@@ -94,9 +95,8 @@ class Execute
     [@exec_pid, *@parent_io]
   end
 
-  #Write to stdin
-  #Argument:
-  #  String passed to process stdin.
+  # Write to stdin
+  # @param str [String] string passed to process stdin.
   def write_stdin(str)
     @lock.synchronize do
       if @parent_io and @parent_io[0] and !@parent_io[0].closed?
@@ -118,8 +118,7 @@ class Execute
   end
 
   # Run the command and return the Execute object.
-  # Arguments:
-  #   Opts see bellow
+  # @param [Hash] opts
   def run!(opts={:stdin => false})
     run(opts)
     self
@@ -127,12 +126,9 @@ class Execute
 
 
   # Wait the end of process
-  #
-  # Argument is hash
-  # :checkstatus : if it true at end of process it raises an exception if the result is not null.
-  #
-  # Output
-  # Array ( Process::Status, stdout String, stderr String, emptypipe).
+  # @param [Hash] opts wait options
+  # @option opts [Boolean] :checkstatus if it is true at end of process it raises an exception if the result is not null.
+  # @return [Array] Process::Status, stdout String, stderr String, emptypipe
   def wait(opts={:checkstatus => true})
     begin
       wkilled=true
@@ -197,8 +193,8 @@ class Execute
 
   private
 
-  #Launch kill_recurcive if in launched and it not already killed
-  #@killed becomes true.
+  # Launch kill_recurcive if in launched and it not already killed
+  # killed becomes true.
   def kill!()
     if @exec_pid && !@killed
       @killed = true
@@ -207,13 +203,11 @@ class Execute
     end
   end
 
-  #Read pipe and return out and boolean which indicate if pipe are empty.
-  #Arguments:
-  #  +num       : number of file descriptor
-  #  +size      : Maximum number of bytes must be read 0 is unlimited.
-  #  +emptypipes: Previous value of emptypipe the new value was obtained with logical and.
-  #Output:
-  #  Array (output: String, emptypipes: Boolean)
+  # Read pipe and return out and boolean which indicate if pipe are empty.
+  # @param num [Fixnum] number of file descriptor
+  # @param size [Fixnum] Maximum number of bytes must be read 0 is unlimited.
+  # @param emptypipes [Fixnum] Previous value of emptypipe the new value was obtained with logical and.
+  # @return [Array] output: String, emptypipes: Boolean
   def read_parent_io(num,size,emptypipes)
     out=''
     if @parent_io and @parent_io[num]
@@ -229,6 +223,7 @@ class Execute
     end
     [out,emptypipes]
   end
+
   # This function is made by children.
   # It redirect the stdin,stdout,stderr
   # Close another descriptor if we are in ruby < 2.0
