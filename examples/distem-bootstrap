@@ -1,10 +1,6 @@
 #!/usr/bin/ruby
 #
 # distem-bootstrap is a script to configure a set of nodes as distem nodes
-# after they have been successfully deployed. Example usage:
-#   oarsub -t deploy -l nodes=10,walltime=1 \
-#      'katapult3 -e squeeze-x64-min -c --sleep -- distem-bootstrap'
-#   see distem-bootstrap --help for more info.
 #
 ####
 # distem-bootstrap is Copyright (C) 2011 Luc Sarzyniec <luc.sarzyniec@inria.fr>
@@ -24,7 +20,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ######
 require 'rubygems'
-require 'net/ssh/multi'
 require 'socket'
 require 'tmpdir'
 require 'net/scp'
@@ -33,12 +28,7 @@ require 'yaml'
 require 'optparse'
 require 'timeout'
 require 'logger'
-require 'bundler'
-require 'pry'
-Bundler.setup
 require 'cute'
-
-
 
 logger = Logger.new(STDOUT)
 
@@ -215,14 +205,14 @@ end
 logger.level = Logger::INFO
 logger.level = Logger::DEBUG if options[:debug]
 
-g5k = Cute::G5KAPI.new()
+g5k = Cute::G5K::API.new()
 g5k.logger = logger
 ## performing reservation with ruby-cute
 
 reserv_param = {:site => g5k.site, :nodes => options[:num_nodes], :name => 'distem',
-                :time => options[:walltime], :env =>'wheezy-x64-nfs', :subnets => [22,1]}
+                :walltime => options[:walltime], :env =>'wheezy-x64-nfs', :subnets => [22,1]}
 
-reserv_param[:public_key] = options[:ssh_key] unless options[:ssh_key].nil?
+reserv_param[:keys] = options[:ssh_key] unless options[:ssh_key].nil?
 
 
 # we verify if we have already submit a job
@@ -286,7 +276,7 @@ Net::SSH::Multi.start do |session|
       nodeobjlist[coordinator] = session.use("root@#{coordinator}")
     end
     #test connection
-    session.with(:coord).exec "hostname"
+    session.with(:coord).exec! "hostname"
   rescue SocketError
     logger.error("can't connect to #{coordinator}")
   end
@@ -296,51 +286,51 @@ Net::SSH::Multi.start do |session|
       nodelist.each{ |node| session.use("root@#{node}")}
     end
     #test connection
-    session.with(:nodes).exec "hostname"
+    session.with(:nodes).exec! "hostname"
   rescue SocketError
     logger.error("can't connect to #{node}")
   end
 
 
   # Check nfs paths ## comment: this is probably unnecessary given that now we are controlling the deployment with rubycute.
-  tmp = session.exec "ls -a #{ENV['HOME']}"
+  tmp = session.exec! "ls -a #{ENV['HOME']}"
   nopath = allnodes - tmp.keys
   nopath.each do |node|
     logger.warn("NFS do not seems to be mounted on #{node} (check that you have deployed with NFS env")
   end
 
   # generating ssh password less connection
-  session.exec "cat .ssh/id_rsa.pub >> .ssh/authorized_keys"
+  session.exec! "cat .ssh/id_rsa.pub >> .ssh/authorized_keys"
 
   if options[:cow]
     logger.infor("Format #{options[:cow]} to Btrfs")
-    session.exec "(umount /tmp || true) && mkfs.btrfs #{options[:cow]} && mount -o compress=lzo #{options[:cow]} /tmp && chmod 1777 /tmp"
+    session.exec! "(umount /tmp || true) && mkfs.btrfs #{options[:cow]} && mount -o compress=lzo #{options[:cow]} /tmp && chmod 1777 /tmp"
   end
 
   #setting up ulimit-open_files, to be removed
   rule="root hard nofile"
-  session.exec "grep -q '#{rule}' /etc/security/limits.conf; true || echo '#{rule} #{ULIMIT_OPEN_FILES}' >> /etc/security/limits.conf"
+  session.exec! "grep -q '#{rule}' /etc/security/limits.conf; true || echo '#{rule} #{ULIMIT_OPEN_FILES}' >> /etc/security/limits.conf"
   rule="root soft nofile"
-  session.exec "grep -q '#{rule}' /etc/security/limits.conf; true || echo '#{rule} #{ULIMIT_OPEN_FILES}' >> /etc/security/limits.conf"
+  session.exec! "grep -q '#{rule}' /etc/security/limits.conf; true || echo '#{rule} #{ULIMIT_OPEN_FILES}' >> /etc/security/limits.conf"
 
   # setup Debian repo
-  session.exec "grep -q '#{DEB_REPOSITORY}' /etc/apt/sources.list || echo 'deb #{DEB_REPOSITORY} ./\ndeb-src #{DEB_REPOSITORY} ./' >> /etc/apt/sources.list"
+  session.exec! "grep -q '#{DEB_REPOSITORY}' /etc/apt/sources.list || echo 'deb #{DEB_REPOSITORY} ./\ndeb-src #{DEB_REPOSITORY} ./' >> /etc/apt/sources.list"
 
   logger.info "Updating debian packages list"
-  session.exec "apt-get update -q"
+  session.exec! "apt-get update -q"
 
   if options[:git] or options[:gerrit]
     logger.info("Installing debian build packages on #{coordinator}")
-    session.with(:coord).exec "apt-get build-dep -y --force-yes distem"
-    session.with(:coord).exec "DEBIAN_FRONTEND=noninteractive apt-get install -q -y #{pkg_build * ' '}" unless pkg_build.empty?
+    session.with(:coord).exec! "apt-get build-dep -y --force-yes distem"
+    session.with(:coord).exec! "DEBIAN_FRONTEND=noninteractive apt-get install -q -y #{pkg_build * ' '}" unless pkg_build.empty?
     unless pkg_build_gem.empty?
       logger.info("Installing gems build packages on #{coordinator}")
-      session.with(:corrd).exec "export http_proxy=#{HTTP_PROXY}; gem install #{pkg_build_gem * ' '}"
+      session.with(:corrd).exec! "export http_proxy=#{HTTP_PROXY}; gem install #{pkg_build_gem * ' '}"
     end
 
     gitdir = "#{TMP_DIR}/git"
-    session.exec "mkdir -p #{TMP_DIR}"
-    session.with(:coord).exec "rm -Rf #{gitdir}"
+    session.exec! "mkdir -p #{TMP_DIR}"
+    session.with(:coord).exec! "rm -Rf #{gitdir}"
 
     if options[:git]
       if options[:ci] != nil
@@ -349,61 +339,64 @@ Net::SSH::Multi.start do |session|
       else
         logger.info("Retrieving '#{options[:git_url]}' repository on #{coordinator}")
         if g5k?
-          session.with(:coord).exec "https_proxy=#{HTTP_PROXY} GIT_SSL_NO_VERIFY=1 git clone #{options[:git_url]} #{gitdir}"
+          session.with(:coord).exec! "https_proxy=#{HTTP_PROXY} GIT_SSL_NO_VERIFY=1 git clone #{options[:git_url]} #{gitdir}"
         else
-          session.with(:coord).exec "GIT_SSL_NO_VERIFY=1 git clone #{options[:git_url]} #{gitdir}"
+          session.with(:coord).exec! "GIT_SSL_NO_VERIFY=1 git clone #{options[:git_url]} #{gitdir}"
         end
         unless options[:git] == :git_last
           logger.info("Setting up git repository ref:#{options[:git]} on #{coordinator}")
-          session.with(:corrd).exec "git --git-dir=#{gitdir}/.git reset --hard #{options[:git]}"
+          session.with(:corrd).exec! "git --git-dir=#{gitdir}/.git reset --hard #{options[:git]}"
         end
       end
     else # gerrit
       logger.info("Setting up git repository from gerrit ref:#{options[:gerrit]} on #{coordinator}")
-      session.with(:coord).exec "git clone #{GERRIT_REPOSITORY} #{gitdir}"
-      session.with(:coord).exec "cd #{gitdir} && git fetch #{GERRIT_REPOSITORY} #{options[:gerrit]} && git checkout FETCH_HEAD"
+      session.with(:coord).exec! "git clone #{GERRIT_REPOSITORY} #{gitdir}"
+      session.with(:coord).exec! "cd #{gitdir} && git fetch #{GERRIT_REPOSITORY} #{options[:gerrit]} && git checkout FETCH_HEAD"
     end
     logger.info("Building debian package of distem on #{coordinator}")
-    session.with(:coord).exec "rm -f #{TMP_DIR}/*.deb #{TMP_DIR}/*.changes #{TMP_DIR}/*.dsc #{TMP_DIR}/*.tar.gz"
-    session.with(:coord).exec "cd #{gitdir}; rake snapshot"
+    session.with(:coord).exec! "rm -f #{TMP_DIR}/*.deb #{TMP_DIR}/*.changes #{TMP_DIR}/*.dsc #{TMP_DIR}/*.tar.gz"
+    session.with(:coord).exec! "cd #{gitdir}; rake snapshot"
 
-    debarchivefile = session.with(:coord).exec "find #{TMP_DIR} -maxdepth 1 -name *.deb"
+    debarchivefile = session.with(:coord).exec! "find #{TMP_DIR} -maxdepth 1 -name *.deb"
 
-    session.with(:coord).exec "Copying generated debian package #{File.basename(debarchivefile)}"
+    session.with(:coord).exec! "Copying generated debian package #{File.basename(debarchivefile)}"
 
     #exec(session,"cp #{debarchivefile} #{TMP_DIR}",:coord,true)
-    nodelist.each {|node| session.with(:coord).exec "scp -o StrictHostKeyChecking=no #{debarchivefile} root@#{node}:#{TMP_DIR}"}
+    nodelist.each {|node| session.with(:coord).exec! "scp -o StrictHostKeyChecking=no #{debarchivefile} root@#{node}:#{TMP_DIR}"}
     logger.info("Installing generated debian package #{File.basename(debarchivefile)}")
-    depends = session.with(:coord).exec "dpkg -I #{debarchivefile} | grep 'Depends:'"
+    depends = session.with(:coord).exec! "dpkg -I #{debarchivefile} | grep 'Depends:'"
 
     depends = depends.split("|").last.gsub!(' ','')
-    session.exec "dpkg --ignore-depends #{depends} -i #{TMP_DIR}/#{File.basename(debarchivefile)}"
+    session.exec! "dpkg --ignore-depends #{depends} -i #{TMP_DIR}/#{File.basename(debarchivefile)}"
 
-    session.exec "DEBIAN_FRONTEND=noninteractive apt-get install -q -y --force-yes -f"
+    session.exec! "DEBIAN_FRONTEND=noninteractive apt-get install -q -y --force-yes -f"
     logger.info("Cleaning installation files on #{coordinator}")
-    session.with(:coord).exec "rm -Rf #{gitdir}"
-    session.with(:coord).exec "rm -f #{TMP_DIR}/*.deb #{TMP_DIR}/*.changes #{TMP_DIR}/*.dsc #{TMP_DIR}/*.tar.gz"
+    session.with(:coord).exec! "rm -Rf #{gitdir}"
+    session.with(:coord).exec! "rm -f #{TMP_DIR}/*.deb #{TMP_DIR}/*.changes #{TMP_DIR}/*.dsc #{TMP_DIR}/*.tar.gz"
   else
     logger.info("Installing debian distem packages")
     distempkg = options[:distem_version] ? "#{PKG_NAME}=#{options[:distem_version]}":PKG_NAME
-    session.exec "DEBIAN_FRONTEND=noninteractive apt-get install -q -y --allow-unauthenticated #{distempkg}"
+    session.exec! "DEBIAN_FRONTEND=noninteractive apt-get install -q -y --allow-unauthenticated #{distempkg}"
   end
 
   logger.info("Installing debian misc packages")
-  session.exec "DEBIAN_FRONTEND=noninteractive apt-get install -q -y #{pkg_tmp_dependencies * ' '}" unless pkg_tmp_dependencies.empty?
-  session.exec "DEBIAN_FRONTEND=noninteractive apt-get install -q -y #{pkg_utils * ' '}" unless pkg_utils.empty?
+  session.exec! "DEBIAN_FRONTEND=noninteractive apt-get install -q -y #{pkg_tmp_dependencies * ' '}" unless pkg_tmp_dependencies.empty?
+  session.exec! "DEBIAN_FRONTEND=noninteractive apt-get install -q -y #{pkg_utils * ' '}" unless pkg_utils.empty?
   options[:debpackages].each do |debpkg|
     logger.info("Installing additional debian package '#{debpkg}'")
-    session.exec "DEBIAN_FRONTEND=noninteractive apt-get install -q -y #{debpkg}"
+    session.exec! "DEBIAN_FRONTEND=noninteractive apt-get install -q -y #{debpkg}"
   end
   options[:gempackages].each do |gempkg|
     logger.info "Installing additional gem package '#{gempkg}'"
-    session.with(:coord).exec "export http_proxy=#{HTTP_PROXY}; gem install #{gempkg}"
+    session.with(:coord).exec! "export http_proxy=#{HTTP_PROXY}; gem install #{gempkg}"
   end
 
   if options[:init_pnodes] or ARGV[0]
-    launched = session.exec "lsof -Pnl -i4 | egrep ':4567 |:4568'"
-    unless launched.empty?
+
+    launched = session.exec! "lsof -Pnl -i4 | egrep ':4567 |:4568'"
+    launched_stdout = launched.values.select{ |x| x[:stdout] }
+
+    unless launched_stdout.empty?
       tokill = launched.keys
 
       session.group :tokill do
@@ -415,33 +408,34 @@ Net::SSH::Multi.start do |session|
       tokill.each { |node|
         logger.info("Killing previous run of distem on #{node}")
       }
-      session.with(:tokill).exec "killall distemd"
+      session.with(:tokill).exec! "killall distemd"
       time_start = Time.now
-      until !launched or launched.empty?
-        session.with(:tokill).exec 'kill -9 `ps aux|grep "distemd"|grep -v grep|sed "s/ \{1,\}/ /g"|cut -f 2 -d" "`' if (Time.now - time_start) > 2
-        launched = session.with(:tokill).exec "lsof -Pnl -i4 | egrep ':4567 |:4568 '"
+      until !launched_stdout or launched_stdout.empty?
+        session.with(:tokill).exec! 'kill -9 `ps aux|grep "distemd"|grep -v grep|sed "s/ \{1,\}/ /g"|cut -f 2 -d" "`' if (Time.now - time_start) > 2
+        launched = session.with(:tokill).exec! "lsof -Pnl -i4 | egrep ':4567 |:4568 '"
+        launched_stdout = launched.values.select{ |x| x[:stdout] }
 
-        if launched and !launched.empty?
+        if launched_stdout and !launched_stdout.empty?
           tokill = launched.keys
           tokill.collect!{ |node| nodeobjlist[node] }
         end
       end
     end
     logger.info("Starting coordinator daemon on #{coordinator}")
-    session.with(:coord).exec "mkdir -p #{PATH_DISTEMD_LOGS}"
+    session.with(:coord).exec! "mkdir -p #{PATH_DISTEMD_LOGS}"
     begin
       Timeout.timeout(10) do
         root_iface_opt = options[:network_interface] ? "--network-interface #{options[:network_interface]}" : ''
         distem_cmd = "LANG=C distemd #{options[:verbose] ? '--verbose' : ''} --network-mode "+
                      "#{options[:network_mode]} #{root_iface_opt} -d &>#{File.join(PATH_DISTEMD_LOGS,'distemd.log')}&"
 
-        session.with(:coord).exec distem_cmd
+        session.with(:coord).exec! distem_cmd
 
         [ '4567', '4568' ].each do |port|
           launched = []
           until launched and !launched.empty?
-            launched = session.with(:coord).exec "lsof -Pnl -i4 | grep ':#{port} '"
-            launched[coordinator]
+            launched = session.with(:coord).exec! "lsof -Pnl -i4 | grep ':#{port} '"
+            launched[coordinator][:stdout]
             sleep(1)
           end
         end
@@ -455,17 +449,17 @@ Net::SSH::Multi.start do |session|
         Timeout.timeout(180) do
           logger.info("Initializing node #{coordinator}")
           if options[:max_vifaces]
-            session.with(:coord).exec "distem --coordinator host=#{coordinator} --init-pnode #{coordinator} --max-vifaces #{options[:max_vifaces]}"
+            session.with(:coord).exec! "distem --coordinator host=#{coordinator} --init-pnode #{coordinator} --max-vifaces #{options[:max_vifaces]}"
             # options[:debug_distem],options[:debug_distem]) this would be controlled using the logger.
           else
-            session.with(:coord).exec "distem --coordinator host=#{coordinator} --init-pnode #{coordinator}" # the same for this I have to add debug
+            session.with(:coord).exec! "distem --coordinator host=#{coordinator} --init-pnode #{coordinator}" # the same for this I have to add debug
           end
           if nodelist.length > 0
             logger.info("Initializing nodes #{nodelist.join(',')}")
             if options[:max_vifaces]
-              session.with(:coord).exec "distem --coordinator host=#{coordinator} --init-pnode #{nodelist.join(',')} --max-vifaces #{options[:max_vifaces]}"
+              session.with(:coord).exec! "distem --coordinator host=#{coordinator} --init-pnode #{nodelist.join(',')} --max-vifaces #{options[:max_vifaces]}"
             else
-              session.with(:coord).exec "distem --coordinator host=#{coordinator} --init-pnode #{nodelist.join(',')}"
+              session.with(:coord).exec! "distem --coordinator host=#{coordinator} --init-pnode #{nodelist.join(',')}"
             end
           end
         end
@@ -481,17 +475,17 @@ Net::SSH::Multi.start do |session|
   if ARGV[0]
     begin
       File.open(ARGV[0], 'r') do |f|
-        filename = exec(session,'tempfile',:coord)[coordinator][0]
+        filename = session.with(:coord).exec!('tempfile')[coordinator][0]
         logger.info("Copying script file in '#{filename}' on #{coordinator}")
         `scp #{ARGV[0]} root@#{coordinator}:#{filename}`
-        session.with(:coord).exec "chmod +x #{filename}"
+        session.with(:coord).exec! "chmod +x #{filename}"
         logger.info("Executing script file '#{filename}' on #{coordinator}")
 
         argv_dup = ARGV.dup
         argv_dup.shift
         script_args = (argv_dup.length > 0 ? argv_dup.join(" ") : "")
-        session.with(:coord).exec "export #{VAR_DISTEM_NODES}='#{(nodelist + [coordinator]) * "\n"}'; export #{VAR_DISTEM_COORD}='#{coordinator}';#{filename} #{script_args}"
-        session.with(:coord).exec "rm #{filename}"
+        session.with(:coord).exec! "export #{VAR_DISTEM_NODES}='#{(nodelist + [coordinator]) * "\n"}'; export #{VAR_DISTEM_COORD}='#{coordinator}';#{filename} #{script_args}"
+        session.with(:coord).exec! "rm #{filename}"
       end
       logger.info 'Script execution done'
     rescue Errno::ENOENT

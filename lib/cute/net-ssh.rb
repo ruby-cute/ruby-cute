@@ -50,20 +50,20 @@ module SessionActions
   # @return [Hash] associated output (stdout and stderr) as a Hash.
   def exec!(command, &block)
 
-    outs = {}
-    errs = {}
+    results = {}
 
     main =open_channel do |channel|
       channel.exec(command) do |ch, success|
         raise "could not execute command: #{command.inspect} (#{ch[:host]})" unless success
         Multi.logger.debug("Executing #{command} on [#{ch.connection.host}]")
 
+        results[ch.connection.host] ||= {}
+
         channel.on_data do |ch, data|
           if block
             block.call(ch, :stdout, data)
           else
-            outs[ch.connection.host] = [] unless outs[ch.connection.host]
-            outs[ch.connection.host] << data.strip
+            results[ch.connection.host][:stdout] = data.strip
 
             Multi.logger.debug("[#{ch.connection.host}] #{data.strip}")
           end
@@ -72,25 +72,24 @@ module SessionActions
           if block
             block.call(ch, :stderr, data)
           else
-            errs[ch.connection.host] = [] unless errs[ch.connection.host]
-            errs[ch.connection.host] << data.strip
+            results[ch.connection.host][:stderr] = data.strip
             Multi.logger.debug("[#{ch.connection.host}] #{data.strip}")
           end
         end
         channel.on_request("exit-status") do |ch, data|
           ch[:exit_status] = data.read_long
-          Multi.logger.debug("Status returned #{ch[:exit_status]}")
+          results[ch.connection.host][:status] = ch[:exit_status]
           if ch[:exit_status] != 0
             Multi.logger.debug("execution of '#{command}' on #{ch.connection.host}
                             failed with return status #{ch[:exit_status].to_s}")
-            if outs[ch.connection.host]
+            if results[ch.connection.host][:stdout]
               Multi.logger.debug("--- stdout dump ---")
-              outs[ch.connection.host].each {|out| Multi.logger.debug(out)}
+              Multi.logger.debug(results[ch.connection.host][:stdout])
             end
 
-            if  errs[ch.connection.host]
+            if  results[ch.connection.host][:stderr]
               Multi.logger.debug("--stderr dump ---")
-              errs[ch.connection.host].each {|err| Multi.logger.debug(err)}
+              Multi.logger.debug(results[ch.connection.host][:stderr])
             end
           end
         end
@@ -98,7 +97,7 @@ module SessionActions
       end
     end
     main.wait # we have to wait the channel otherwise we will have void results
-    return {:stdout => outs,:stderr => errs}
+    return results
   end
 
 end
