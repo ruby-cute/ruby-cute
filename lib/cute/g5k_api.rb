@@ -9,12 +9,13 @@ module Cute
 
     # = {Cute::G5K} exceptions
     #
-    # The generated exceptions are divided in 4 groups:
+    # The generated exceptions are divided in 5 groups:
     #
     # - {Cute::G5K::BadRequest BadRequest} it means that the syntax you passed to some {Cute::G5K::API G5K::API} method is not correct from
     #   the Grid'5000 services point of view.
-    # - {Cute::G5K::RequestFailed RequestFailed} it means that there is a server problem.
+    # - {Cute::G5K::RequestFailed RequestFailed} it means that there is a server problem or there is nothing the user can do to solve the problem.
     # - {Cute::G5K::NotFound} it means that the requested resources do not exist.
+    # - {Cute::G5K::Unauthorized} it means that there is an authentication problem.
     # - {Cute::G5K::EventTimeout} this exception is triggered by the methods that wait for events such as:
     #   job submission and environment deployment.
     class Error < Exception
@@ -54,7 +55,7 @@ module Cute
     class BadRequest < Error
     end
 
-    # It wraps all Restclient exceptions http code > 412 which are triggered by server malfunctioning.
+    # It wraps all Restclient exceptions with http codes: 403, 405,406, 412, 415, 500, 502, 503 and 504.
     class RequestFailed < Error
     end
 
@@ -66,16 +67,16 @@ module Cute
     class NotFound < Error
     end
 
+    # It wraps the Restclient exception RestClient::Unauthorized
+    class Unauthorized < Error
+    end
+
 
     # @api private
     class G5KArray < Array
 
       def uids
         return self.map { |it| it['uid'] }
-      end
-
-      def __repr__
-        return self.map { |it| it.__repr__ }.to_s
       end
 
       def rel_self
@@ -142,7 +143,6 @@ module Cute
     #           "vlan"=>5,
     #           "links"=>
     #              [{"rel"=>"self", "href"=>"/sid/sites/nancy/deployments/D-751096de-0c33-461a-9d27-56be1b2dd980", "type"=>"application/vnd.grid5000.item+json"},
-
     class G5KJSON < Hash
 
       def items
@@ -154,7 +154,7 @@ module Cute
       end
 
       def resources
-        return self['resources_by_type']
+        return self['resources_by_type'].nil?? Hash.new : self['resources_by_type']
       end
 
       def rel(r)
@@ -171,11 +171,6 @@ module Cute
 
       def rel_parent
         return rel('parent')
-      end
-
-      def __repr__
-        return self['uid'] unless self['uid'].nil?
-        return Hash[self.map { |k, v| [k, v.__repr__ ] }].to_s
       end
 
       def refresh(g5k)
@@ -237,6 +232,8 @@ module Cute
             raise BadRequest.new("Bad request", e)
           when 404
             raise NotFound.new("Resource not found", e)
+          when 401
+            raise Unauthorized.new("Authentication problem",e)
           else
             if @on_error == :ignore
               return nil
@@ -265,6 +262,8 @@ module Cute
             raise BadRequest.new("Bad request", e)
           when 404
             raise NotFound.new("Resource not found", e)
+          when 401
+            raise Unauthorized.new("Authentication problem",e)
           else
             if @on_error == :ignore
               return nil
@@ -297,7 +296,7 @@ module Cute
       def test_connection
         begin
           return get_json("/#{@api_version}/")
-        rescue RestClient::Unauthorized
+        rescue Cute::G5K::Unauthorized
           raise "Your Grid'5000 credentials are not recognized"
         end
       end
@@ -480,8 +479,8 @@ module Cute
       # @option params [String] :conf_file Path for configuration file
       # @option params [String] :uri REST API URI to contact
       # @option params [String] :version Version of the REST API to use
-      # @option params [String] :username Username to access the REST API
-      # @option params [String] :password Password to access the REST API
+      # @option params [String] :user Username to access the REST API
+      # @option params [String] :pass Password to access the REST API
       # @option params [Symbol] :on_error Set to :ignore if you want to ignore {Cute::G5K::RequestFailed ResquestFailed} exceptions.
       def initialize(params={})
         config = {}
@@ -710,7 +709,6 @@ module Cute
           return nil
         else
           vlan_id = job.resources["vlans"].first
-          #job["deploy"].is_a?(Array)? job["deploy"].first["vlan"] : job["deploy"]["vlan"]
         end
         nodes = job["assigned_nodes"]
         reg = /^(\w+-\d+)(\..*)$/
@@ -755,17 +753,6 @@ module Cute
       #
       #     job = g5k.wait_for_job(job, :wait_time => 100)
       #
-      # == Subnet reservation
-      #
-      # The example below reserves 2 nodes in the cluster *chirloute* located in Lille for 1 hour as well as 2 /22 subnets.
-      # We will get 2048 IP addresses that can be used, for example, in virtual machines.
-      # If walltime is not specified, 1 hour walltime will be assigned to the reservation.
-      #
-      #     job = g5k.reserve(:site => 'lille', :cluster => 'chirloute', :nodes => 2,
-      #                            :time => '01:00:00', :env => 'wheezy-x64-xen',
-      #                            :keys => "~/my_ssh_jobkey",
-      #                            :subnets => [22,2])
-      #
       # == Reserving with properties
       #
       #     job = g5k.reserve(:site => 'lyon', :nodes => 2, :properties => "wattmeter='YES'")
@@ -773,6 +760,16 @@ module Cute
       #     job = g5k.reserve(:site => 'nancy', :nodes => 1, :properties => "switch='sgraphene1'")
       #
       #     job = g5k.reserve(:site => 'nancy', :nodes => 1, :properties => "cputype='Intel Xeon E5-2650'")
+      #
+      # == Subnet reservation
+      #
+      # The example below reserves 2 nodes in the cluster *chirloute* located in Lille for 1 hour as well as 2 /22 subnets.
+      # We will get 2048 IP addresses that can be used, for example, in virtual machines.
+      # If walltime is not specified, 1 hour walltime will be assigned to the reservation.
+      #
+      #     job = g5k.reserve(:site => 'lille', :cluster => 'chirloute', :nodes => 2,
+      #                            :env => 'wheezy-x64-xen', :keys => "~/my_ssh_jobkey",
+      #                            :subnets => [22,2])
       #
       # == Before using OAR hierarchy
       # All non-deploy reservations are submitted by default with the OAR option "-allow_classic_ssh"
@@ -792,7 +789,7 @@ module Cute
       # == Using OAR syntax
       #
       # The parameter *:resources* can be used instead of parameters such as: *:cluster*, *:nodes*, *:cpus*, *:walltime*, *:vlan*, *:subnets*, *:properties*, etc,
-      # which are shortcuts for OAR syntax.
+      # which are shortcuts for OAR syntax. These shortcuts are ignored if the the parameter *:resources* is used.
       # Using the parameter *:resources* allows to express more flexible and complex reservations by using directly the OAR syntax.
       # Therefore, the two examples shown below are equivalent:
       #
@@ -845,13 +842,11 @@ module Cute
 
         nodes = opts.fetch(:nodes, 1)
         walltime = opts.fetch(:walltime, '01:00:00')
-        at = opts[:at]
         site = opts[:site]
         type = opts[:type]
         name = opts.fetch(:name, 'rubyCute job')
         command = opts[:cmd]
         opts[:wait] = true if opts[:wait].nil?
-        ignore_dead = opts[:ignore_dead]
         cluster = opts[:cluster]
         switches = opts[:switches]
         cpus = opts[:cpus]
@@ -877,16 +872,6 @@ module Cute
 
         secs = walltime.to_secs
         walltime = walltime.to_time
-
-        if nodes.is_a?(Array)
-          all_nodes = nodes
-          nodes = filter_dead_nodes(nodes) if ignore_dead
-          removed_nodes = all_nodes - nodes
-          info "Ignored nodes #{removed_nodes}." unless removed_nodes.empty?
-          hosts = nodes.map { |n| "'#{n}'" }.sort.join(',')
-          properties = "host in (#{hosts})"
-          nodes = nodes.length
-        end
 
         raise 'Nodes must be an integer.' unless nodes.is_a?(Integer)
 
@@ -915,7 +900,6 @@ module Cute
 
         payload['properties'] = properties unless properties.nil?
         payload['types'] = [ type.to_s ] unless type.nil?
-        payload['reservation'] = reservation unless reservation.nil?
 
         if not type == :deploy
           if opts[:keys]
@@ -925,10 +909,9 @@ module Cute
           end
         end
 
-        unless at.nil?
-          dt = parse_time(at)
-          payload['reservation'] = dt
-          info "Starting this reservation at #{dt}"
+        if reservation
+          payload['reservation'] = reservation
+          info "Starting this reservation at #{reservation}"
         end
 
         begin
