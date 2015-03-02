@@ -5,7 +5,6 @@ describe Cute::G5K::API do
 
   subject { g5k = ENV['TEST_REAL'].nil?? Cute::G5K::API.new(:user => "test") : Cute::G5K::API.new() }
 
-
   let(:sites) { subject.site_uids}
 
   before :each do
@@ -25,6 +24,7 @@ describe Cute::G5K::API do
   it "checks initialization of G5K::API" do
     expect(subject.rest).to be_an_instance_of(Cute::G5K::G5KRest)
   end
+
 
   it "returns an array with the site ids" do
     expect(sites.length).to be > 0
@@ -58,6 +58,10 @@ describe Cute::G5K::API do
 
   it "returns all deployments" do
     expect(subject.get_deployments(@rand_site)).to be_an_instance_of(Cute::G5K::G5KArray)
+  end
+
+  it "raises an authentication error" do
+    expect{Cute::G5K::API.new(:user => "fake", :pass => "fake") }.to raise_error
   end
 
   it "raises a non found error" do
@@ -96,6 +100,17 @@ describe Cute::G5K::API do
   it "reserves with vlan and get vlan hostnames" do
     job = subject.reserve(:site => @rand_site, :nodes => 1, :type => :deploy, :vlan => :routed)
     expect(subject.get_vlan_nodes(job)).to be_an_instance_of(Array)
+    subject.release(job)
+  end
+
+  it "vlan returns nil" do
+    job = Cute::G5K::G5KJSON.new
+    expect(subject.get_vlan_nodes(job)).to be_nil
+  end
+
+  it "performs an advanced reservation" do
+    time_schedule = Time.now + 60*30
+    job =subject.reserve(:site => @rand_site, :nodes => 1, :reservation => time_schedule.strftime("%Y-%m-%d %H:%M:%S"))
     subject.release(job)
   end
 

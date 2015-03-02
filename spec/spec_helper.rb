@@ -44,16 +44,18 @@ RSpec.configure do |config|
   # uri_sites = Addressable::Template.new "https://{user}:{password}@api.grid5000.fr/{version}/sites"
   config.before(:each) do
 
-
     stub_request(:any,/^https:\/\/.*\:.*@api.grid5000.fr\/.*/).
       to_return(:status => 200, :body => g5k_media_type.to_json, :headers => {})
 
+    stub_request(:any,/^https:\/\/fake:fake@api.grid5000.fr\.*/).
+      to_return(:status => 401)
+
     stub_request(:any,/^https:\/\/.*\:.*@api.grid5000.fr\/...\/sites\/non-found\/.*/).
       to_return(:status => 404)
+
     stub_request(:post, /^https:\/\/.*\:.*@api.grid5000.fr\/.*/).
       with(:body => hash_including("resources" => "/slash_22=1+{non_sense},walltime=01:00")).
       to_return(:status => 400)
-
 
   end
 
