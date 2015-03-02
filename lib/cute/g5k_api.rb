@@ -229,8 +229,8 @@ module Cute
       def get_json(path)
 
         begin
-          r = resource(path).get(:content_type => "application/json")
-          return G5KJSON.parse(r)
+          r = resource(path).get(:content_type => "application/json",
+                                 :user_agent => @user_agent)
         rescue => e
           case e.http_code
           when  400
@@ -245,7 +245,7 @@ module Cute
             end
           end
         end
-
+        return G5KJSON.parse(r)
       end
 
       # Creates a resource on the server
@@ -258,8 +258,8 @@ module Cute
                                   :content_type => "application/json",
                                   :accept => "application/json",
                                   :user_agent => @user_agent)
-          return G5KJSON.parse(r)
         rescue => e
+
           case e.http_code
           when  400
             raise BadRequest.new("Bad request", e)
@@ -273,6 +273,7 @@ module Cute
             end
           end
         end
+        return G5KJSON.parse(r)
       end
 
       # Deletes a resource on the server
@@ -705,14 +706,17 @@ module Cute
       # @return [Array] all the nodes in the VLAN
       # @param job [G5KJSON] as described in {Cute::G5K::G5KJSON job}
       def get_vlan_nodes(job)
-        if job["deploy"].nil?
+        if job.resources["vlans"].nil?
           return nil
         else
-          vlan_id = job["deploy"].is_a?(Array)? job["deploy"].first["vlan"] : job["deploy"]["vlan"]
+          vlan_id = job.resources["vlans"].first
+          #job["deploy"].is_a?(Array)? job["deploy"].first["vlan"] : job["deploy"]["vlan"]
         end
         nodes = job["assigned_nodes"]
         reg = /^(\w+-\d+)(\..*)$/
-        nodes.map {|name| reg.match(name)[1]+"-kavlan-"+vlan_id.to_s+reg.match(name)[2]}
+        nodes.map {
+          |name| reg.match(name)[1]+"-kavlan-"+vlan_id.to_s+reg.match(name)[2] unless reg.match(name).nil?
+        }
       end
 
       # Releases all jobs on a site
@@ -727,6 +731,7 @@ module Cute
             raise unless e.response.include?('already killed')
           end
         end
+        return true
       end
 
       # Releases a resource, it can be a job or a deploy.
@@ -857,7 +862,7 @@ module Cute
           if vlan_opts.include?(opts[:vlan]) then
             vlan = vlan_opts.fetch(opts[:vlan])
           else
-            raise 'Option for vlan not recognized'
+            raise ArgumentError, 'Option for vlan not recognized'
           end
         end
 
@@ -1041,7 +1046,7 @@ module Cute
         raise ArgumentError, "Environment must be given" if env.nil?
 
         nodes = opts[:nodes].nil? ? job['assigned_nodes'] : opts[:nodes]
-        raise "Unrecognized nodes format. They should be specified using an Array" unless nodes.is_a?(Array)
+        raise "Unrecognized nodes format, use an Array" unless nodes.is_a?(Array)
 
         site = @g5k_connection.follow_parent(job).uid
 
