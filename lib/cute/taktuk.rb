@@ -1,4 +1,3 @@
-
 module Cute
   # Cute::TakTuk is a library for controlling the execution of commands in
   # multiple machines using taktuk tool.
@@ -63,81 +62,10 @@ module Cute
       end
     end
 
-    class Aggregator
-      def initialize(criteria)
-        @criteria = criteria
-      end
-
-      def self.[](criteria)
-        self.new(criteria)
-      end
-
-      def visit(results)
-        ret = {}
-        results.each_pair do |host,pids|
-          pids.each_pair do |pid,values|
-            affected = false
-            ret.each_pair do |k,v|
-              if values.eql?(v)
-                k << [ host, pid ]
-                affected = true
-                break
-              end
-            end
-            ret[[[host,pid]]] = values unless affected
-          end
-        end
-        ret
-      end
-    end
-
-    class DefaultAggregator < Aggregator
-      def initialize
-        super([:host,:pid])
-      end
-    end
-
-    # A Hash where the keyring is based on the host/pid
-    class Result < Hash
-      attr_reader :content
-
-      def initialize(content={})
-        @content = content
-      end
-
-      def free()
-        self.each_pair do |host,pids|
-          pids.each_value do |val|
-            val.clear if val.is_a?(Array) or val.is_a?(Hash)
-          end
-          pids.clear
-        end
-        self.clear
-      end
-
-      def add(host,pid,val,concatval=false)
-        raise unless val.is_a?(Hash)
-        self.store(host,{}) unless self[host]
-        self[host].store(pid,{}) unless self[host][pid]
-        val.each_key do |k|
-          if concatval
-            self[host][pid][k] = '' unless self[host][pid][k]
-            self[host][pid][k] << val[k]
-            self[host][pid][k] << concatval
-          else
-            self[host][pid][k] = [] unless self[host][pid][k]
-            self[host][pid][k] << val[k]
-          end
-        end
-      end
-
-      def aggregate(aggregator)
-        aggregator.visit(self)
-      end
-    end
 
     class Stream
-      attr_accessor :template
+
+      attr_reader :types
 
       SEPARATOR = '/'
       SEPESCAPED = Regexp.escape(SEPARATOR)
@@ -147,65 +75,57 @@ module Cute
         "(?:[A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])"
       HOSTNAME_REGEXP = "#{IP_REGEXP}|#{DOMAIN_REGEXP}"
 
-      def initialize(type,template=nil,concat=false)
-        @type = type
-        @template = template
-        @concat = concat
+      def initialize(types=[])
+        @types = types
       end
 
-      def free
-        @type = nil
-        @template = nil
-      end
 
       def parse(string)
-        ret = Result.new
-        if @template and string and !string.empty?
-          regexp = /^#{@type.to_s}#{SEPESCAPED}(\d+)#{SEPESCAPED}(#{HOSTNAME_REGEXP})#{SEPESCAPED}(.+)$/
+
+        results = {}
+        if string and !string.empty?
+#          regexp = /^(output)#{SEPESCAPED}(#{HOSTNAME_REGEXP})#{SEPESCAPED}(.+)$/
+          regexp = /^(#{HOSTNAME_REGEXP})#{SEPESCAPED}(.[a-z]*)#{SEPESCAPED}(.+)$/
           string.each_line do |line|
             if regexp =~ line
-              ret.add(
-                      Regexp.last_match(2),
-                      Regexp.last_match(1),
-                      @template.parse(Regexp.last_match(3)),
-                      (@concat ? $/ : false)
-                     )
+              hostname = Regexp.last_match(1)
+              stream_type = Regexp.last_match(2).to_sym
+              value_tmp = treat_value(Regexp.last_match(3))
+              value =  value_tmp.is_i? ? value_tmp.to_i : value_tmp
+              results[hostname] ||= {}
+              if results[hostname][stream_type].nil? then
+                results[hostname][stream_type] =  value
+              else
+                if value.is_a?(String) then
+                  results[hostname][stream_type]+="\n" + value
+                else
+                  # This is for adding status codes
+                  results[hostname][stream_type]= [results[hostname][stream_type], value]
+                  results[hostname][stream_type].flatten!
+
+                end
+              end
             end
           end
         end
-        ret
+        return results
+
+      end
+
+      # Return just the value 123:(.*)
+      def treat_value(string)
+        tmp = string.split(":",2)
+        value = tmp[1].nil? ? "" : tmp[1]
       end
 
       def to_cmd
-        #"#{@type.to_s}="\
-        "\"$type#{SEPARATOR}$pid#{SEPARATOR}$host#{SEPARATOR}\""\
-          "#{@template.to_cmd}.\"\\n\""
+        # "\"$type#{SEPARATOR}$host#{SEPARATOR}$start_date#{SEPARATOR}$line\\n\""
+        # We put "0:" before $line only for performance issues when executing the regex
+        "\"$host#{SEPARATOR}$type#{SEPARATOR}0:$line\\n\""
+
       end
     end
 
-    class ConnectorStream < Stream
-      def initialize(template)
-        super(:connector,template)
-      end
-    end
-
-    class OutputStream < Stream
-      def initialize(template)
-        super(:output,template,true)
-      end
-    end
-
-    class ErrorStream < Stream
-      def initialize(template)
-        super(:error,template)
-      end
-    end
-
-    class StatusStream < Stream
-      def initialize(template)
-        super(:status,template)
-      end
-    end
 
     class StateStream < Stream
       STATES = {
@@ -263,66 +183,6 @@ module Cute
       end
     end
 
-    class MessageStream < Stream
-      def initialize(template)
-        super(:message,template)
-      end
-    end
-
-    class InfoStream < Stream
-      def initialize(template)
-        super(:info,template)
-      end
-    end
-
-    class TaktukStream < Stream
-      def initialize(template)
-        super(:taktuk,template)
-      end
-    end
-
-    class Template
-      SEPARATOR=':'
-      attr_reader :fields
-
-      def initialize(fields)
-        @fields = fields
-      end
-
-      def self.[](*fields)
-        self.new(fields)
-      end
-
-      def add(template)
-        template.fields.each do |field|
-          @fields << field unless fields.include?(field)
-        end
-        self
-      end
-
-      def to_cmd
-        @fields.inject('') do |ret,field|
-          ret + ".length(\"$#{field.to_s}\").\"#{SEPARATOR}$#{field.to_s}\""
-        end
-      end
-
-      def parse(string)
-        ret = {}
-        curpos = 0
-        @fields.each do |field|
-          len,tmp = string[curpos..-1].split(SEPARATOR,2)
-          leni = len.to_i
-          raise ArgumentError.new('Command line output do not match the template') if tmp.nil?
-          if leni <= 0
-            ret[field] = ''
-          else
-            ret[field] = tmp.slice!(0..(leni-1))
-          end
-          curpos += len.length + leni + 1
-        end
-        ret
-      end
-    end
 
     class Options < Hash
       TAKTUK_VALID = [
@@ -454,23 +314,8 @@ module Cute
         @binary = 'taktuk'
         @options = Options[options.merge({ :streams => [:output, :error, :status ] })] if options[:streams].nil?
 
-        @streams = { }
-        @options[:streams].each{ |str|
-          raise ArgumentError.new("'Invalid Stream for taktuk '#{str}'") unless VALID_STREAMS.include?(str)
-          case str
-          when :output
-            @streams.merge!({:output => OutputStream.new(Template[:line])})
-          when :error
-            @streams.merge!({:error => ErrorStream.new(Template[:line])})
-          when :status
-            @streams.merge!({:status => StatusStream.new(Template[:command,:line])})
-          when :connector
-            @streams.merge!({:connector => ConnectorStream.new(Template[:command,:line])})
-          when :state
-            @streams.merge!({:connector => ConnectorStream.new(Template[:command,:line])})
-          end
-          # It remains to implement :info, :message, and :taktuk streams.
-        }
+        @streams = Stream.new(@options[:streams])
+        # @streams = Stream.new([:output,:error,:status, :state])
 
         @hostlist = Hostlist.new(hostlist)
         @commands = Commands.new
@@ -484,20 +329,16 @@ module Cute
         @curthread = nil
       end
 
-
-      def opts!(opts={})
-        @options = Options[opts]
-      end
-
       def run!(opts = {})
         @curthread = Thread.current
         @args = []
         @args += @options.to_cmd
-        @streams.each_pair do |name,stream|
-          temp = (stream.is_a?(Stream) ? "=#{stream.to_cmd}" : '')
+
+        @streams.types.each{ |name|
           @args << '-o'
-          @args << "#{name.to_s}#{temp}"
-        end
+          @args << "#{name.to_s}=#{@streams.to_cmd}"
+        }
+
         connector = build_connector
         @args += ["--connector", "#{connector}"] unless connector.nil?
 
@@ -510,9 +351,8 @@ module Cute
                                              :stdout_size => outputs_size * hosts.size,
                                              :stderr_size => outputs_size * hosts.size,
                                              :stdin => false
-                                            )
+                                                )
         @status, @stdout, @stderr, emptypipes = @exec_cmd.wait({:checkstatus=>false})
-
 
         unless @status.success?
           @curthread = nil
@@ -525,37 +365,14 @@ module Cute
           return false
         end
 
-        results = {}
-        @streams.each_pair do |name,stream|
-          if stream.is_a?(Stream)
-            results[name] = stream.parse(@stdout)
-          else
-            results[name] = nil
-          end
-        end
-
+        results = @streams.parse(@stdout)
         @curthread = nil
 
         results
       end
 
-      def build_connector()
-        ssh_options = [:keys, :port, :config]
-        connector = nil
-        if @options.keys.map{ |opt| ssh_options.include?(opt)}.any?
-          connector = "ssh"
-          connector += " -p #{@options[:port]}" if @options[:port]
-          if @options[:keys]
-            keys = @options[:keys].is_a?(Array) ? @options[:keys].first : @options[:keys]
-            connector += " -i #{keys}"
-          end
-          connector += " -F #{@options[:config]}" if @options[:config]
-        end
-        return connector
-      end
-
       # It executes the commands so far stored in the @commands variable
-      # and reinitialize the variable for posterior utilization.
+      # and reinitialize the variable for post utilization.
       def loop ()
         run!()
         $stdout.print(@stdout)
@@ -574,12 +391,12 @@ module Cute
       def free!()
         @binary = nil
         @options = nil
-        if @streams
-          @streams.each_value do |stream|
-            stream.free if stream
-            stream = nil
-          end
-        end
+        # if @streams
+        #   @streams.each_value do |stream|
+        #     stream.free if stream
+        #     stream = nil
+        #   end
+        # end
         @hostlist.free if @hostlist
         @hostlist = nil
         @commands = nil
@@ -660,8 +477,25 @@ module Cute
       end
 
       alias close free!
-    end
 
+      private
+      # It builds a custom connector for TakTuk
+      def build_connector()
+        ssh_options = [:keys, :port, :config]
+        connector = nil
+        if @options.keys.map{ |opt| ssh_options.include?(opt)}.any?
+          connector = "ssh"
+          connector += " -p #{@options[:port]}" if @options[:port]
+          if @options[:keys]
+            keys = @options[:keys].is_a?(Array) ? @options[:keys].first : @options[:keys]
+            connector += " -i #{keys}"
+          end
+          connector += " -F #{@options[:config]}" if @options[:config]
+        end
+        return connector
+      end
+
+    end
 
   end
 end

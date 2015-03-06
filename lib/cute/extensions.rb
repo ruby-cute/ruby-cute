@@ -31,4 +31,8 @@ class String
     return '%.02d:%.02d' % [ hours, minutes ]
   end
 
+  def is_i?
+    /\A[-+]?\d+\z/ === self
+  end
+
 end

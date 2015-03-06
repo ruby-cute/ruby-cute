@@ -45,7 +45,7 @@ module SessionActions
   # Monkey patch that adds the exec! method.
   # It executes a command on multiple hosts capturing their associated output (stdout and stderr).
   # It blocks until the command finishes returning the resulting output as a Hash.
-  # It adds stdout and stderr management for debugging purposes.
+  # It uses a logger for debugging purposes.
   # @see http://net-ssh.github.io/net-ssh-multi/classes/Net/SSH/Multi/SessionActions.html More information about exec method.
   # @return [Hash] associated output (stdout and stderr) as a Hash.
   def exec!(command, &block)
@@ -64,7 +64,6 @@ module SessionActions
             block.call(ch, :stdout, data)
           else
             results[ch.connection.host][:stdout] = data.strip
-
             Multi.logger.debug("[#{ch.connection.host}] #{data.strip}")
           end
         end
@@ -80,16 +79,16 @@ module SessionActions
           ch[:exit_status] = data.read_long
           results[ch.connection.host][:status] = ch[:exit_status]
           if ch[:exit_status] != 0
-            Multi.logger.debug("execution of '#{command}' on #{ch.connection.host}
+            Multi.logger.info("execution of '#{command}' on #{ch.connection.host}
                             failed with return status #{ch[:exit_status].to_s}")
             if results[ch.connection.host][:stdout]
-              Multi.logger.debug("--- stdout dump ---")
-              Multi.logger.debug(results[ch.connection.host][:stdout])
+              Multi.logger.info("--- stdout dump ---")
+              Multi.logger.info(results[ch.connection.host][:stdout])
             end
 
             if  results[ch.connection.host][:stderr]
-              Multi.logger.debug("--stderr dump ---")
-              Multi.logger.debug(results[ch.connection.host][:stderr])
+              Multi.logger.info("--stderr dump ---")
+              Multi.logger.info(results[ch.connection.host][:stderr])
             end
           end
         end
