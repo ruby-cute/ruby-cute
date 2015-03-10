@@ -1067,8 +1067,8 @@ module Cute
           r = @g5k_connection.post_json(api_uri("sites/#{site}/deployments"), payload)
         rescue Error => e
           info "Fail to deploy"
-          info e.orig.message
-          e.orig.http_body.split("\\n").each{ |line| info line}
+          info e.message
+          e.http_body.split("\\n").each{ |line| info line}
           raise
         end
 

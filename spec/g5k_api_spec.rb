@@ -69,8 +69,12 @@ describe Cute::G5K::API do
   end
 
   it "raises a bad request error" do
-    expect{ subject.reserve(:site => @rand_site, :resources =>"/slash_22=1+{non_sense}")}.to raise_error(Cute::G5K::BadRequest)
+    expect{ subject.reserve(:site => @rand_site, :resources =>"/slash_22=1+{nonsense}")}.to raise_error(Cute::G5K::BadRequest)
 #    expect{ subject.reserve(:site => @rand_site, :resources =>"{ib30g='YES'}/nodes=2")}.to raise_error(Cute::G5K::BadRequest)
+  end
+
+  it "raises an exception at deploying" do
+    expect{ subject.reserve(:site => @rand_site, :nodes => 1, :env => "nonsense")}.to raise_error(Cute::G5K::RequestFailed)
   end
 
   it "raises argument errors" do
