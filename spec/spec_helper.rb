@@ -54,8 +54,12 @@ RSpec.configure do |config|
       to_return(:status => 404)
 
     stub_request(:post, /^https:\/\/.*\:.*@api.grid5000.fr\/.*/).
-      with(:body => hash_including("resources" => "/slash_22=1+{non_sense},walltime=01:00")).
-      to_return(:status => 400)
+      with(:body => hash_including("resources" => "/slash_22=1+{nonsense},walltime=01:00")).
+      to_return(:status => 400, :body => "Oarsub failed: please verify your request syntax")
+
+    stub_request(:post, /^https:\/\/.*\:.*@api.grid5000.fr\/.*/).
+      with(:body => hash_including("environment" => "nonsense")).
+      to_return(:status => 500, :body => "Invalid environment specification")
 
   end
 
