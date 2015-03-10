@@ -20,14 +20,6 @@ RSpec::Core::RakeTask.new(:spec) do |spec|
   spec.pattern = 'spec/**/*_spec.rb'
 end
 
-desc "Generate basic Documentation"
-
-YARD::Rake::YardocTask.new do |t|
-
-t.files   = ['lib/**/*.rb', '-', 'examples/*.rb']
-  t.options = ['--title',"Ruby CUTE #{get_version}"]
-end
-
 desc "Generate source tgz package"
 Rake::PackageTask::new("ruby-cute",get_version) do |p|
   p.need_tar_gz = true
