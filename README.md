@@ -11,7 +11,7 @@ Grid'5000.
 From sources:
 
 ```bash
-$ git clone https://gforge.inria.fr/git/ruby-cute/ruby-cute.git
+$ git clone https://github.com/ruby-cute/ruby-cute
 $ cd ruby-cute
 $ gem build ruby-cute.gemspec
 $ gem install ruby-cute-*.gem
@@ -43,7 +43,7 @@ Ruby-Cute is structured in different modules that allows you to:
       which is a wrapper of [taktuk](http://taktuk.gforge.inria.fr) parallel command executor.
 
 An example of use of Ruby-Cute in a real use case is available in
-[Virtualization on Grid'5000](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/file.g5k_exp_virt.html)
+[Virtualization on Grid'5000](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/file/examples/g5k_exp_virt.rb)
 
 ## Using pry -- an interactive ruby shell
 
