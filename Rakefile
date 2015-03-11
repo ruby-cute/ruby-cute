@@ -10,7 +10,7 @@ Bundler::GemHelper.install_tasks
 GEM='ruby-cute'
 
 def get_version
-  File.read(File.join(File.expand_path(File.dirname(__FILE__)), 'VERSION')).chomp
+    Cute::VERSION
 end # def:: get_version
 
 desc "Run spec tests"
