@@ -2,16 +2,18 @@ Source: ruby-cute
 Section: ruby
 Priority: optional
 Maintainer: Lucas Nussbaum <lucas@debian.org>
-Build-Depends: debhelper (>= 8~), gem2deb, ruby-rspec, rake, yard
+Build-Depends: debhelper (>= 7.0.50~), gem2deb, ruby-rspec, rake, yard, ruby-webmock, ruby-simplecov, ruby-rest-client, ruby-ipaddress, ruby-net-ssh-multi
 Standards-Version: 3.9.5
-Homepage: http://ruby-cute.gforge.inria.fr/
+Vcs-Git: git://github.com/ruby-cute/ruby-cute
+Vcs-Browser: https://github.com/ruby-cute/ruby-cute
+Homepage: http://ruby-cute.github.io/
 Testsuite: autopkgtest
 XS-Ruby-Versions: all
 
 Package: ruby-cute
 Architecture: all
 XB-Ruby-Versions: ${ruby:Versions}
-Depends: ${shlibs:Depends}, ${misc:Depends}, ruby | ruby-interpreter
-# bundler (~> 1.7, development), rake (~> 10.0, development), rspec (~> 3.1, development), pry (~> 0.10, development), rest-client (= 1.6.7), json (~> 1.8.1), ipaddress (~> 0.8), net-ssh-multi (~> 1.2)
+Depends: ${shlibs:Depends}, ${misc:Depends}, ruby | ruby-interpreter, ruby-rest-client, ruby-json, ruby-ipaddress, ruby-net-ssh-multi
+Recommends: pry
 Description: Critically Useful Tools for Experiments
  Ruby library for controlling experiments

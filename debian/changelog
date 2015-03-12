@@ -1,5 +1,5 @@
-ruby-cute (0.0.1) UNRELEASED; urgency=low
+ruby-cute (0.2) UNRELEASED; urgency=medium
 
-  * Initial release, as a native package for now.
+  * Initial release.
 
- -- Lucas Nussbaum <lucas@debian.org>  Wed, 13 Mar 2013 10:47:08 +0100
+ -- Lucas Nussbaum <lucas@debian.org>  Tue, 10 Mar 2015 15:13:52 +0100
