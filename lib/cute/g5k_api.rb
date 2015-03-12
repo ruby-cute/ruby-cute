@@ -347,7 +347,8 @@ module Cute
     #     $ ruby example.rb
     #
     # The execution will block until you got the reservation. Then, you can interact with the nodes you reserved the way you used to or
-    # add more code to the previous script for controlling your experiment with Ruby-Cute as shown in this {file:docs/g5k_exp_virt.md  example}.
+    # add more code to the previous script for controlling your experiment with Ruby-Cute as shown in this
+    # {http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/file/examples/g5k_exp_virt.rb  example}.
     # We have just used the method {Cute::G5K::API#reserve reserve} that allow us to reserve resources in Grid'5000.
     # This method can be used to reserve resources in deployment mode and deploy our own software environment on them using
     # {http://kadeploy3.gforge.inria.fr/ Kadeploy}. For this we use the option *:env* of the {Cute::G5K::API#reserve reserve} method.
@@ -479,7 +480,7 @@ module Cute
       #
       #     g5k = Cute::G5K::API.new(:on_error => :ignore)
       #
-      # @param [Hash] params contains initialization parameters.
+      # @param [Hash] params Contains initialization parameters.
       # @option params [String] :conf_file Path for configuration file
       # @option params [String] :uri REST API URI to contact
       # @option params [String] :version Version of the REST API to use
@@ -1004,7 +1005,7 @@ module Cute
       # Deploys an environment in a set of reserved nodes using {http://kadeploy3.gforge.inria.fr/ Kadeploy}.
       # A job structure returned by {Cute::G5K::API#reserve reserve} or {Cute::G5K::API#get_my_jobs get_my_jobs} methods
       # is mandatory as a parameter as well as the environment to deploy.
-      # By default this method do not block, for that you have to set the option *:wait* to *true*.
+      # By default this method does not block, for that you have to set the option *:wait* to *true*.
       #
       # = Examples
       # Deploying the production environment *wheezy-x64-base* on all the reserved nodes and wait until the deployment is done:

@@ -20,7 +20,7 @@ $ gem install ruby-cute-*.gem
 In Grid'5000 the installation procedure goes as follows:
 
 ```bash
-$ gem install --user-install ruby-cute-*.gem
+$ gem install --user-install ruby-cute
 ```
 
 Then, type the following for having ruby cute in your path (this is only necessary if you want to use interactive mode).
@@ -39,7 +39,7 @@ Ruby-Cute is structured in different modules that allows you to:
 - execute commands in several remote machines in parallel. Two modules are available for that:
 
     - [Net::SSH::Multi](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Net/SSH/Multi) that uses the SSH protocol.
-    - [Taktuk](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/TakTuk)
+    - [TakTuk](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/TakTuk)
       which is a wrapper of [taktuk](http://taktuk.gforge.inria.fr) parallel command executor.
 
 An example of use of Ruby-Cute in a real use case is available in
