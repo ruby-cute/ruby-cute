@@ -87,7 +87,43 @@ describe Cute::TakTuk::Stream do
     stdout = "1:"+value # by default streams are formated /machine_name/stream/something:output
                         # the "something:" it is just for making the execution time of the regex shorter.
     string = "machine.fr/output/#{stdout}\nmachine.fr/output/#{stdout}\n"
-    expect(subject.parse(string).values.first[:output].length). to be 2*value.length + 1
+    expect(subject.parse(string).values.first[:output].length).to be 2*value.length + 1
+  end
+
+end
+
+describe "TakTuk" do
+  it "raises an argument error" do
+    expect{Cute::TakTuk::TakTuk.new()}.to raise_error(ArgumentError)
+  end
+
+  it "raises an argument error" do
+    expect{Cute::TakTuk::TakTuk.new("aaa","aaa")}.to raise_error(ArgumentError)
+  end
+
+  it "does not raise error" do
+    # TakTuk validate options at the beginning of the execution.
+    expect{Cute::TakTuk::TakTuk.new("aaa",{:aaa => "aaa"})}.not_to raise_error
+  end
+
+  it "raises an argu" do
+    tak = Cute::TakTuk::TakTuk.new("aaa",{:aaa => "aaa"})
+    expect{ tak.exec!("haha")}.to raise_error(ArgumentError)
+  end
+
+  it "raises error due to a non existing file " do
+    tak = Cute::TakTuk::TakTuk.new("aaa",{:user => "aaa"})
+    expect{ tak.exec!("haha")}.to raise_error
+  end
+
+  it "raises er" do
+    tak = Cute::TakTuk::TakTuk.new(["aaa"],{:user => "aaa"})
+    expect{ tak.exec!("haha")}.not_to raise_error
+  end
+
+  it "raises er" do
+    tak = Cute::TakTuk::TakTuk.new(["aaa"],{:user => "aaa", :config => "conf_ssh_vagrant"})
+    expect{ tak.exec!("haha")}.not_to raise_error
   end
 
 end
