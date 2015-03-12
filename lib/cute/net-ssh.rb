@@ -33,7 +33,7 @@ module Net; module SSH
 # {http://net-ssh.github.io/net-ssh-multi/ Net::SSH::Multi}.
 # One of the disadvantages of {http://net-ssh.github.io/net-ssh-multi/ Net::SSH::Multi} is that
 # it does not allow to capture the output (stdout, stderr and status) of executed commands.
-# This monkey patch extends the aforementioned module by adding the method
+# Ruby-Cute ships a monkey patch that extends the aforementioned module by adding the method
 # {Net::SSH::Multi::SessionActions#exec! exec!}
 # which blocks until the command finishes and captures the output (stdout, stderr and status).
 #
@@ -49,11 +49,12 @@ module Net; module SSH
 #        session.exec "uptime"
 #        session.exec "df"
 #        # execute command, blocks and capture the output
-#        results = session.exec! "ls -l"
+#        results = session.exec! "date"
 #        # execute commands on a subset of servers
 #        session.exec "hostname"
 #     end
-#     puts results
+#     puts results #=> {"node3"=>{:stdout=>"Wed Mar 11 12:38:11 UTC 2015", :status=>0},
+#                  #    "node1"=>{:stdout=>"Wed Mar 11 12:38:11 UTC 2015", :status=>0}, ...}
 #
 module Multi
 

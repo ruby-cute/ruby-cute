@@ -437,7 +437,7 @@ module Cute
       end
 
       # It executes a command on multiple hosts.
-      # All output is printed via $$stdout and $stderr.
+      # All output is printed via *stdout* and *stderr*.
       # Note that this method returns immediately,
       # and requires a call to the loop method in order
       # for the command to actually execute.
