@@ -22,7 +22,16 @@ num_vm = 2 # Number of vms per site
 G5K_SITES.each{ |site|
   threads << Thread.new {
     if g5k.get_my_jobs(site).empty?
-      jobs[site] = g5k.reserve(:site => site, :resources => "slash_22=1+{virtual!='none'}/nodes=1", :walltime =>"01:00:00",:keys => "~/.ssh/id_rsa" )
+      # As the platform could be busy and we could wait for a long time.
+      # here, we set wait_time to 200 seconds, like that we would just use the sites that are free.
+      begin
+      jobs[site] = g5k.reserve(:site => site, :resources => "slash_22=1+{virtual!='none'}/nodes=1",
+                               :walltime =>"01:00:00",:keys => "~/.ssh/id_rsa", :wait_time => 200)
+      rescue Cute::G5K::EventTimeout
+        puts "We waited long enough, releasing job in site #{site}"
+        g5k.release(jobs[site]) # we release the job
+        jobs.delete(site)
+      end
     else
       jobs[site] = g5k.get_my_jobs(site).first
     end

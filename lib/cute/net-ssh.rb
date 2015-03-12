@@ -3,11 +3,43 @@ require 'logger'
 
 module Net; module SSH
 
-# This monkey patch extends the capabilities of the module Net::SSH::Multi.
-# It adds the method exec! which blocks until the command finishes and captures the output (stdout and stderr).
+# The Net::SSH::Multi aims at executing commands in parallel over a set of machines using the SSH protocol.
+# One of the advantage of this module over {Cute::TakTuk::TakTuk TakTuk} is that it allows to create groups, for example:
+#
+#     Net::SSH::Multi.start do |session|
+#
+#        session.group :coord do
+#             session.use("root@#{coordinator}")
+#        end
+#
+#        session.group :nodes do
+#              nodelist.each{ |node| session.use("root@#{node}")}
+#        end
+#
+#        # test connection
+#        session.with(:coord).exec! "hostname"
+#        session.with(:nodes).exec! "hostname"
+#
+#        # Check nfs paths
+#        tmp = session.exec! "ls -a #{ENV['HOME']}"
+#
+#        # generating ssh password less connection
+#        session.exec! "cat .ssh/id_rsa.pub >> .ssh/authorized_keys"
+#     end
+#
+# However, with large set of nodes SSH it is limited an inefficient,
+# for those cases the best option will be {Cute::TakTuk::TakTuk TakTuk}.
+# For complete documentation please take a look at
+# {http://net-ssh.github.io/net-ssh-multi/ Net::SSH::Multi}.
+# One of the disadvantages of {http://net-ssh.github.io/net-ssh-multi/ Net::SSH::Multi} is that
+# it does not allow to capture the output (stdout, stderr and status) of executed commands.
+# This monkey patch extends the aforementioned module by adding the method
+# {Net::SSH::Multi::SessionActions#exec! exec!}
+# which blocks until the command finishes and captures the output (stdout, stderr and status).
+#
 #     require 'cute/net-ssh'
 #
-#     results = []
+#     results = {}
 #     Net::SSH::Multi.start do |session|
 #
 #        # define the servers we want to use
@@ -22,8 +54,7 @@ module Net; module SSH
 #        session.exec "hostname"
 #     end
 #     puts results
-# @see Net::SSH::Multi::SessionActions for more documentation.
-
+#
 module Multi
 
   # sets logger to be used by net-ssh-multi module
@@ -43,11 +74,20 @@ module Multi
 module SessionActions
 
   # Monkey patch that adds the exec! method.
-  # It executes a command on multiple hosts capturing their associated output (stdout and stderr).
+  # It executes a command on multiple hosts capturing their associated output (stdout, stderr and status).
   # It blocks until the command finishes returning the resulting output as a Hash.
   # It uses a logger for debugging purposes.
   # @see http://net-ssh.github.io/net-ssh-multi/classes/Net/SSH/Multi/SessionActions.html More information about exec method.
-  # @return [Hash] associated output (stdout and stderr) as a Hash.
+  # @return [Hash] result Hash stdout, stderr and status of executed commands
+  #
+  # = Example
+  #
+  #    session.exec!("date") #=> {"node3"=>{:stdout=>"Wed Mar 11 12:38:11 UTC 2015", :status=>0},
+  #                          #    "node1"=>{:stdout=>"Wed Mar 11 12:38:11 UTC 2015", :status=>0}, ...}
+  #
+  #    session.exec!("cmd") #=> {"node4"=>{:stderr=>"bash: cmd: command not found", :status=>127},
+  #                         #    "node3"=>{:stderr=>"bash: cmd: command not found", :status=>127}, ...}
+  #
   def exec!(command, &block)
 
     results = {}
