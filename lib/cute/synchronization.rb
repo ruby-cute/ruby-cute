@@ -34,7 +34,7 @@ module Cute
       def release(n = 1)
         @lock.synchronize {
           @used -= n
-          @cond.signal
+          @cond.broadcast
         }
       end
     end
