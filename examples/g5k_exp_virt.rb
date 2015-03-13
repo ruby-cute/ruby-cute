@@ -26,7 +26,8 @@ G5K_SITES.each{ |site|
       # here, we set wait_time to 200 seconds, like that we would just use the sites that are free.
       begin
       jobs[site] = g5k.reserve(:site => site, :resources => "slash_22=1+{virtual!='none'}/nodes=1",
-                               :walltime =>"01:00:00",:keys => "~/.ssh/id_rsa", :wait_time => 200)
+                               :walltime =>"01:00:00",:keys => "~/.ssh/id_rsa", :wait => false)
+      jobs[site] = g5k.wait_for_job(jobs[site], :wait_time => 200)
       rescue Cute::G5K::EventTimeout
         puts "We waited long enough, releasing job in site #{site}"
         g5k.release(jobs[site]) # we release the job
@@ -39,6 +40,11 @@ G5K_SITES.each{ |site|
 }
 
 threads.each{ |t| t.join}
+
+if jobs.keys.empty? then
+  puts "no sites available"
+  exit
+end
 
 nodes = []
 jobs.each{ |k,v| nodes+=v["assigned_nodes"]}
@@ -54,7 +60,7 @@ template = ERB.new(File.read("#{vm_dir}/vm-template.xml"))
 
 vms = []
 
-G5K_SITES.each{ |site|
+jobs.keys.each{ |site|
   subnet  = g5k.get_subnets(jobs[site]).first
   ips = subnet.map{ |ip| ip.to_s }
   num_vm.times{ |n|
@@ -114,7 +120,7 @@ Net::SSH::Multi.start do |session|
 end
 
 puts("Waiting for the machines to start")
-sleep 60
+sleep 100
 
 # Executing some commands on the vms
 
