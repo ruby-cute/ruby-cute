@@ -703,7 +703,11 @@ module Cute
       # @return [Array] all the subnets defined in a given job
       # @param job [G5KJSON] as described in {Cute::G5K::G5KJSON job}
       def get_subnets(job)
-        subnets = job.resources["subnets"]
+        if job.resources["subnets"].nil?
+          return nil
+        else
+          subnets = job.resources["subnets"]
+        end
         subnets.map{|s| IPAddress::IPv4.new s }
       end
 
@@ -725,6 +729,7 @@ module Cute
       # Releases all jobs on a site
       # @param site [String] a valid Grid'5000 site name
       def release_all(site)
+        raise ArgumentError, "parameter should be a string" unless site.is_a?(String)
         Timeout.timeout(20) do
           jobs = get_my_jobs(site,"running") + get_my_jobs(site,"waiting")
           break if jobs.empty?
@@ -738,9 +743,11 @@ module Cute
       end
 
       # Releases a resource, it can be a job or a deploy.
-      def release(r)
+      # @param resource [G5KJSON] as described in {Cute::G5K::G5KJSON job}
+      def release(resource)
+        raise ArgumentError, "parameter should be a G5KJSON data type" unless resource.is_a?(Cute::G5K::G5KJSON)
         begin
-          return @g5k_connection.delete_json(r.rel_self)
+          return @g5k_connection.delete_json(resource.rel_self)
         rescue Cute::G5K::RequestFailed => e
           raise unless e.response.include?('already killed')
         end

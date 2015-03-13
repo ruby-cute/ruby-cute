@@ -112,8 +112,21 @@ describe Cute::G5K::API do
     expect(subject.get_vlan_nodes(job)).to be_nil
   end
 
+  it "subnet returns nil" do
+    job = Cute::G5K::G5KJSON.new
+    expect(subject.get_subnets(job)).to be_nil
+  end
+
+  it "raises an argument error in release method" do
+    expect{subject.release("string")}.to raise_error(ArgumentError)
+  end
+
+  it "raises an argument error in release_all method" do
+    expect{subject.release_all(["random"])}.to raise_error(ArgumentError)
+  end
+
   it "performs an advanced reservation" do
-    time_schedule = Time.now + 60*30
+    time_schedule = Time.now + 60*20
     job =subject.reserve(:site => @rand_site, :nodes => 1, :reservation => time_schedule.strftime("%Y-%m-%d %H:%M:%S"))
     subject.release(job)
   end
