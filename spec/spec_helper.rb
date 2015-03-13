@@ -3,6 +3,8 @@ require 'webmock/rspec'
 
 SimpleCov.start
 # The SimpleCov.start must be issued before any of the application code is required!
+# SimpleCov hacks $:, so it needs to be re-configured here, before cute is loaded.
+$:.unshift File.expand_path("../../lib", __FILE__)
 require 'cute'
 
 # Disabling all external requests
