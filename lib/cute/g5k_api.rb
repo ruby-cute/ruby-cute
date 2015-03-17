@@ -484,8 +484,8 @@ module Cute
       # @option params [String] :conf_file Path for configuration file
       # @option params [String] :uri REST API URI to contact
       # @option params [String] :version Version of the REST API to use
-      # @option params [String] :user Username to access the REST API
-      # @option params [String] :pass Password to access the REST API
+      # @option params [String] :username Username to access the REST API
+      # @option params [String] :password Password to access the REST API
       # @option params [Symbol] :on_error Set to :ignore if you want to ignore {Cute::G5K::RequestFailed ResquestFailed} exceptions.
       def initialize(params={})
         config = {}
@@ -495,9 +495,12 @@ module Cute
           params[:conf_file] =  default_file if File.exist?(default_file)
         end
 
+        params[:username] ||= params[:user]
+        params[:password] ||= params[:pass] # backward compatibility
+
         config = YAML.load(File.open(params[:conf_file],'r')) unless params[:conf_file].nil?
-        @user = params[:user] || config["username"]
-        @pass = params[:pass] || config["password"]
+        @user = params[:username] || config["username"]
+        @pass = params[:password] || config["password"]
         @uri = params[:uri] || config["uri"]
         @api_version = params[:version] || config["version"] || "sid"
         @logger = nil
