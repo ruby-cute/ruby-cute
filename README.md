@@ -72,6 +72,8 @@ $ cute
 The variable *$g5k* is available which can be used to access the Grid'5000 API through the
 [G5K Module](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/G5K/API). For example,
 let's request the name of the sites available in Grid'5000.
+(Before starting be sure to set up a configuration file for the module, please refer to
+[G5K Module](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/G5K/API))
 
 ```bash
 [2] pry(main)> $g5k.site_uids()
