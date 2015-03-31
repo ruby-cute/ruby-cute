@@ -1138,9 +1138,10 @@ module Cute
       #
       #    g5k = Cute::G5K::API.new()
       #
-      #    job = g5k.reserve(:nodes => 1, :site => 'lyon', :env => 'wheezy-x64-base')
+      #    job = g5k.reserve(:nodes => 1, :site => 'lyon', :type => :deploy)
       #
       #    begin
+      #      g5k.deploy(job,:env => 'wheezy-x64-base')
       #      g5k.wait_for_deploy(job,:wait_time => 100)
       #      rescue  Cute::G5K::EventTimeout
       #      puts "We waited too long let's release the job"
