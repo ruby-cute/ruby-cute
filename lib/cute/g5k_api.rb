@@ -838,6 +838,7 @@ module Cute
       # @option opts [String] :name Reservation name
       # @option opts [String] :cmd The command to execute when the job starts (e.g. ./my-script.sh).
       # @option opts [String] :cluster Valid Grid'5000 cluster
+      # @option opts [String] :queue A specific job queue
       # @option opts [Array]  :subnets 1) prefix_size, 2) number of subnets
       # @option opts [String] :env Environment name for {http://kadeploy3.gforge.inria.fr/ Kadeploy}
       # @option opts [Symbol] :vlan Vlan type: :routed, :local, :global
@@ -850,7 +851,7 @@ module Cute
 
         # checking valid options
         valid_opts = [:site, :cluster, :switches, :cpus, :cores, :nodes, :walltime, :cmd,
-                      :type, :name, :subnets, :env, :vlan, :properties, :resources, :reservation, :wait, :keys]
+                      :type, :name, :subnets, :env, :vlan, :properties, :resources, :reservation, :wait, :keys, :queue]
         unre_opts = opts.keys - valid_opts
         raise ArgumentError, "Unrecognized option #{unre_opts}" unless unre_opts.empty?
 
@@ -871,6 +872,7 @@ module Cute
         resources = opts.fetch(:resources, "")
         type = :deploy if opts[:env]
         keys = opts[:keys]
+        queue = opts[:queue]
 
         vlan_opts = {:routed => "kavlan",:global => "kavlan-global",:local => "kavlan-local"}
         vlan = nil
@@ -914,6 +916,7 @@ module Cute
 
         payload['properties'] = properties unless properties.nil?
         payload['types'] = [ type.to_s ] unless type.nil?
+        payload['queue'] = queue if queue
 
         if not type == :deploy
           if opts[:keys]
@@ -1038,7 +1041,7 @@ module Cute
 
         # checking valid options, same as reserve option even though some option dont make any sense
         valid_opts = [:site, :cluster, :switches, :cpus, :cores, :nodes, :walltime, :cmd,
-                      :type, :name, :subnets, :env, :vlan, :properties, :resources, :reservation, :wait, :keys]
+                      :type, :name, :subnets, :env, :vlan, :properties, :resources, :reservation, :wait, :keys, :queue]
 
         unre_opts = opts.keys - valid_opts
         raise ArgumentError, "Unrecognized option #{unre_opts}" unless unre_opts.empty?
