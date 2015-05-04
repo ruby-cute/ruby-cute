@@ -99,6 +99,7 @@ options[:network_mode] = 'classical'
 options[:network_interface] = nil
 options[:num_nodes] = 2
 options[:walltime] = "2:00:00"
+options[:deb_repo]  = 'http://distem.gforge.inria.fr/deb'
 
 args = ARGV.dup
 
@@ -115,6 +116,9 @@ optparse = OptionParser.new do |opts|
 
   opts.on( '--nodes <number of nodes>', Integer,'Number of nodes to reserve on Grid5000') do |n|
     options[:num_nodes] = n.to_i
+  end
+  opts.on( '--cluster <cluster name>', String,'Cluster name in Grid\'5000') do |n|
+    options[:cluster] = n
   end
   opts.on( '-t', '--time <walltime>', 'Walltime for the reservation on Grid5000') do |n|
     options[:walltime] = n
@@ -133,6 +137,12 @@ optparse = OptionParser.new do |opts|
   end
   opts.on( '-D', '--distem-debug', 'Show distem output when executing distem commands (script, node init)' ) do
     options[:debug_distem] = true
+  end
+  opts.on( '--env <environment>', String, 'Kadeploy environment to be used as a base' ) do |c|
+    options[:env] = c
+  end
+  opts.on( '--deploy', 'Redeploy the base image used for distem' ) do
+    options[:deploy] = true
   end
   opts.on( '-k', '--ssh-key [<ssh_key_file>]', 'Path of the ssh private key to use' ) do |k|
     options[:ssh_key] = k
@@ -177,6 +187,19 @@ optparse = OptionParser.new do |opts|
   opts.on( '-i', '--network-interface <iface>', 'Define the root network interface for inter-pnode communication (use only with vxlan network mode)') do |iface|
     options[:network_interface] = iface
   end
+  opts.on( '--debian-version <version>', 'Choose the Debian version (squeeze, wheezy or jessie)') do |v|
+    case v
+    when 'squeeze'
+      options[:deb_repo]  = 'http://distem.gforge.inria.fr/deb'
+    when 'wheezy'
+      options[:deb_repo]  = 'http://distem.gforge.inria.fr/deb'
+    when 'jessie'
+      options[:deb_repo]  = 'http://distem.gforge.inria.fr/deb-jessie'
+    else
+      puts 'Unsupported Debian version'
+      exit 1
+    end
+  end
   opts.on( '--verbose', 'Activate the verbose mode on Distem servers' ) do
     options[:verbose] = true
   end
@@ -200,6 +223,7 @@ begin
   optparse.parse!
 rescue OptionParser::InvalidOption => e
   logger.error(e.to_s)
+  exit 1
 end
 
 logger.level = Logger::INFO
@@ -212,8 +236,11 @@ g5k.logger = logger
 reserv_param = {:site => g5k.site, :nodes => options[:num_nodes], :name => 'distem',
                 :walltime => options[:walltime], :env =>'wheezy-x64-nfs', :subnets => [22,1]}
 
-reserv_param[:keys] = options[:ssh_key] unless options[:ssh_key].nil?
+reserv_param[:cluster] = options[:cluster] if options[:cluster]
 
+reserv_param[:keys] = options[:ssh_key] if options[:ssh_key]
+
+reserv_param[:env] = options[:env] if options[:env]
 
 # we verify if we have already submit a job
 old_jobs = g5k.get_my_jobs(g5k.site).select{ |j| j["name"] == "distem"}
@@ -222,6 +249,8 @@ job = old_jobs.empty? ? g5k.reserve(reserv_param) : old_jobs.first
 
 nodelist = job.resources["cores"].uniq
 ## wait for the deploy
+reserv_param.delete(:nodes)
+g5k.deploy(job,reserv_param) if options[:deploy]
 
 g5k.wait_for_deploy(job)
 
@@ -233,16 +262,28 @@ key_dir = Dir.mktmpdir("keys")
 system "ssh-keygen -P \'\' -f #{key_dir}/keys"
 logger.info "Keys generated in #{key_dir}"
 
+# Generating ssh config"
+
+ssh_conf = Tempfile.new('config')
+File.open(ssh_conf.path,'w+') do |f|
+  f.puts "Host *"
+  f.puts "StrictHostKeyChecking no"
+  f.puts "UserKnownHostsFile=/dev/null "
+end
+
+
 nodelist.each do |node|
 
   Net::SCP.start(node, "root") do |scp|
     logger.debug "Transfering key to #{node}"
-    scp.upload! "#{key_dir}/keys.pub", "/root/.ssh/id_rsa.pub"
-    scp.upload! "#{key_dir}/keys", "/root/.ssh/id_rsa"
+    scp.upload "#{key_dir}/keys.pub", "/root/.ssh/id_rsa.pub"
+    scp.upload "#{key_dir}/keys", "/root/.ssh/id_rsa"
+    scp.upload ssh_conf.path, "/root/.ssh/config"
   end
 
 end
 
+ssh_conf.unlink
 # Deletating keys
 FileUtils.rm_rf(key_dir)
 
@@ -314,8 +355,7 @@ Net::SSH::Multi.start do |session|
   session.exec! "grep -q '#{rule}' /etc/security/limits.conf; true || echo '#{rule} #{ULIMIT_OPEN_FILES}' >> /etc/security/limits.conf"
 
   # setup Debian repo
-  session.exec! "grep -q '#{DEB_REPOSITORY}' /etc/apt/sources.list || echo 'deb #{DEB_REPOSITORY} ./\ndeb-src #{DEB_REPOSITORY} ./' >> /etc/apt/sources.list"
-
+  session.exec! "grep -q '#{options[:deb_repo]}' /etc/apt/sources.list || echo 'deb #{options[:deb_repo]} ./\ndeb-src #{options[:deb_repo]} ./' >> /etc/apt/sources.list"
   logger.info "Updating debian packages list"
   session.exec! "apt-get update -q"
 
@@ -357,16 +397,22 @@ Net::SSH::Multi.start do |session|
     session.with(:coord).exec! "rm -f #{TMP_DIR}/*.deb #{TMP_DIR}/*.changes #{TMP_DIR}/*.dsc #{TMP_DIR}/*.tar.gz"
     session.with(:coord).exec! "cd #{gitdir}; rake snapshot"
 
-    debarchivefile = session.with(:coord).exec! "find #{TMP_DIR} -maxdepth 1 -name *.deb"
+    res = session.with(:coord).exec! "find #{TMP_DIR} -maxdepth 1 -name *.deb"
 
-    session.with(:coord).exec! "Copying generated debian package #{File.basename(debarchivefile)}"
+    debarchivefile = res[coordinator][:stdout]
+
+    logger.info("Copying generated debian package #{File.basename(debarchivefile)}")
 
     #exec(session,"cp #{debarchivefile} #{TMP_DIR}",:coord,true)
     nodelist.each {|node| session.with(:coord).exec! "scp -o StrictHostKeyChecking=no #{debarchivefile} root@#{node}:#{TMP_DIR}"}
     logger.info("Installing generated debian package #{File.basename(debarchivefile)}")
-    depends = session.with(:coord).exec! "dpkg -I #{debarchivefile} | grep 'Depends:'"
+    res = session.with(:coord).exec! "dpkg -I #{debarchivefile} | grep 'Depends:'"
 
-    depends = depends.split("|").last.gsub!(' ','')
+    raw_deps = res[coordinator][:stdout].sub('Depends:','').split(",")
+
+    depends = ""
+    raw_deps.each{ |str| depends+=str.split(" ")[0]; depends+="," unless str==raw_deps.last}
+
     session.exec! "dpkg --ignore-depends #{depends} -i #{TMP_DIR}/#{File.basename(debarchivefile)}"
 
     session.exec! "DEBIAN_FRONTEND=noninteractive apt-get install -q -y --force-yes -f"
@@ -475,7 +521,7 @@ Net::SSH::Multi.start do |session|
   if ARGV[0]
     begin
       File.open(ARGV[0], 'r') do |f|
-        filename = session.with(:coord).exec!('tempfile')[coordinator][0]
+        filename = session.with(:coord).exec!('tempfile')[coordinator][:stdout]
         logger.info("Copying script file in '#{filename}' on #{coordinator}")
         `scp #{ARGV[0]} root@#{coordinator}:#{filename}`
         session.with(:coord).exec! "chmod +x #{filename}"
@@ -484,7 +530,7 @@ Net::SSH::Multi.start do |session|
         argv_dup = ARGV.dup
         argv_dup.shift
         script_args = (argv_dup.length > 0 ? argv_dup.join(" ") : "")
-        session.with(:coord).exec! "export #{VAR_DISTEM_NODES}='#{(nodelist + [coordinator]) * "\n"}'; export #{VAR_DISTEM_COORD}='#{coordinator}';#{filename} #{script_args}"
+        #session.with(:coord).exec! "export #{VAR_DISTEM_NODES}='#{(nodelist + [coordinator]) * "\n"}'; export #{VAR_DISTEM_COORD}='#{coordinator}';#{filename} #{script_args}"
         session.with(:coord).exec! "rm #{filename}"
       end
       logger.info 'Script execution done'
@@ -501,8 +547,8 @@ Net::SSH::Multi.start do |session|
       stats = {
         :time => Time.now.to_i,
         :site => Socket.gethostname,
-        :user => ENV['USER'],
-        :oar   => ENV['OAR_JOB_ID'].to_i,
+        :user => g5k.g5k_user,
+        :oar   => job['uid'],
         :nodes => allnodes,
         :params => args * ' ',
         :length => (Time.now - $startt).to_i
