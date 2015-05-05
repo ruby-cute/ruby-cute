@@ -1178,6 +1178,20 @@ module Cute
 
       end
 
+      # It returns an array of machines that did not deploy successfully
+      # = Example
+      # It can be used to try a new deploy:
+      #
+      #    badnodes = g5k.check_deployment(job["deploy"].last)
+      #    g5k.deploy(job,:nodes => badnodes, :env => 'wheezy-x64-base')
+      #    g5k.wait_for_deploy(job)
+      #
+      # @return [Array] machines that did not deploy successfully
+      # @param deploy_info [Hash] deployment structure information
+      def check_deployment(deploy_info)
+        deploy_info["result"].select{ |p,v|  v["state"] == "KO"}.keys
+      end
+
       private
       # Handles the output of messages within the module
       # @param msg [String] message to show
