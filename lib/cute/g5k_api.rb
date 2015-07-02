@@ -886,10 +886,10 @@ module Cute
 
         raise 'At least nodes, time and site must be given'  if [nodes, walltime, site].any? { |x| x.nil? }
 
+        raise 'nodes should be an integer or a string containing either ALL or BEST' unless (nodes.is_a?(Fixnum) or ["ALL","BEST"].include?(nodes))
+
         secs = walltime.to_secs
         walltime = walltime.to_time
-
-        raise 'Nodes must be an integer.' unless nodes.is_a?(Integer)
 
         command = "sleep #{secs}" if command.nil?
         type = type.to_sym unless type.nil?
