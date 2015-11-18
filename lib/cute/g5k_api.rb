@@ -3,7 +3,6 @@ require 'yaml'
 require 'json'
 require 'ipaddress'
 require 'uri'
-
 module Cute
   module G5K
 
@@ -212,6 +211,7 @@ module Cute
         machine =`uname -ov`.chop
         @user_agent = "ruby-cute/#{VERSION} (#{machine}) Ruby #{RUBY_VERSION}"
         @api = RestClient::Resource.new(@endpoint, :timeout => 30)
+        # some versions of restclient do not verify by default SSL certificates , :verify_ssl => true)
         @on_error = on_error
         test_connection
       end
@@ -280,6 +280,12 @@ module Cute
 
       # Issues a Cute::G5K exception according to the http status code
       def handle_exception(e)
+
+        unless e.respond_to? :http_code
+          raise e
+        end
+
+        # Handling G5k API errors
         case e.http_code
         when 500
           # This part deals with bug: https://intranet.grid5000.fr/bugzilla/show_bug.cgi?id=5912
@@ -507,7 +513,8 @@ module Cute
 
         begin
           @g5k_connection = G5KRest.new(@uri,@api_version,@user,@pass,params[:on_error])
-        rescue
+        rescue => e
+
           msg_create_file = ""
           if (not File.exist?(default_file)) && params[:conf_file].nil? then
             msg_create_file = "Please create the file: ~/.grid5000_api.yml and
@@ -515,7 +522,9 @@ module Cute
                           :conf_file to indicate another file for the credentials"
           end
           raise "Unable to authorize against the Grid'5000 API.
-               #{msg_create_file}"
+                #{e.message}
+                #{msg_create_file}"
+
 
         end
       end
