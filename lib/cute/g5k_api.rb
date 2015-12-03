@@ -3,6 +3,7 @@ require 'yaml'
 require 'json'
 require 'ipaddress'
 require 'uri'
+
 module Cute
   module G5K
 
@@ -210,8 +211,9 @@ module Cute
 
         machine =`uname -ov`.chop
         @user_agent = "ruby-cute/#{VERSION} (#{machine}) Ruby #{RUBY_VERSION}"
-        @api = RestClient::Resource.new(@endpoint, :timeout => 30)
+        @api = RestClient::Resource.new(@endpoint, :timeout => 30,:verify_ssl => false)
         # some versions of restclient do not verify by default SSL certificates , :verify_ssl => true)
+        # SSL verify is disabled due to Grid'5000 API certificate problem
         @on_error = on_error
         test_connection
       end
@@ -946,8 +948,7 @@ module Cute
           # The request has to be redirected to the OAR API given that Grid'5000 API
           # does not support some OAR options.
           if payload['import-job-key-from-file'] then
-            # Adding double quotes otherwise we have a syntax error from OAR API
-            payload["resources"] = "\"#{payload["resources"]}\""
+
             temp = @g5k_connection.post_json(api_uri("sites/#{site}/internal/oarapi/jobs"),payload)
             sleep 1 # This is for being sure that our job appears on the list
             r = get_my_jobs(site,nil).select{ |j| j["uid"] == temp["id"] }.first

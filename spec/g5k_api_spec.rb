@@ -73,6 +73,10 @@ describe Cute::G5K::API do
 #    expect{ subject.reserve(:site => @rand_site, :resources =>"{ib30g='YES'}/nodes=2")}.to raise_error(Cute::G5K::BadRequest)
   end
 
+  it "raises a bad request using OAR API" do
+    expect{subject.reserve(:site => @rand_site, :resources =>"nodes=1",:keys => "~/my_OAR_jobkey")}.to raise_error(Cute::G5K::BadRequest)
+  end
+
   it "raises an exception at deploying" do
     expect{ subject.reserve(:site => @rand_site, :nodes => 1, :env => "nonsense")}.to raise_error(Cute::G5K::RequestFailed)
   end
@@ -126,7 +130,7 @@ describe Cute::G5K::API do
   end
 
   it "performs an advanced reservation" do
-    time_schedule = Time.now + 60*20
+    time_schedule = Time.now + 60*10
     job =subject.reserve(:site => @rand_site, :nodes => 1, :reservation => time_schedule.strftime("%Y-%m-%d %H:%M:%S"))
     subject.release(job)
   end
@@ -136,7 +140,6 @@ describe Cute::G5K::API do
     expect(subject.get_subnets(job).first).to be_an_instance_of(IPAddress::IPv4)
     subject.release(job)
   end
-
 
   it "does not deploy immediately" do
     job = subject.reserve(:site => @rand_site, :type => :deploy )
