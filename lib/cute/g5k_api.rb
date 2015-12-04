@@ -670,7 +670,8 @@ module Cute
             .map { |x| "#{x}.#{site}.grid5000.fr"}
           switch['nodes'] = nodes
         }
-        return items.select { |it| it.key?('nodes') }
+
+        return items
       end
 
       # @return [Hash] information of a specific switch available in a given Grid'5000 site.
