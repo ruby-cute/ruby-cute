@@ -100,7 +100,9 @@ options[:network_interface] = nil
 options[:num_nodes] = 2
 options[:walltime] = "2:00:00"
 options[:deb_repo]  = 'http://distem.gforge.inria.fr/deb'
-
+options[:cluster] = "nancy"
+options[:env] = 'wheezy-x64-nfs'
+options[:branch] = nil
 args = ARGV.dup
 
 optparse = OptionParser.new do |opts|
@@ -113,6 +115,10 @@ optparse = OptionParser.new do |opts|
   opts.separator "and deploy the environment: \"wheezy-x64-nfs\""
   opts.separator ""
   opts.separator "Options:"
+
+  opts.on( '-f', '--node-list <nodelist_file>', 'File containing the list of nodes to install. If not specified, a job will be submitted using RubyCute') do |n|
+    options[:node_list] = n
+  end
 
   opts.on( '--nodes <number of nodes>', Integer,'Number of nodes to reserve on Grid5000') do |n|
     options[:num_nodes] = n.to_i
@@ -164,6 +170,9 @@ optparse = OptionParser.new do |opts|
   end
   opts.on( '-G', '--gerrit <gerrit_ref>', "Checkout a gerrit ref (e.g refs/changes/94/94/1) and rebuild a Debian package" ) do |n|
     options[:gerrit] = n
+  end
+  opts.on( '-B', '--branch <branch_name>', "Checkout a specific branch and rebuild a Debian package" ) do |n|
+    options[:branch] = n
   end
   opts.on( '-S', '--stealth-mode', 'Do not report usage statistics (Grid\'5000 only)' ) do |c|
     options[:stats] = false
@@ -233,28 +242,37 @@ g5k = Cute::G5K::API.new()
 g5k.logger = logger
 ## performing reservation with ruby-cute
 
-reserv_param = {:site => g5k.site, :nodes => options[:num_nodes], :name => 'distem',
-                :walltime => options[:walltime], :env =>'wheezy-x64-nfs', :subnets => [22,1]}
-
-reserv_param[:cluster] = options[:cluster] if options[:cluster]
+reserv_param = {:site => g5k.site, :cluster => options[:cluster], :nodes => options[:num_nodes], :name => 'distem',
+                :walltime => options[:walltime], :env => options[:env], :subnets => [22,1]}
 
 reserv_param[:keys] = options[:ssh_key] if options[:ssh_key]
 
-reserv_param[:env] = options[:env] if options[:env]
+nodelist = []
 
-# we verify if we have already submit a job
-old_jobs = g5k.get_my_jobs(g5k.site).select{ |j| j["name"] == "distem"}
+if options[:node_list]
+  File.open(options[:node_list], "r") do |f|
+    f.each_line do |line|
+      nodelist.push(line.chop)
+    end
+  end
+end
 
-job = old_jobs.empty? ? g5k.reserve(reserv_param) : old_jobs.first
+# if we pass a list of nodes
+if nodelist.empty?
 
-nodelist = job.resources["cores"].uniq
-## wait for the deploy
-reserv_param.delete(:nodes)
-g5k.deploy(job,reserv_param) if options[:deploy]
+  # we verify if we have already submit a job
+  old_jobs = g5k.get_my_jobs(g5k.site).select{ |j| j["name"] == "distem"}
 
-g5k.wait_for_deploy(job)
+  job = old_jobs.empty? ? g5k.reserve(reserv_param) : old_jobs.first
 
-allnodes = nodelist.dup
+  nodelist = job.resources["cores"].uniq
+  ## wait for the deploy
+  reserv_param.delete(:nodes)
+  g5k.deploy(job,reserv_param) if options[:deploy]
+
+  g5k.wait_for_deploy(job)
+end
+  allnodes = nodelist.dup
 
 # Generating ssh keys"
 
@@ -388,16 +406,24 @@ Net::SSH::Multi.start do |session|
           session.with(:corrd).exec! "git --git-dir=#{gitdir}/.git reset --hard #{options[:git]}"
         end
       end
-    else # gerrit
+      if  options[:branch]
+        logger.info("Setting up git repository from a specific branch:#{options[:branch]} on #{coordinator}")
+        session.with(:coord).exec! "cd #{gitdir} && git fetch origin #{options[:branch]}"
+        session.with(:coord).exec! "cd #{gitdir} && git checkout #{options[:branch]}"
+      end
+    else option[:gerrit] # gerrit
       logger.info("Setting up git repository from gerrit ref:#{options[:gerrit]} on #{coordinator}")
       session.with(:coord).exec! "git clone #{GERRIT_REPOSITORY} #{gitdir}"
       session.with(:coord).exec! "cd #{gitdir} && git fetch #{GERRIT_REPOSITORY} #{options[:gerrit]} && git checkout FETCH_HEAD"
     end
+    # Checking out a specific commit from Distem repository
+
+
     logger.info("Building debian package of distem on #{coordinator}")
     session.with(:coord).exec! "rm -f #{TMP_DIR}/*.deb #{TMP_DIR}/*.changes #{TMP_DIR}/*.dsc #{TMP_DIR}/*.tar.gz"
     session.with(:coord).exec! "cd #{gitdir}; rake snapshot"
 
-    res = session.with(:coord).exec! "find #{TMP_DIR} -maxdepth 1 -name *.deb"
+    res = session.with(:coord).exec! "find #{TMP_DIR} -maxdepth 1 -name distem*.deb"
 
     debarchivefile = res[coordinator][:stdout]
 
@@ -542,21 +568,21 @@ Net::SSH::Multi.start do |session|
   logger.info("Coordinator: #{coordinator}") if options[:init_pnodes] or ARGV[0]
 
   # Send stats record to stats server
-  if g5k? and options[:stats]
-    begin
-      stats = {
-        :time => Time.now.to_i,
-        :site => Socket.gethostname,
-        :user => g5k.g5k_user,
-        :oar   => job['uid'],
-        :nodes => allnodes,
-        :params => args * ' ',
-        :length => (Time.now - $startt).to_i
-      }
-      sock = TCPSocket.open(STATS_SERV, STATS_PORT)
-      sock.send(stats.to_yaml,0)
-      sock.close
-    rescue SocketError, Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::ETIMEDOUT, Errno::EHOSTUNREACH
-    end
-  end
+ if g5k? and options[:stats]
+   begin
+     stats = {
+       :time => Time.now.to_i,
+       :site => Socket.gethostname,
+         :user => g5k.g5k_user,
+         :oar   => job['uid'],
+         :nodes => allnodes,
+         :params => args * ' ',
+         :length => (Time.now - $startt).to_i
+       }
+       sock = TCPSocket.open(STATS_SERV, STATS_PORT)
+       sock.send(stats.to_yaml,0)
+       sock.close
+     rescue SocketError, Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::ETIMEDOUT, Errno::EHOSTUNREACH
+   end
+   end
 end
