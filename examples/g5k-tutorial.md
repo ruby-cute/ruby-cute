@@ -2,16 +2,15 @@
 # Grid'5000 tutorial
 
 
-This tutorial aims at showing how ruby-cute can be used to
+This tutorial aims at showing how **Ruby-Cute** can be used to
 help the scripting of an experiment in the context of Grid'5000 testbed.
-The programming language used as you would expect is Ruby.
-We will use a powerful console debugger call `pry` which offer
-powerful methods to help the step by step of scripting complex
-experiments.
+The programming language used as you would expect is {https://www.ruby-lang.org/en/ Ruby}.
+We will use a powerful console debugger call {http://pryrepl.org/ Pry} which offer
+several functionalities that can be used for the step by step scripting of complex experiments.
 
 ## Installing Ruby cute
 
-This can be consulted in {file:README.md Ruby-Cute install}.
+The installation procedure is shown in {file:README.md Ruby-Cute install}.
 After this step you will normally have `ruby-cute` and `pry` gems installed.
 
 ## Preparing the environment
@@ -28,24 +27,24 @@ Then, create a pair of SSH keys. This will be used for the first experiment.
 
     $ ssh-keygen -b 1024 -N "" -t rsa -f ~/my_ssh_jobkey
 
-Let's create a directory for our experiments
+Let's create a directory for our experiments.
 
     $ mkdir ruby-cute-tutorial
 
-## Getting aquantained with pry console
+## Getting acquainted with pry console
 
-After instaling ruby-cute and pry gems you can access a pry console
-with ruby-cute loaded by
-We will lunch a pry session from our recently created directory.
+After instaling `ruby-cute` and `pry` gems you can lunch a pry console
+with **ruby-cute** loaded by typing:
+
 
     $ cd ruby-cute-tutorial/
     $ cute
 
-Which will open a pry console:
+Which will open a `pry` console:
 
     [1] pry(main)>
 
-In this new console, we can evaluate Ruby code, execute shell commands, consult
+In this console, we can evaluate Ruby code, execute shell commands, consult
 documentation, explore classes and more.
 The variable *$g5k* is available which can be used to access the Grid'5000 API through the
 [G5K Module](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/G5K/API). For example,
@@ -66,11 +65,11 @@ As well as, the deployable environments:
     [6] pry(main)> $g5k.environment_uids("grenoble")
     => ["squeeze-x64-base", "squeeze-x64-big", "squeeze-x64-nfs", "wheezy-x64-base", "wheezy-x64-big", "wheezy-x64-min", "wheezy-x64-nfs", "wheezy-x64-xen"]
 
-You can execute shell commands as well, however all commands have to be prefixed with a dot "." for example we could generate the SSH keys using:
+It is possible to execute shell commands, however all commands have to be prefixed with a dot ".". For example we could generate a pair of SSH keys using:
 
     [7] pry(main)> .ssh-keygen -b 1024 -N "" -t rsa -f ~/my_ssh_jobkey
 
-Another advantage is the possibility of exploring the loaded ruby modules.
+Another advantage is the possibility of exploring the loaded Ruby modules.
 Let's explore the [Cute](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute) module.
 
     [8] pry(main)> cd Cute
@@ -78,14 +77,14 @@ Let's explore the [Cute](http://www.rubydoc.info/github/ruby-cute/ruby-cute/mast
     constants: Bash  Execute  G5K  TakTuk  VERSION
     locals: _  __  _dir_  _ex_  _file_  _in_  _out_  _pry_
 
-We will see that [Cute](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute) module
+We can see that [Cute](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute) module
 is composed of other helpful modules such as:
 [G5K](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/G5K/API),
 [TakTuk](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/TakTuk), etc.
 
     [10] pry(main)> cd
 
-Les explore the mehods defined in
+Let's explore the methods defined in
 [G5K Module](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/G5K/API),
 so you can observe which methods can be used with `$g5k` variable.
 
@@ -96,33 +95,27 @@ so you can observe which methods can be used with `$g5k` variable.
       cluster_uids      deploy_status     g5k_user         get_jobs     get_switch    logger          release       rest     site_uids    wait_for_job
       clusters          environment_uids  get_deployments  get_my_jobs  get_switches  logger=         release_all   site     sites
 
-We can access as well the respective YARD documentation of a given method:
+We can access as well the respective YARD documentation of a given method by typing:
 
     [12] pry(main)> show-doc Cute::G5K::API#deploy
 
-The output is omitted. Now in the following section we will see how
+In the following section we will see how
 `pry` can be used to setup an experiment step by step using **Ruby-Cute**.
 
-## First experiment - Infiniband performance test
+## First experiment: Infiniband performance test
 
-Here we will use ruby-cute to carry out an experiment.
-We will do it interactibely using pry. From a pry console let's load the
-SCP module to transfers files:
-
-    [12] pry(main)> require 'net/scp'
-
+Here, we will use **Ruby-cute** to carry out an experiment.
 For this particular experiment we have the following requirements:
 
 - A pair of SSH keys
 - Use of production environment (no deploy)
 - Two nodes connected with infinaband (10G or 20G)
 - MPI behchmark NETPIPE
-- An MPI runtime (OpenMPI or MPICH)
+- A MPI runtime (OpenMPI or MPICH)
 
-Given that the MPI bench uses just one MPI processes, we will need in realty
-just one core of a given machine. First, let's find the sites that offer
-Infinibad interconnection. For that we will write a small script form pry console using
-the command edit.
+We will do it interactibely using `pry`.
+First, let's find the sites that offer Infinibad interconnection.
+For that we will write a small script form `pry` console using the command edit.
 
 
     [13] pry(main)> edit -n find_infiniband.rb
@@ -138,12 +131,12 @@ ruby script:
       sites_infiniband.push(site) unless $g5k.get_switches(site).select{ |t| t["model"] == "Infiniband" }.empty?
     end
 
-and we can execute it using play command which will execute line by line this script in the context of Pry session.
+Then, we execute it using `play` command which will execute line by line this script in the context of a Pry session.
 
     [21] pry(main)> play find_infiniband.rb
     => ["grenoble", "lille", "luxembourg", "lyon", "nancy", "nantes", "reims", "rennes", "sophia"]
 
-We can observe that the sites_infinibad is now defined, telling us that Grenoble and Nancy sites offer Infiniband interconnection.
+We can observe that the variable `sites_infinibad` is now defined, telling us that Grenoble and Nancy sites offer Infiniband interconnection.
 
     [22] pry(main)> sites_infiniband
     => ["grenoble", "nancy"]
@@ -153,7 +146,9 @@ We send the keys that we have generated before to the chosen site:
     [22] pry(main)> .scp ~/my_ssh* nancy:~/
 
 Now that we have found the sites that we can use, let's submit a job. You can use between grenoble and nancy site. If you
-take a look at monika you will see that for grenoble is 'ib20g' for nancy and 'ib10g' in grenoble.
+take a look at monika you will see that 'ib20g' for nancy and 'ib10g' in grenoble.
+Given that the MPI bench uses just one MPI processes, we will need in realty
+just one core of a given machine.
 We will use OAR syntax to ask for two cores in two different nodes with ib20g in nancy.
 
     [23] pry(main)> job = $g5k.reserve(:site => "nancy", :resources => "{ib20g='YES'}/nodes=2/core=1",:walltime => '01:00:00', :keys => "~/my_ssh_jobkey" )
@@ -162,7 +157,7 @@ We will use OAR syntax to ask for two cores in two different nodes with ib20g in
     2015-12-04 14:07:41.444 => Reservation 692665 should be available at 2015-12-04 14:07:34 +0100 (0 s)
     2015-12-04 14:07:41.444 => Reservation 692665 ready
 
-A got a hash with all information about the job that we have just submitted.
+A hash is returned containing all information about the job that we have just submitted.
 
     [58] pry(main)> job
     => {"uid"=>692665,
@@ -189,7 +184,7 @@ A got a hash with all information about the job that we have just submitted.
      "resources_by_type"=>{"cores"=>["graphene-67.nancy.grid5000.fr", "graphene-45.nancy.grid5000.fr"]},
      "assigned_nodes"=>["graphene-67.nancy.grid5000.fr", "graphene-45.nancy.grid5000.fr"]}
 
-An important information is the nodes that has been assigned, let's put this information in another variable
+An important information is the nodes that has been assigned, let's put this information in another variable:
 
     [60] pry(main)> nodes = job["assigned_nodes"]
     => ["graphene-67.nancy.grid5000.fr", "graphene-45.nancy.grid5000.fr"]
@@ -205,24 +200,28 @@ Then, we create a file with the name of the reserved machines:
     [66] pry(main)> machine_file.close
 
 
-We will need to setup SSH options for OAR, we can do it with the OARSSHoptions class helper provided by ruby-cute:
+We will need to setup SSH options for OAR, we can do it with the {Cute::OARSSHoptions OARSSHoptions} class helper provided by ruby-cute:
 
     [6] pry(main)> grid5000_opt = OARSSHopts.new(:keys => "~/my_ssh_jobkey")
     => {:user=>"oar", :keys=>"~/my_ssh_jobkey", :port=>6667}
 
-Now, we can now use SSH communication with our nodes. Lets send the machinefile using SCP. We open the editor with
-an empty file:
+Now, we can communicate using SSH with our nodes. Lets send the machinefile using SCP.
+From a `pry` console let's load the SCP module to transfer files:
+
+    [12] pry(main)> require 'net/scp'
+
+Then, let's open the editor with an empty file:
 
     [6] pry(main)> edit -t
 
-and copy paste the following code:
+and copy-paste the following code:
 
     Net::SCP.start(nodes.first, "oar", grid5000_opt) do |scp|
       scp.upload! machine_file.path, "/tmp/machine_file"
     end
 
-If we save and exit the editor, the code will be evalued in pry context. So in this case the file will be sent into the
-first node. We can check this by performing an ssh connection into the node. We open the editor as we did before and type
+If we save and quit the editor, the code will be evaluated in `pry` context. Therefore, in this case the file will be sent into the
+first node. We can check this by performing an SSH connection into the node. We open the editor as we did before and type
 the following code:
 
     Net::SSH.start(nodes.first, "oar", grid5000_opt) do |ssh|
@@ -237,13 +236,18 @@ Which will generate the following output:
     graphene-81.nancy.grid5000.fr
     => nil
 
-We have confirmed that we have transfered the file to the first reserved node. Now let's download, compile and execute
-the benchmark. Create a ruby file called netpipe:
+We confirmed the existence of the file in the first reserved node.
+Now let's download, compile and execute
+the benchmark. Create a Ruby file called netpipe:
+
+    [12] pry(main)> edit -n netpipe.rb
+
+With the following content:
 
     Net::SSH.start(nodes.first, "oar", grid5000_opt) do |ssh|
-      netpipe = "http://pkgs.fedoraproject.org/repo/pkgs/NetPIPE/NetPIPE-3.7.1.tar.gz/5f720541387be065afdefc81d438b712/NetPIPE-3.7.1.tar.gz"
+      netpipe_url = "http://pkgs.fedoraproject.org/repo/pkgs/NetPIPE/NetPIPE-3.7.1.tar.gz/5f720541387be065afdefc81d438b712/NetPIPE-3.7.1.tar.gz"
       ssh.exec!("mkdir -p netpipe_exp")
-      ssh.exec!("export http_proxy=\"http://proxy:3128\"; wget -O ~/netpipe_exp/NetPIPE.tar.gz #{netpipe}")
+      ssh.exec!("export http_proxy=\"http://proxy:3128\"; wget -O ~/netpipe_exp/NetPIPE.tar.gz #{netpipe_url}")
       ssh.exec!("cd netpipe_exp && tar -zvxf NetPIPE.tar.gz")
       ssh.exec!("cd netpipe_exp/NetPIPE-3.7.1 && make mpi")
       ssh.exec("mpirun --mca plm_rsh_agent \"oarsh\" -machinefile /tmp/machine_file ~/netpipe_exp/NetPIPE-3.7.1/NPmpi")
@@ -273,20 +277,20 @@ Then we execute this script:
 
     => nil
 
-We have a problem with the keys and this is because the oarsh cannot not find the appropiate key files
-We can fix this problem by prefixing the mpirun command with export OAR_JOB_KEY_FILE=~/my_ssh_jobkey.
+We got an error related to the SSH keys and it is due to the fact that `oarsh` cannot not find the appropriate key files.
+We can fix this problem by prefixing the `mpirun` command with `export OAR_JOB_KEY_FILE=~/my_ssh_jobkey`.
 Now the code will look like this:
 
     Net::SSH.start(nodes.first, "oar", grid5000_opt) do |ssh|
-      netpipe = "http://pkgs.fedoraproject.org/repo/pkgs/NetPIPE/NetPIPE-3.7.1.tar.gz/5f720541387be065afdefc81d438b712/NetPIPE-3.7.1.tar.gz"
+      netpipe_url = "http://pkgs.fedoraproject.org/repo/pkgs/NetPIPE/NetPIPE-3.7.1.tar.gz/5f720541387be065afdefc81d438b712/NetPIPE-3.7.1.tar.gz"
       ssh.exec!("mkdir -p netpipe_exp")
-      ssh.exec!("export http_proxy=\"http://proxy:3128\"; wget -O ~/netpipe_exp/NetPIPE.tar.gz #{netpipe}")
+      ssh.exec!("export http_proxy=\"http://proxy:3128\"; wget -O ~/netpipe_exp/NetPIPE.tar.gz #{netpipe_url}")
       ssh.exec!("cd netpipe_exp && tar -zvxf NetPIPE.tar.gz")
       ssh.exec!("cd netpipe_exp/NetPIPE-3.7.1 && make mpi")
       ssh.exec("export OAR_JOB_KEY_FILE=~/my_ssh_jobkey;mpirun --mca plm_rsh_agent \"oarsh\" -machinefile /tmp/machine_file ~/netpipe_exp/NetPIPE-3.7.1/NPmpi")
     end
 
-We run the script which will show the output of the benchmark in the pry console:
+After running the script, it will show the output of the benchmark in the `pry` console:
 
     [34] pry(main)> play netpipe.rb
     #<Net::SSH::Connection::Channel:0x00000002edc6d0>
@@ -308,12 +312,12 @@ We run the script which will show the output of the benchmark in the pry console
       12:      27 bytes  41271 times -->    119.77 Mbps in       1.72 usec
 
 We can modify slightly the previous script to write the result into a file.
-We have to use ssh.exec! to capture the output of the commands.
+We need to use ssh.exec! to capture the output of the commands.
 
     Net::SSH.start(nodes.first, "oar", grid5000_opt) do |ssh|
-      netpipe = "http://pkgs.fedoraproject.org/repo/pkgs/NetPIPE/NetPIPE-3.7.1.tar.gz/5f720541387be065afdefc81d438b712/NetPIPE-3.7.1.tar.gz"
+      netpipe_url = "http://pkgs.fedoraproject.org/repo/pkgs/NetPIPE/NetPIPE-3.7.1.tar.gz/5f720541387be065afdefc81d438b712/NetPIPE-3.7.1.tar.gz"
       ssh.exec!("mkdir -p netpipe_exp")
-      ssh.exec!("export http_proxy=\"http://proxy:3128\"; wget -O ~/netpipe_exp/NetPIPE.tar.gz #{netpipe}")
+      ssh.exec!("export http_proxy=\"http://proxy:3128\"; wget -O ~/netpipe_exp/NetPIPE.tar.gz #{netpipe_url}")
       ssh.exec!("cd netpipe_exp && tar -zvxf NetPIPE.tar.gz")
       ssh.exec!("cd netpipe_exp/NetPIPE-3.7.1 && make mpi")
 
