@@ -37,13 +37,17 @@ class String
 
 end
 
-class OARSSHopts < Hash
+module Cute
 
-  def initialize(opts={})
+  class OARSSHopts < Hash
 
-    raise "The argument must be a Hash" unless opts.is_a?(Hash)
+    def initialize(opts={})
+
+      raise "The argument must be a Hash" unless opts.is_a?(Hash)
     self.merge!({:user => "oar", :keys => ["~/my_ssh_jobkey"], :port => 6667 })
     self.merge!(opts)
+
+    end
 
   end
 
