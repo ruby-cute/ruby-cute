@@ -498,8 +498,7 @@ Net::SSH::Multi.start do |session|
     begin
       Timeout.timeout(10) do
         root_iface_opt = options[:network_interface] ? "--network-interface #{options[:network_interface]}" : ''
-        distem_cmd = "LANG=C distemd #{options[:verbose] ? '--verbose' : ''} --network-mode "+
-                     "#{options[:network_mode]} #{root_iface_opt} -d &>#{File.join(PATH_DISTEMD_LOGS,'distemd.log')}&"
+        distem_cmd = "LANG=C distemd #{options[:verbose] ? '--verbose' : ''} -d &>#{File.join(PATH_DISTEMD_LOGS,'distemd.log')}&"
 
         session.with(:coord).exec! distem_cmd
 
