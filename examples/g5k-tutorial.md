@@ -102,6 +102,13 @@ We can access as well the respective YARD documentation of a given method by typ
 In the following section we will see how
 `pry` can be used to setup an experiment step by step using **Ruby-Cute**.
 
+Pry can be customized by creating the file `.pryrc`. We will create this
+file with the following content in order to choose our prefered editor:
+
+    $ cat > ~/.pryrc << EOF
+    Pry.config.editor = "emacs"
+    EOF
+
 ## First experiment: Infiniband performance test
 
 Here, we will use **Ruby-cute** to carry out an experiment.
@@ -145,13 +152,12 @@ We send the keys that we have generated before to the chosen site:
 
     [22] pry(main)> .scp ~/my_ssh* nancy:~/
 
-Now that we have found the sites that we can use, let's submit a job. You can use between grenoble and nancy site. If you
-take a look at monika you will see that 'ib20g' for nancy and 'ib10g' in grenoble.
-Given that the MPI bench uses just one MPI processes, we will need in realty
-just one core of a given machine.
-We will use OAR syntax to ask for two cores in two different nodes with ib20g in nancy.
+Now that we have found the sites, let's submit a job. You can use between Grenoble and Nancy sites. If you
+take a look at monika you will see that in Nancy we should use the OAR property 'ib20g' and in Grenoble we should use 'ib10g'.
+Given that the MPI bench uses just one MPI process, we will need in realty just one core of a given machine.
+We will use OAR syntax to ask for two cores in two different nodes with ib10g in Grenoble.
 
-    [23] pry(main)> job = $g5k.reserve(:site => "nancy", :resources => "{ib20g='YES'}/nodes=2/core=1",:walltime => '01:00:00', :keys => "~/my_ssh_jobkey" )
+    [23] pry(main)> job = $g5k.reserve(:site => "grenoble", :resources => "{ib10g='YES'}/nodes=2/core=1",:walltime => '01:00:00', :keys => "~/my_ssh_jobkey" )
     2015-12-04 14:07:31.370 => Reserving resources: {ib20g='YES'}/nodes=2/core=1,walltime=01:00 (type: ) (in nancy)
     2015-12-04 14:07:41.358 => Waiting for reservation 692665
     2015-12-04 14:07:41.444 => Reservation 692665 should be available at 2015-12-04 14:07:34 +0100 (0 s)
@@ -205,29 +211,30 @@ We will need to setup SSH options for OAR, we can do it with the {Cute::OARSSHop
     [6] pry(main)> grid5000_opt = OARSSHopts.new(:keys => "~/my_ssh_jobkey")
     => {:user=>"oar", :keys=>"~/my_ssh_jobkey", :port=>6667}
 
-Now, we can communicate using SSH with our nodes. Lets send the machinefile using SCP.
+Now, we can communicate using SSH with our nodes. Let's send the machinefile using SCP.
 From a `pry` console let's load the SCP module to transfer files:
 
     [12] pry(main)> require 'net/scp'
 
-Then, let's open the editor with an empty file:
-
-    [6] pry(main)> edit -t
-
-and copy-paste the following code:
+Then, copy-paste the following code in pry console:
 
     Net::SCP.start(nodes.first, "oar", grid5000_opt) do |scp|
       scp.upload! machine_file.path, "/tmp/machine_file"
     end
 
-If we save and quit the editor, the code will be evaluated in `pry` context. Therefore, in this case the file will be sent into the
-first node. We can check this by performing an SSH connection into the node. We open the editor as we did before and type
-the following code:
+The previous code will sent the machine file into the first node.
+We can check this by performing an SSH connection into the node.
+Here to illustrate the use of temporary files, let's type the following:
+
+    [6] pry(main)> edit -t
+
+and copy-paste the following code:
 
     Net::SSH.start(nodes.first, "oar", grid5000_opt) do |ssh|
       puts ssh.exec("cat /tmp/machine_file")
     end
 
+If we save and quit the editor, the code will be evaluated in `pry` context.
 Which will generate the following output:
 
     [12] pry(main)> edit -t
@@ -342,3 +349,271 @@ We can check the results by doing:
      7:      13 bytes  24578 times -->     58.40 Mbps in       1.70 usec
      8:      16 bytes  27177 times -->     71.87 Mbps in       1.70 usec
      9:      19 bytes  33116 times -->     85.00 Mbps in       1.71 usec
+
+At the end of the experiment you can use the command history to see what you have done which
+will help you to assemble everything together in a whole script.
+
+    [22] pry(main)> hist
+    1: edit -n find_infiniband.rb
+    3: play find_infiniband.rb
+    4: sites_infiniband
+    5: .ls ~/my_ssh*
+    6: .scp ~/my_ssh* nancy:~/
+    7: job = $g5k.reserve(:site => "nancy", :resources => "{ib20g='YES'}/nodes=2/core=1",:walltime => '01:00:00', :keys => "~/my_ssh_jobkey" )
+    8: nodes = job["assigned_nodes"]
+    9: machine_file = Tempfile.open('machine_file')
+    10: nodes.each{ |node| machine_file.puts node }
+    11: machine_file.close
+    12: grid5000_opt = OARSSHopts.new(:keys => "~/my_ssh_jobkey")
+    13: require 'net/scp'
+    14: Net::SCP.start(nodes.first, "oar", grid5000_opt) do |scp|
+    15:  scp.upload! machine_file.path, "/tmp/machine_file"
+    16: end
+    17: edit -n netpipe.rb
+    18: play netpipe.rb
+    19: edit -n netpipe.rb
+    20: play netpipe.rb
+
+## Running NAS benchmark in Grid'5000: getting acquainted with parallel command execution
+
+In this experiment we will run the NAS benchmark in Grid'5000. This experiment has the following requirements:
+
+- 4 or 2 nodes from any Grid'5000 sites
+- Use of production environment (no deploy)
+- NAS MPI behchmark
+- A MPI runtime (OpenMPI or MPICH)
+
+First, let's find the necessary nodes for our experiment. As resources in Grid'5000 could be very busy, we are going
+to script a loop that will explore all Grid'5000 sites and find the first site that can provide us with the required nodes.
+Open an editor form pry:
+
+    [5] pry(main)> edit -n find_nodes.rb
+
+and type the following code:
+
+    sites = $g5k.site_uids
+    job = {}
+
+    sites.each do |site|
+      job = $g5k.reserve(:site => site, :nodes => 4, :wait => false, :walltime => "01:00:00")
+      begin
+        job = $g5k.wait_for_job(job, :wait_time => 60)
+        puts "Nodes assigned #{job['assigned_nodes']}"
+        break
+      rescue  Cute::G5K::EventTimeout
+        puts "We waited too long in site #{site} let's release the job and try in another site"
+        $g5k.release(job)
+      end
+    end
+
+Here, we use the method {Cute::G5K::API#site_uids site_uids} for getting all available sites.
+Then, a job is submitted using the method {Cute::G5K::API#reserve reserve}.
+We ask for 4 nodes in a given site and we set the parameter `wait` to false which makes the method to return immediately.
+Then, we use {Cute::G5K::API#wait_for_job wait_for_job} to set a timeout. If the timeout is reached a {Cute::G5K::EventTimeout Timeout} exception will be triggered
+that we catch in order to consequently release the submitted job and try to submit it in another site.
+Let's execute the script using play command:
+
+    [8] pry(main)> play find_nodes.rb
+    2015-12-08 16:50:35.582 => Reserving resources: /nodes=4,walltime=01:00 (type: ) (in grenoble)
+    2015-12-08 16:50:36.465 => Waiting for reservation 1702197
+    2015-12-08 16:50:41.587 => Reservation 1702197 should be available at 2015-12-08 16:50:37 +0100 (0 s)
+    2015-12-08 16:50:41.587 => Reservation 1702197 ready
+    Nodes assigned ["edel-10.grenoble.grid5000.fr", "edel-11.grenoble.grid5000.fr", "edel-12.grenoble.grid5000.fr", "edel-13.grenoble.grid5000.fr"]
+    => nil
+
+The job variable is updated in Pry context. When no keys are specified, the option *-allow_classic_ssh* is activated
+which enables the access via default SSH to the reserved machines. You can verify it by doing:
+
+    [11] pry(main)> .ssh edel-11.grenoble.grid5000.fr "hostname"
+    Warning: Permanently added 'edel-11.grenoble.grid5000.fr,172.16.17.11' (RSA) to the list of known hosts.
+    edel-11.grenoble.grid5000.fr
+
+Let's explore the available modules for the parallel execution of commands in several remote machines.
+The following example show how to use the {Cute::TakTuk TakTuk} module.
+
+    nodes = job["assigned_nodes"]
+    Cute::TakTuk.start(nodes) do |tak|
+       tak.exec("hostname")
+    end
+
+Which generates as output:
+
+    edel-10.grenoble.grid5000.fr/output/0:edel-10.grenoble.grid5000.fr
+    edel-12.grenoble.grid5000.fr/output/0:edel-12.grenoble.grid5000.fr
+    edel-13.grenoble.grid5000.fr/output/0:edel-13.grenoble.grid5000.fr
+    edel-10.grenoble.grid5000.fr/status/0:0
+    edel-11.grenoble.grid5000.fr/output/0:edel-11.grenoble.grid5000.fr
+    edel-12.grenoble.grid5000.fr/status/0:0
+    edel-13.grenoble.grid5000.fr/status/0:0
+    edel-11.grenoble.grid5000.fr/status/0:0
+
+The following example shows how to use the {Net::SSH::Multi Net::SSH::Multi} module.
+
+    Net::SSH::Multi.start do |session|
+      nodes.each{ |node| session.use node }
+      session.exec("hostname")
+    end
+
+If we type that into pry console we will get:
+
+    [edel-10.grenoble.grid5000.fr] edel-10.grenoble.grid5000.fr
+    [edel-11.grenoble.grid5000.fr] edel-11.grenoble.grid5000.fr
+    [edel-12.grenoble.grid5000.fr] edel-12.grenoble.grid5000.fr
+    [edel-13.grenoble.grid5000.fr] edel-13.grenoble.grid5000.fr
+
+It is possible to capture the output of the executed command by adding **!** to exec method.
+For example, let's find the number of cores available in the reserved machines:
+
+    results = {}
+    Net::SSH::Multi.start do |session|
+      nodes.each{ |node| session.use node }
+      results = session.exec!("nproc")
+    end
+
+The {Net::SSH::Multi::SessionActions#exec! exec!} method will return a Hash that looks like this:
+
+    [27] pry(main)> results
+    => {"edel-10.grenoble.grid5000.fr"=>{:stdout=>"8", :status=>0},
+    "edel-11.grenoble.grid5000.fr"=>{:stdout=>"8", :status=>0},
+    "edel-12.grenoble.grid5000.fr"=>{:stdout=>"8", :status=>0},
+    "edel-13.grenoble.grid5000.fr"=>{:stdout=>"8", :status=>0}}
+
+Where the Hash keys are the names of the machines and the values correspond to the output of the commands.
+Then, we can easily get the total number of cores by typing:
+
+    [11] pry(main)> num_cores = results.values.inject(0){ |sum, item| sum+item[:stdout].to_i}
+     => 32
+
+Another way to do that is to use the information given by the G5K API regarding the submitted job:
+
+     [36] pry(main)> job["resources_by_type"]["cores"].length
+     => 32
+
+Let's create a machine file that we will need later on for our experiments:
+
+     machine_file = Tempfile.open('machine_file')
+     nodes.each{ |node| machine_file.puts node }
+     machine_file.close
+
+After creating the machine file, we need to send it to the other machines.
+Additionally, we need to download and compile the benchmark.
+Let's write a small that help us to perform the aforementioned tasks.
+Open the editor in pry console:
+
+     [17] pry(main)> edit -n NAS-expe.rb
+
+Then, type:
+
+     Cute::TakTuk.start(nodes) do |tak|
+
+       tak.put(machine_file.path, "machine_file")
+       tak.put("/tmp/NAS.tar", "/tmp/NAS.tar")
+
+       tak.exec!("cd /tmp/; tar -xvf NAS.tar")
+       puts tak.exec!("make lu NPROCS=#{num_cores} CLASS=A MPIF77=mpif77 -C /tmp/NPB3.3/NPB3.3-MPI/")
+
+     end
+
+We can observe in the previous snippet of code that {Cute::TakTuk TakTuk} module can be used to
+transfer files to several remote nodes. {Cute::TakTuk::TakTuk#put put} and {Cute::TakTuk::TakTuk#exec exec} methods
+can be used in the same block. Finally, execute the script:
+
+     [102] pry(main)> play NAS-expe.rb
+
+We can check if each node has the generated binary and the machine file:
+
+     Net::SSH::Multi.start do |session|
+       nodes.each{ |node| session.use node }
+       session.exec("ls /tmp/NPB3.3/NPB3.3-MPI/bin/")
+       session.exec("ls ~/machine*")
+     end
+
+After typing it into `pry` console we will get something like:
+
+    [genepi-27.grenoble.grid5000.fr] lu.A.32
+    [genepi-29.grenoble.grid5000.fr] lu.A.32
+    [genepi-29.grenoble.grid5000.fr] /home/cruizsanabria/machine_file
+    [genepi-19.grenoble.grid5000.fr] lu.A.32
+    [genepi-19.grenoble.grid5000.fr] /home/cruizsanabria/machine_file
+    [genepi-2.grenoble.grid5000.fr] lu.A.32
+    [genepi-2.grenoble.grid5000.fr] /home/cruizsanabria/machine_file
+    [genepi-27.grenoble.grid5000.fr] /home/cruizsanabria/machine_file
+
+Which confirm the presence of both files on the nodes.
+We can get the path of the binary by typing the following into the pry console.
+
+     Net::SSH::Multi.start do |session|
+       nodes.each{ |node| session.use node }
+       results = session.exec!("find /tmp/ -name lu.A.32")
+     end
+
+We will get some errors provoked by the `find` command:
+
+     [32] pry(main)> results
+     => {"genepi-27.grenoble.grid5000.fr"=>{:stdout=>"/tmp/NPB3.3/NPB3.3-MPI/bin/lu.A.32", :stderr=>": Permission denied", :status=>1},
+     "genepi-29.grenoble.grid5000.fr"=>{:stdout=>"/tmp/NPB3.3/NPB3.3-MPI/bin/lu.A.32", :stderr=>": Permission denied", :status=>1},
+     "genepi-19.grenoble.grid5000.fr"=>{:stderr=>": Permission denied", :stdout=>"/tmp/NPB3.3/NPB3.3-MPI/bin/lu.A.32", :status=>1},
+     "genepi-2.grenoble.grid5000.fr"=>{:stdout=>"/tmp/NPB3.3/NPB3.3-MPI/bin/lu.A.32", :stderr=>": Permission denied", :status=>1}}
+
+
+Then, we can assign this to a new variable:
+
+     [33] pry(main)> lu_path = results.values.first[:stdout]
+     => "/tmp/NPB3.3/NPB3.3-MPI/bin/lu.A.32"
+
+The setup of the experiment is done. It is time to execute the benchmark by typing the following into pry console.
+
+    Net::SSH.start(nodes.first,"cruizsanabria") do |ssh|
+      results = ssh.exec!("mpirun --mca btl self,sm,tcp -np 32 --machinefile machine_file #{lu_path}")
+    end
+
+Let's now perform a scalability test of the LU application for 2, 4, 8, 16, 32 processes. Open the editor:
+
+    [100] pry(main)> edit -n scalability_NAS.rb
+
+And copy-paste the following script:
+
+    num_cores = [2,4,8,16,32]
+
+    Cute::TakTuk.start(nodes) do |tak|
+
+      num_cores.each do |cores|
+        puts tak.exec!("make lu NPROCS=#{cores} CLASS=A MPIF77=mpif77 -C /tmp/NPB3.3/NPB3.3-MPI/")
+      end
+
+      results = tak.exec!("find /tmp/ -name lu.A.*")
+    end
+
+    binaries = results.values.first[:output].split("\n")
+
+    expe_res = {}
+
+    Net::SSH.start(nodes.first,"cruizsanabria") do |ssh|
+      binaries.each do |binary|
+        processes = /A\.(\d*)/.match(binary)[1]
+        expe_res[processes]= {}
+        result = ssh.exec!("mpirun --mca btl self,sm,tcp -np #{processes} --machinefile machine_file #{binary}")
+        expe_res[processes][:output]= result
+        expe_res[processes][:time] =result.split("\n").select{ |t| t["Time in"]}.first
+      end
+    end
+
+Then, we execute it:
+
+    [102] pry(main)> play scalability_NAS.rb
+
+It will take approximately 2 ~ 3 minutes to run. After finishing a new Hash will
+be defined called *expe_res* that we can use to print the results:
+
+    num_cores.each{ |cores| puts "#{cores} cores: #{expe_res[cores.to_s][:time]}"}
+
+It will generate:
+
+    [107] pry(main)> num_cores.each{ |cores| puts "#{cores} cores: #{expe_res[cores.to_s][:time]}"}
+    2 cores:  Time in seconds =                    42.93
+    4 cores:  Time in seconds =                    26.50
+    8 cores:  Time in seconds =                    12.39
+    16 cores:  Time in seconds =                     7.01
+    32 cores:  Time in seconds =                     6.00
+
+Finally, we can use the command `hist` to try to assemble all we have done so far into a script.
