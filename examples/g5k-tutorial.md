@@ -19,7 +19,7 @@ Before using **Ruby-Cute** you have to create the following file:
 
     $ cat > ~/.grid5000_api.yml << EOF
     $ uri: https://api.grid5000.fr/
-    $ version: sid
+    $ version: 3.0
     $ EOF
 
 
@@ -49,8 +49,6 @@ documentation, explore classes and more.
 The variable *$g5k* is available which can be used to access the Grid'5000 API through the
 [G5K Module](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/G5K/API). For example,
 let's request the name of the sites available in Grid'5000.
-(Before starting be sure to set up a configuration file for the module, please refer to
-[G5K Module](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/G5K/API))
 
     [2] pry(main)> $g5k.site_uids()
     => ["grenoble", "lille", "luxembourg", "lyon", "nancy", "nantes", "reims", "rennes", "sophia", "toulouse"]
@@ -81,6 +79,7 @@ We can see that [Cute](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master
 is composed of other helpful modules such as:
 [G5K](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/G5K/API),
 [TakTuk](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/TakTuk), etc.
+To quit Cute namespace type:
 
     [10] pry(main)> cd
 
@@ -153,7 +152,7 @@ We send the keys that we have generated before to the chosen site:
     [22] pry(main)> .scp ~/my_ssh* nancy:~/
 
 Now that we have found the sites, let's submit a job. You can use between Grenoble and Nancy sites. If you
-take a look at monika you will see that in Nancy we should use the OAR property 'ib20g' and in Grenoble we should use 'ib10g'.
+take a look at {https://www.grid5000.fr/mediawiki/index.php/Status Monika} you will see that in Nancy we should use the OAR property 'ib20g' and in Grenoble we should use 'ib10g'.
 Given that the MPI bench uses just one MPI process, we will need in realty just one core of a given machine.
 We will use OAR syntax to ask for two cores in two different nodes with ib10g in Grenoble.
 
@@ -234,7 +233,7 @@ and copy-paste the following code:
       puts ssh.exec("cat /tmp/machine_file")
     end
 
-If we save and quit the editor, the code will be evaluated in `pry` context.
+If we save and quit the editor, the code will be evaluated in Pry context.
 Which will generate the following output:
 
     [12] pry(main)> edit -t
@@ -260,7 +259,7 @@ With the following content:
       ssh.exec("mpirun --mca plm_rsh_agent \"oarsh\" -machinefile /tmp/machine_file ~/netpipe_exp/NetPIPE-3.7.1/NPmpi")
     end
 
-Then we execute this script:
+Then, execute the created script:
 
     [16] pry(main)> play netpipe.rb
     #<Net::SSH::Connection::Channel:0x000000021679f0>
@@ -319,7 +318,7 @@ After running the script, it will show the output of the benchmark in the `pry` 
       12:      27 bytes  41271 times -->    119.77 Mbps in       1.72 usec
 
 We can modify slightly the previous script to write the result into a file.
-We need to use ssh.exec! to capture the output of the commands.
+We need to use `ssh.exec!` to capture the output of the commands.
 
     Net::SSH.start(nodes.first, "oar", grid5000_opt) do |ssh|
       netpipe_url = "http://pkgs.fedoraproject.org/repo/pkgs/NetPIPE/NetPIPE-3.7.1.tar.gz/5f720541387be065afdefc81d438b712/NetPIPE-3.7.1.tar.gz"
@@ -350,8 +349,8 @@ We can check the results by doing:
      8:      16 bytes  27177 times -->     71.87 Mbps in       1.70 usec
      9:      19 bytes  33116 times -->     85.00 Mbps in       1.71 usec
 
-At the end of the experiment you can use the command history to see what you have done which
-will help you to assemble everything together in a whole script.
+At the end of the experiment you can use the command `hist` to see what you have done so far.
+This can help you to assemble everything together in a whole script.
 
     [22] pry(main)> hist
     1: edit -n find_infiniband.rb
@@ -376,7 +375,7 @@ will help you to assemble everything together in a whole script.
 
 ## Running NAS benchmark in Grid'5000: getting acquainted with parallel command execution
 
-In this experiment we will run the NAS benchmark in Grid'5000. This experiment has the following requirements:
+In this experiment, we will run the NAS benchmark in Grid'5000. This experiment has the following requirements:
 
 - 4 or 2 nodes from any Grid'5000 sites
 - Use of production environment (no deploy)
@@ -385,7 +384,7 @@ In this experiment we will run the NAS benchmark in Grid'5000. This experiment h
 
 First, let's find the necessary nodes for our experiment. As resources in Grid'5000 could be very busy, we are going
 to script a loop that will explore all Grid'5000 sites and find the first site that can provide us with the required nodes.
-Open an editor form pry:
+Open an editor form `pry` console:
 
     [5] pry(main)> edit -n find_nodes.rb
 
@@ -411,7 +410,7 @@ Then, a job is submitted using the method {Cute::G5K::API#reserve reserve}.
 We ask for 4 nodes in a given site and we set the parameter `wait` to false which makes the method to return immediately.
 Then, we use {Cute::G5K::API#wait_for_job wait_for_job} to set a timeout. If the timeout is reached a {Cute::G5K::EventTimeout Timeout} exception will be triggered
 that we catch in order to consequently release the submitted job and try to submit it in another site.
-Let's execute the script using play command:
+Let's execute the script using `play` command:
 
     [8] pry(main)> play find_nodes.rb
     2015-12-08 16:50:35.582 => Reserving resources: /nodes=4,walltime=01:00 (type: ) (in grenoble)
@@ -421,7 +420,7 @@ Let's execute the script using play command:
     Nodes assigned ["edel-10.grenoble.grid5000.fr", "edel-11.grenoble.grid5000.fr", "edel-12.grenoble.grid5000.fr", "edel-13.grenoble.grid5000.fr"]
     => nil
 
-The job variable is updated in Pry context. When no keys are specified, the option *-allow_classic_ssh* is activated
+The variable `job` is updated in Pry context. When no keys are specified, the option *-allow_classic_ssh* is activated
 which enables the access via default SSH to the reserved machines. You can verify it by doing:
 
     [11] pry(main)> .ssh edel-11.grenoble.grid5000.fr "hostname"
@@ -497,7 +496,7 @@ Let's create a machine file that we will need later on for our experiments:
 
 After creating the machine file, we need to send it to the other machines.
 Additionally, we need to download and compile the benchmark.
-Let's write a small that help us to perform the aforementioned tasks.
+Let's write a small script that help us to perform the aforementioned tasks.
 Open the editor in pry console:
 
      [17] pry(main)> edit -n NAS-expe.rb
@@ -540,7 +539,7 @@ After typing it into `pry` console we will get something like:
     [genepi-27.grenoble.grid5000.fr] /home/cruizsanabria/machine_file
 
 Which confirm the presence of both files on the nodes.
-We can get the path of the binary by typing the following into the pry console.
+We can get the path of the binary by typing the following into `pry` console.
 
      Net::SSH::Multi.start do |session|
        nodes.each{ |node| session.use node }
@@ -561,7 +560,7 @@ Then, we can assign this to a new variable:
      [33] pry(main)> lu_path = results.values.first[:stdout]
      => "/tmp/NPB3.3/NPB3.3-MPI/bin/lu.A.32"
 
-The setup of the experiment is done. It is time to execute the benchmark by typing the following into pry console.
+The setup of the experiment is done. It is time to execute the benchmark by typing the following into `pry` console.
 
     Net::SSH.start(nodes.first,"cruizsanabria") do |ssh|
       results = ssh.exec!("mpirun --mca btl self,sm,tcp -np 32 --machinefile machine_file #{lu_path}")
@@ -617,3 +616,7 @@ It will generate:
     32 cores:  Time in seconds =                     6.00
 
 Finally, we can use the command `hist` to try to assemble all we have done so far into a script.
+Once finished, we could release the job:
+
+    [34] pry(main)> $g5k.release(job)
+    => ""
