@@ -460,7 +460,7 @@ Net::SSH::Multi.start do |session|
   end
   options[:gempackages].each do |gempkg|
     logger.info "Installing additional gem package '#{gempkg}'"
-    session.with(:coord).exec! "export http_proxy=#{HTTP_PROXY}; gem install #{gempkg}"
+    session.exec! "export http_proxy=#{HTTP_PROXY}; gem install #{gempkg}"
   end
 
   if options[:init_pnodes] or ARGV[0]
