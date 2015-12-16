@@ -58,14 +58,6 @@ We can consult the name of the cluster available in a specific site.
     [3] pry(main)> $g5k.cluster_uids("grenoble")
     => ["adonis", "edel", "genepi"]
 
-As well as, the deployable environments:
-
-# TODO c'est une mauvaise idée: ça ne marche pas, ça. cf https://intranet.grid5000.fr/bugzilla/show_bug.cgi?id=5881
-# Pour le faire, il faudrait passer par l'API Kadeploy
-
-    [6] pry(main)> $g5k.environment_uids("grenoble")
-    => ["squeeze-x64-base", "squeeze-x64-big", "squeeze-x64-nfs", "wheezy-x64-base", "wheezy-x64-big", "wheezy-x64-min", "wheezy-x64-nfs", "wheezy-x64-xen"]
-
 It is possible to execute shell commands, however all commands have to be prefixed with a dot ".". For example we could generate a pair of SSH keys using:
 
     [7] pry(main)> .ssh-keygen -b 1024 -N "" -t rsa -f ~/my_ssh_jobkey
