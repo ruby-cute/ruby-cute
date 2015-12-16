@@ -3,9 +3,9 @@
 
 
 This tutorial aims at showing how **Ruby-Cute** can be used to
-help the scripting of an experiment in the context of Grid'5000 testbed.
-The programming language used as you would expect is {https://www.ruby-lang.org/en/ Ruby}.
-We will use a powerful console debugger call {http://pryrepl.org/ Pry} which offer
+help the scripting of an experiment in the context of the Grid'5000 testbed.
+The programming language used, as you would expect, is {https://www.ruby-lang.org/en/ Ruby}.
+We will use a powerful console debugger call {http://pryrepl.org/ Pry} which offers
 several functionalities that can be used for the step by step scripting of complex experiments.
 
 ## Installing Ruby cute
@@ -31,7 +31,7 @@ Let's create a directory for our experiments.
 
     $ mkdir ruby-cute-tutorial
 
-## Getting acquainted with pry console
+## Getting acquainted with the pry console
 
 After instaling `ruby-cute` and `pry` gems you can lunch a pry console
 with **ruby-cute** loaded by typing:
@@ -60,6 +60,9 @@ We can consult the name of the cluster available in a specific site.
 
 As well as, the deployable environments:
 
+# TODO c'est une mauvaise idée: ça ne marche pas, ça. cf https://intranet.grid5000.fr/bugzilla/show_bug.cgi?id=5881
+# Pour le faire, il faudrait passer par l'API Kadeploy
+
     [6] pry(main)> $g5k.environment_uids("grenoble")
     => ["squeeze-x64-base", "squeeze-x64-big", "squeeze-x64-nfs", "wheezy-x64-base", "wheezy-x64-big", "wheezy-x64-min", "wheezy-x64-nfs", "wheezy-x64-xen"]
 
@@ -75,15 +78,15 @@ Let's explore the [Cute](http://www.rubydoc.info/github/ruby-cute/ruby-cute/mast
     constants: Bash  Execute  G5K  TakTuk  VERSION
     locals: _  __  _dir_  _ex_  _file_  _in_  _out_  _pry_
 
-We can see that [Cute](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute) module
+We can see that the [Cute](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute) module
 is composed of other helpful modules such as:
 [G5K](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/G5K/API),
 [TakTuk](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/TakTuk), etc.
-To quit Cute namespace type:
+To quit the Cute namespace type:
 
     [10] pry(main)> cd
 
-Let's explore the methods defined in
+Let's explore the methods defined in the
 [G5K Module](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/G5K/API),
 so you can observe which methods can be used with `$g5k` variable.
 
@@ -114,13 +117,13 @@ Here, we will use **Ruby-cute** to carry out an experiment.
 For this particular experiment we have the following requirements:
 
 - A pair of SSH keys
-- Use of production environment (no deploy)
-- Two nodes connected with infinaband (10G or 20G)
-- MPI behchmark NETPIPE
+- Use of standard environment (no deploy)
+- Two nodes connected with infiniband (10G or 20G)
+- MPI benchmark NETPIPE
 - A MPI runtime (OpenMPI or MPICH)
 
-We will do it interactibely using `pry`.
-First, let's find the sites that offer Infinibad interconnection.
+We will do it interactively using `pry`.
+First, let's find the sites that offer Infiniband interconnection.
 For that we will write a small script form `pry` console using the command edit.
 
 
@@ -137,12 +140,12 @@ ruby script:
       sites_infiniband.push(site) unless $g5k.get_switches(site).select{ |t| t["model"] == "Infiniband" }.empty?
     end
 
-Then, we execute it using `play` command which will execute line by line this script in the context of a Pry session.
+Then, we execute it using the `play` command which will execute line by line this script in the context of a Pry session.
 
     [21] pry(main)> play find_infiniband.rb
     => ["grenoble", "lille", "luxembourg", "lyon", "nancy", "nantes", "reims", "rennes", "sophia"]
 
-We can observe that the variable `sites_infinibad` is now defined, telling us that Grenoble and Nancy sites offer Infiniband interconnection.
+We can observe that the variable `sites_infiniband` is now defined, telling us that Grenoble and Nancy sites offer Infiniband interconnection.
 
     [22] pry(main)> sites_infiniband
     => ["grenoble", "nancy"]
