@@ -683,6 +683,34 @@ module Cute
         return s
       end
 
+      # Returns information using the Metrology API.
+      #
+      # = Example
+      #
+      # You can get detailed information of available metrics in a given site:
+      #    get_metric("rennes")
+      #
+      # If you are only interested in the names of the available metrics:
+      #   get_metric("rennes").uids #=> ["cpu_nice", "boottime", "bytes_in", ...]
+      #
+      # Then, you can get information about the probes available for a specific metric:
+      #    get_metric("rennes",:metric => "network_in")
+      #
+      # Finally, you can query on a specific probe:
+      #    get_metric("rennes",:metric => "network_in",:query => {:from => 1450374553, :to => 1450374553, :only => "parasilo-11-eth0"})
+      #
+      # @return [Array] information of a specific metric in a given Grid'5000 site.
+      # @param site [String] a valid Grid'5000 site name
+      # @param [Hash] opts  Options for metric query
+      # @option opts [String] :metric specific metric to query on
+      # @option opts [Hash] :query timeseries parameters (e.g. only, resolution, from, to)
+
+      def get_metric(site,opts ={})
+        params = opts[:metric].nil? ? "" : "/#{opts[:metric]}/timeseries/?"
+        opts[:query].each{ |k,v| params+="#{k}=#{v}&"} unless opts[:query].nil?
+        @g5k_connection.get_json(api_uri("sites/#{site}/metrics#{params}")).items
+      end
+
       # Returns information of all my jobs submitted in a given site.
       # By default it only shows the jobs in state *running*.
       # You can specify another state like this:
