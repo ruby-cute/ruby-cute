@@ -706,8 +706,11 @@ module Cute
       # @option opts [Hash] :query timeseries parameters (e.g. only, resolution, from, to)
 
       def get_metric(site,opts ={})
-        params = opts[:metric].nil? ? "" : "/#{opts[:metric]}/timeseries/?"
-        opts[:query].each{ |k,v| params+="#{k}=#{v}&"} unless opts[:query].nil?
+        params = opts[:metric].nil? ? "" : "/#{opts[:metric]}/timeseries"
+        if opts[:query]
+          params+="?"
+          opts[:query].each{ |k,v| params+="#{k}=#{v}&"}
+        end
         @g5k_connection.get_json(api_uri("sites/#{site}/metrics#{params}")).items
       end
 
