@@ -1,3 +1,4 @@
-lib/**/*.rb -
+lib/**/*.rb
+-
 examples/*.rb
-examples/*.md
+examples/g5k-tutorial.md
