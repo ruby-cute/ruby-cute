@@ -202,7 +202,7 @@ Then, we create a file with the name of the reserved machines:
 
 We will need to setup SSH options for OAR, we can do it with the {Cute::OARSSHopts OARSSHopts} class helper provided by ruby-cute:
 
-    [6] pry(main)> grid5000_opt = OARSSHopts.new(:keys => "~/my_ssh_jobkey")
+    [6] pry(main)> grid5000_opt = Cute::OARSSHopts.new(:keys => "~/my_ssh_jobkey")
     => {:user=>"oar", :keys=>"~/my_ssh_jobkey", :port=>6667}
 
 Now, we can communicate using SSH with our nodes. Let's send the machinefile using SCP.
@@ -498,6 +498,10 @@ Open the editor in pry console:
 
 Then, type:
 
+     SOURCE_NAS = "http://public.rennes.grid5000.fr/~cruizsanabria/NPB3.3.tar"
+
+     `wget #{SOURCE_NAS} -O /tmp/NAS.tar`
+
      Cute::TakTuk.start(nodes) do |tak|
 
        tak.put(machine_file.path, "machine_file")
@@ -651,6 +655,7 @@ and type:
 
 
 In the script, we have chosen Nancy and Rennes sites. You are encouraged to try other sites as the number of global VLANs is limited in each site.
+For the purpose of this tutorial you have to choose a site where Kwapi is available: Grenoble, Nancy, Rennes, Lyon, Nantes.
 We use the method {Cute::G5K::API#reserve reserve} with parameter *env* for specifying the environment we want to
 deploy. This will automatically submit a deploy job and it will deploy the specified environment.
 The parameter *vlan* will additionally reserve a VLAN and pass it to Kadeploy to setup the VLAN.
