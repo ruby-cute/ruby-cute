@@ -5,7 +5,7 @@
 This tutorial aims at showing how **Ruby-Cute** can be used to
 help the scripting of an experiment in the context of the Grid'5000 testbed.
 The programming language used, as you would expect, is {https://www.ruby-lang.org/en/ Ruby}.
-We will use a powerful console debugger call {http://pryrepl.org/ Pry} which offers
+We will use a powerful console debugger called {http://pryrepl.org/ Pry} which offers
 several functionalities that can be used for the step by step scripting of complex experiments.
 
 ## Installing Ruby cute
@@ -53,7 +53,7 @@ let's request the name of the sites available in Grid'5000.
     [2] pry(main)> $g5k.site_uids()
     => ["grenoble", "lille", "luxembourg", "lyon", "nancy", "nantes", "reims", "rennes", "sophia", "toulouse"]
 
-We can consult the name of the cluster available in a specific site.
+We can consult the name of the clusters available in a specific site.
 
     [3] pry(main)> $g5k.cluster_uids("grenoble")
     => ["adonis", "edel", "genepi"]
@@ -116,7 +116,7 @@ For this particular experiment we have the following requirements:
 
 We will do it interactively using `pry`.
 First, let's find the sites that offer Infiniband interconnection.
-For that we will write a small script form `pry` console using the command edit.
+For that we will write a small script from `pry` console using the command edit.
 
 
     [13] pry(main)> edit -n find_infiniband.rb
@@ -152,7 +152,7 @@ Given that the MPI bench uses just one MPI process, we will need in realty just 
 We will use OAR syntax to ask for two cores in two different nodes with ib10g in Grenoble.
 
     [23] pry(main)> job = $g5k.reserve(:site => "grenoble", :resources => "{ib10g='YES'}/nodes=2/core=1",:walltime => '01:00:00', :keys => "~/my_ssh_jobkey" )
-    2015-12-04 14:07:31.370 => Reserving resources: {ib20g='YES'}/nodes=2/core=1,walltime=01:00 (type: ) (in nancy)
+    2015-12-04 14:07:31.370 => Reserving resources: {ib20g='YES'}/nodes=2/core=1,walltime=01:00 (type: ) (in grenoble)
     2015-12-04 14:07:41.358 => Waiting for reservation 692665
     2015-12-04 14:07:41.444 => Reservation 692665 should be available at 2015-12-04 14:07:34 +0100 (0 s)
     2015-12-04 14:07:41.444 => Reservation 692665 ready
@@ -200,7 +200,7 @@ Then, we create a file with the name of the reserved machines:
     [66] pry(main)> machine_file.close
 
 
-We will need to setup SSH options for OAR, we can do it with the {Cute::OARSSHoptions OARSSHoptions} class helper provided by ruby-cute:
+We will need to setup SSH options for OAR, we can do it with the {Cute::OARSSHopts OARSSHopts} class helper provided by ruby-cute:
 
     [6] pry(main)> grid5000_opt = OARSSHopts.new(:keys => "~/my_ssh_jobkey")
     => {:user=>"oar", :keys=>"~/my_ssh_jobkey", :port=>6667}
@@ -373,7 +373,7 @@ This can help you to assemble everything together in a whole script.
 In this experiment, we will run the NAS benchmark in Grid'5000. This experiment has the following requirements:
 
 - 4 or 2 nodes from any Grid'5000 sites
-- Use of production environment (no deploy)
+- Use of standard environment (no deploy)
 - NAS MPI behchmark
 - A MPI runtime (OpenMPI or MPICH)
 
@@ -423,7 +423,7 @@ which enables the access via default SSH to the reserved machines. You can verif
     edel-11.grenoble.grid5000.fr
 
 Let's explore the available modules for the parallel execution of commands in several remote machines.
-The following example show how to use the {Cute::TakTuk TakTuk} module.
+The following example shows how to use the {Cute::TakTuk TakTuk} module.
 
     nodes = job["assigned_nodes"]
     Cute::TakTuk.start(nodes) do |tak|
@@ -615,3 +615,316 @@ Once finished, we could release the job:
 
     [34] pry(main)> $g5k.release(job)
     => ""
+
+## Network experiment
+
+In this experiment, we will perform network measures between two nodes located in different
+Grid'5000 sites. The network measures will be carried out in an isolated VLAN.
+This experiment has the following requirements:
+
+- Two nodes in two different G5K sites
+- Environment deployment
+- VLAN reservation
+- Iperf application
+- Access to Network traffic data.
+
+Let's create a small script that will help us with the reservation of nodes.
+Open the `pry` editor:
+
+    [35] pry(main)> edit -n multisite.rb
+
+and type:
+
+    jobs = {}
+    threads = []
+    ["nancy","rennes"].each do |site|
+
+      threads.push<< Thread.new do
+
+        jobs[site] = job = $g5k.reserve(:site => site, :nodes => 1,
+                                   :env => 'jessie-x64-min',
+                                   :vlan => :global)
+      end
+    end
+
+    threads.each{ |t| t.join}
+
+
+In the script, we have chosen Nancy and Rennes sites. You are encouraged to try other sites as the number of global VLANs is limited in each site.
+We use the method {Cute::G5K::API#reserve reserve} with parameter *env* for specifying the environment we want to
+deploy. This will automatically submit a deploy job and it will deploy the specified environment.
+The parameter *vlan* will additionally reserve a VLAN and pass it to Kadeploy to setup the VLAN.
+After executing this small script we got:
+
+    [36] pry(main)> play multisite.rb
+    2015-12-18 12:53:12.813 => Reserving resources: {type='kavlan-global'}/vlan=1+/nodes=1,walltime=01:00 (type: deploy) (in rennes)
+    2015-12-18 12:53:12.817 => Reserving resources: {type='kavlan-global'}/vlan=1+/nodes=1,walltime=01:00 (type: deploy) (in nancy)
+    2015-12-18 12:53:13.809 => Waiting for reservation 736821
+    2015-12-18 12:53:14.219 => Waiting for reservation 730196
+    2015-12-18 12:53:18.891 => Reservation 736821 should be available at 2015-12-18 12:53:15 +0100 (0 s)
+    2015-12-18 12:53:19.357 => Reservation 730196 should be available at 2015-12-18 12:53:15 +0100 (0 s)
+
+At the end of the process the variable `jobs` will be defined and it will contain the jobs' information in each site.
+In this variable, we can find information related with the deployment.
+
+    [44] pry(main)> jobs["nancy"]["deploy"]
+    => [{"created_at"=>1450439620,
+    "environment"=>"jessie-x64-min",
+    "key"=>"https://api.grid5000.fr/sid/sites/nancy/files/cruizsanabria-key-84f3f1dbb1279bc1bddcd618e26c960307d653c5",
+    "nodes"=>["graphite-4.nancy.grid5000.fr"],
+    "result"=>{"graphite-4.nancy.grid5000.fr"=>{"macro"=>nil, "micro"=>nil, "state"=>"OK"}},
+    "site_uid"=>"nancy",
+    "status"=>"terminated",
+    "uid"=>"D-b026879e-b185-4e20-8bc5-ea0842a6954b",
+    "updated_at"=>1450439860,
+    "user_uid"=>"cruizsanabria",
+    "vlan"=>14,
+    "links"=>
+    [{"rel"=>"self", "href"=>"/sid/sites/nancy/deployments/D-b026879e-b185-4e20-8bc5-ea0842a6954b", "type"=>"application/vnd.grid5000.item+json"},
+    		     {"rel"=>"parent", "href"=>"/sid/sites/nancy", "type"=>"application/vnd.grid5000.item+json"}]}]
+
+Some important information are: the status of the whole process and the state per node.
+We can use this information to check if the deployment have finished successfully in all nodes.
+This data structure is used by the method {Cute::G5K::API#check_deployment check_deployment}.
+Let's check the documentation of this method:
+
+    [16] pry(main)> show-doc Cute::G5K::API#check_deployment
+
+    From: /home/cruizsanabria/Repositories/ruby-cute/lib/cute/g5k_api.rb @ line 1198:
+    Owner: Cute::G5K::API
+    Visibility: public
+    Signature: check_deployment(deploy_info)
+    Number of lines: 10
+
+    It returns an array of machines that did not deploy successfully
+    = Example
+    It can be used to try a new deploy:
+
+       badnodes = g5k.check_deployment(job["deploy"].last)
+       g5k.deploy(job,:nodes => badnodes, :env => 'wheezy-x64-base')
+       g5k.wait_for_deploy(job)
+
+       return [Array] machines that did not deploy successfully
+       param deploy_info [Hash] deployment structure information
+
+We can use this method with the jobs we have just submitted
+(The output will be probably long, so you will need to scroll up to see what it is shown here):
+
+    [47] pry(main)> jobs.each{ |site,job| puts "all nodes OK in site: #{site}" if $g5k.check_deployment(job["deploy"].last).empty?}
+    all nodes OK in site: rennes
+    all nodes OK in site: nancy
+
+
+As the reserved nodes are in a different VLAN. In the new VLAN there is a DHCP server that will assign new IP addresses
+to the nodes. You can configure your own if you want, please refer to {https://www.grid5000.fr/mediawiki/index.php/Network_isolation_on_Grid%275000 KVLAN tutorial}
+if you want to know more. We can get the new assigned names by doing:
+
+    nodes = []
+    jobs.each{ |site,job| nodes.push($g5k.get_vlan_nodes(job))}
+
+After putting that into `pry` we will get something like this:
+
+    [50] pry(main)> nodes
+    => [["paranoia-6-kavlan-16.rennes.grid5000.fr"], ["graphite-4-kavlan-14.nancy.grid5000.fr"]]
+
+    [51] pry(main)> nodes.flatten
+    => ["paranoia-6-kavlan-16.rennes.grid5000.fr", "graphite-4-kavlan-14.nancy.grid5000.fr"]
+
+Now, let's install `iperf` application in order to perform our network measures.
+Copy-paste the following code into `pry`:
+
+    nodes = nodes.flatten
+
+    Net::SSH::Multi.start do |session|
+      nodes.each{ |node| session.use("root@#{node}") }
+      session.exec!("apt-get update")
+      session.exec("DEBIAN_FRONTEND=noninteractive apt-get install -q -y iperf")
+    end
+
+You should get something like this:
+
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] Reading package lists...
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] Building dependency tree...
+    [graphite-4-kavlan-14.nancy.grid5000.fr] Reading package lists...
+    [graphite-4-kavlan-14.nancy.grid5000.fr] Building dependency tree...
+    [paranoia-6-kavlan-16.rennes.grid5000.fr]
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] Reading state information...
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] The following NEW packages will be installed:
+    [paranoia-6-kavlan-16.rennes.grid5000.fr]   iperf
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] 0 upgraded, 1 newly installed, 0 to remove and 8 not upgraded.
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] Need to get 51.4 kB of archives.
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] After this operation, 179 kB of additional disk space will be used.
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] Get:1 http://ftp.debian.org/debian/ jessie/main iperf amd64 2.0.5+dfsg1-2 [51.4 kB]
+    [graphite-4-kavlan-14.nancy.grid5000.fr]
+    [graphite-4-kavlan-14.nancy.grid5000.fr] Reading state information...
+    [graphite-4-kavlan-14.nancy.grid5000.fr] The following NEW packages will be installed:
+    [graphite-4-kavlan-14.nancy.grid5000.fr]   iperf
+
+
+You can check if the application has been successfully installed,
+by typing the following into the `pry` console:
+
+    Net::SSH::Multi.start do |session|
+      nodes.each{ |node| session.use("root@#{node}") }
+      session.exec("iperf --version")
+    end
+
+Which will generate:
+
+    [65] pry(main)* end
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] iperf version 2.0.5 (08 Jul 2010) pthreads
+    [graphite-4-kavlan-14.nancy.grid5000.fr] iperf version 2.0.5 (08 Jul 2010) pthreads
+    => nil
+
+Let's perform some iperf tests, let's write a small script.
+Open the editor:
+
+    [76] pry(main)> edit -n iperf_test.rb
+
+and type:
+
+    results = {}
+
+    Net::SSH::Multi.start do |session|
+
+      session.group :server do
+        session.use("root@#{nodes[0]}")
+      end
+
+      session.group :client do
+        session.use("root@#{nodes[1]}")
+      end
+
+      session.with(:server).exec("iperf -s &")
+
+      #bandwith
+
+      results[:bandwidth]= session.with(:client).exec!("iperf -c #{nodes[0]}")
+
+     # bi-directional bandwidth measurement
+
+      results[:bidi]= session.with(:client).exec!("iperf -c #{nodes[0]} -r")
+
+     # TCP windows size
+      results[:window]= session.with(:client).exec!("iperf -c #{nodes[0]} -w 2000")
+
+     # shutdown server
+
+      session.with(:server).exec("skill iperf")
+    end
+
+Then, if we execute it with the `play` command:
+
+
+    [77] pry(main)> play iperf_test.rb
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] ------------------------------------------------------------
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] Server listening on TCP port 5001
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] TCP window size: 85.3 KByte (default)
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] ------------------------------------------------------------
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] [  4] local 10.27.204.71 port 5001 connected with 10.19.200.240 port 32769
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] [ ID] Interval       Transfer     Bandwidth
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] [  4]  0.0-10.0 sec  1.12 GBytes   957 Mbits/sec
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] [  5] local 10.27.204.71 port 5001 connected with 10.19.200.240 port 32770
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] [  5]  0.0-10.0 sec  1.10 GBytes   947 Mbits/sec
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] ------------------------------------------------------------
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] Client connecting to 10.19.200.240, TCP port 5001
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] TCP window size: 85.0 KByte (default)
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] ------------------------------------------------------------
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] [  5] local 10.27.204.71 port 47604 connected with 10.19.200.240 port 5001
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] [  5]  0.0-10.0 sec  1.12 GBytes   958 Mbits/sec
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] [  4] local 10.27.204.71 port 5001 connected with 10.19.200.240 port 32771
+    [paranoia-6-kavlan-16.rennes.grid5000.fr] [  4]  0.0-10.7 sec  2.25 MBytes  1.77 Mbits/sec
+
+
+The variable `results` will be defined which contains the results for each test.
+Let's print the results. Type the following into the `pry` console:
+
+    results.each do |test, res|
+      puts "Results of test: #{test}"
+      res.each { |node,r| puts r[:stdout]}
+    end
+
+Which will give us:
+
+    Results of test: bandwidth
+    [ ID] Interval       Transfer     Bandwidth
+    [  3]  0.0-10.0 sec  1.12 GBytes   958 Mbits/sec
+    Results of test: bidi
+    [  4]  0.0-10.0 sec  1.12 GBytes   957 Mbits/sec
+    Results of test: window
+    [ ID] Interval       Transfer     Bandwidth
+    [  3]  0.0-10.7 sec  2.25 MBytes  1.77 Mbits/sec
+
+
+Now let's consult the network traffic that we have generated during our experiment using KWAPI.
+**Ruby-cute** offers the {Cute::G5K::API#get_metric get_metric} method to consult the Metrology API.
+In order to carry out a query and get the values of a specific probe,
+we have two know the time interval of the values and the name of the probe.
+Let's get the values for the metric `network_in`.
+We could get all the names of the probes specific to this metric by typing:
+
+    probes = $g5k.get_metric("rennes",:metric => "network_in").uids
+
+If you type that in `pry` you will get:
+
+    [13] pry(main)> probes
+    => ["parasilo-11-eth0",
+    "parasilo-11-eth1",
+    "paravance-48-eth1",
+    "paravance-48-eth0",
+    "paravance-2-eth0",
+    "paravance-2-eth1",
+    "paranoia-4",
+    "paranoia-5",
+    "paranoia-6",
+    "paranoia-7",
+    "paravance-72-eth0",
+
+We have to choose the one we are interested in. In order to do that we need to get the real names of the machines
+and not the ones assigned by the VLAN. We can consult the job information:
+
+    nodes_normal = []
+    jobs.each{ |site,job| nodes_normal.push(job["assigned_nodes"])}
+    nodes_normal.flatten!
+
+which gives:
+
+    [97] pry(main)> nodes_normal
+    => [["paranoia-6.rennes.grid5000.fr"], ["graphite-4.nancy.grid5000.fr"]]
+
+As we are going to fetch the data for Rennes (First node). We could do:
+
+    [68] pry(main)> probe_expe = probes.select{ |p| p[nodes_normal[0].split(".")[0]]}
+
+So, at this point we already have the probe we want to request.
+Next step is to get the start time of the interval, we can choose for example, the time at which deployments have finished:
+
+    deploy_end = []
+    jobs.each{ |site,job| deploy_end.push(job["deploy"].last["updated_at"])}
+
+Therefore, we could choose the maximum timestamp from the ones returned:
+
+    start = deploy_end.max
+
+Now, we can proceed by performing the query:
+
+    $g5k.get_metric("rennes",:metric => "network_in",:query => {:from => start, :to => start+3600, :only => probe_expe.first})
+
+An Array is returned. We can then open an editor and write a small script that will write these values into a file
+
+    [33] pry(main)> edit -n get_results.rb
+
+type:
+
+    raw_data = $g5k.get_metric("rennes",:metric => "network_in",
+                               :query => {:from => start, :to => start+3600, :only => probe_expe.first})
+
+    network_in = raw_data.map{ |r| r["values"]}.flatten
+    time  = raw_data.map{ |r| r["timestamps"]}.flatten
+
+    values = Hash[time.zip(network_in)]
+
+    File.open("network_in-values.txt",'w+') do |f|
+      f.puts("time\t bytes")
+      values.each{ |k,v| f.puts("#{k}\t#{v}")}
+    end
