@@ -60,6 +60,10 @@ RSpec.configure do |config|
       to_return(:status => 400, :body => "Oarsub failed: please verify your request syntax")
 
     stub_request(:post, /^https:\/\/.*\:.*@api.grid5000.fr\/.*/).
+      with(:body => hash_including("import-job-key-from-file" => [ File.expand_path("~/jobkey_nonexisting") ])).
+      to_return(:status => 400, :body => "Oarsub failed: please verify your request syntax")
+
+    stub_request(:post, /^https:\/\/.*\:.*@api.grid5000.fr\/.*/).
       with(:body => hash_including("environment" => "nonsense")).
       to_return(:status => 500, :body => "Invalid environment specification")
 
