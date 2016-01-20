@@ -8,14 +8,25 @@ The programming language used, as you would expect, is {https://www.ruby-lang.or
 We will use a powerful console debugger called {http://pryrepl.org/ Pry} which offers
 several functionalities that can be used for the step-by-step scripting of complex experiments.
 
-<!-- TODO expand intro: explain the various subparts that will follow, and that one can jump to the "network experiment" (the structure of the tutorial, and the titles for the two experiments, could maybe be improved) -->
+In this tutorial the first two sections are dedicated to the installation and basic use of **Ruby-Cute**.
+You can skip those sections if you are already acquainted with **Ruby-Cute**.
+The other sections show how to use **Ruby-cute** for scripting complex experiments.
+This is shown through three examples:
 
-## Installing Ruby cute
+1. **Infiniband performance test**: the experiment will illustrates how to perform a reservation,
+   the execution of commands in a reserved node  and it explains several `pry` commands that will help you with the writing of your experiment.
+2. **Running NAS benchmarks in Grid’5000**: you will get acquainted with parallel execution using simple SSH or {http://taktuk.gforge.inria.fr/ TakTuk}.
+3. **Performing network measures within a reserved VLAN**: you will learn how to reserve a routed VLAN
+   and to query G5K metrology {https://www.grid5000.fr/mediawiki/index.php/API API}.
+   For this particular experiment we will query {https://www.grid5000.fr/mediawiki/index.php/Monitoring Kwapi} service.
+
+The aforementioned experiments are independent, you can perform them in any order.
+However, you may need some concepts that are explained only in specific sections.
+
+## Installing and preparing Ruby cute
 
 The installation procedure is shown in {file:README.md Ruby-Cute install}.
 After this step you will normally have `ruby-cute` and `pry` gems installed.
-
-## Preparing the environment
 
 Before using **Ruby-Cute** you have to create the following file:
 
@@ -24,22 +35,11 @@ Before using **Ruby-Cute** you have to create the following file:
     $ version: 3.0
     $ EOF
 
-
-Then, create a pair of SSH keys. This will be used for the first experiment.
-
-    $ ssh-keygen -b 1024 -N "" -t rsa -f ~/my_ssh_jobkey
-
-Let's create a directory for our experiments.
-
-    $ mkdir ruby-cute-tutorial
-
 ## Getting acquainted with the pry console
 
 After instaling `ruby-cute` and `pry` gems you can lunch a pry console
 with **ruby-cute** loaded by typing:
 
-
-    $ cd ruby-cute-tutorial/
     $ cute
 
 Which will open a `pry` console:
@@ -108,6 +108,8 @@ file with the following content in order to choose our prefered editor:
 ## First experiment: Infiniband performance test
 
 Here, we will use **Ruby-cute** to carry out an experiment.
+In this experiment, we will ask for two nodes equipped with infiniband and
+then, we will perform some performance test using a network benchmark called *NETPIPE*.
 For this particular experiment we have the following requirements:
 
 - A pair of SSH keys
@@ -117,6 +119,15 @@ For this particular experiment we have the following requirements:
 - A MPI runtime (OpenMPI or MPICH)
 
 We will do it interactively using `pry`.
+Let's create a directory for keeping all the scripts that we will write throughout the tutorial.
+
+    $ mkdir ruby-cute-tutorial
+
+Then, we execute the `pry` console form this directory:
+
+    $ cd ruby-cute-tutorial
+    $ cute
+
 First, let's find the sites that offer Infiniband interconnection.
 For that we will write a small script from `pry` console using the command edit.
 
@@ -144,7 +155,11 @@ We can observe that the variable `sites_infiniband` is now defined, telling us t
     [22] pry(main)> sites_infiniband
     => ["grenoble", "nancy"]
 
-We send the keys that we have generated before to the chosen site:
+Then, create a pair of SSH keys (Necessary for OARSSH):
+
+    $ ssh-keygen -b 1024 -N "" -t rsa -f ~/my_ssh_jobkey
+
+We send the generated keys to the chosen site:
 
     [22] pry(main)> .scp ~/my_ssh* nancy:~/
 
@@ -246,12 +261,11 @@ the benchmark. Create a Ruby file called netpipe:
     [12] pry(main)> edit -n netpipe.rb
 
 With the following content:
-<!-- TODO les proxies ne sont plus utiles, les enlever partout -->
 
     Net::SSH.start(nodes.first, "oar", grid5000_opt) do |ssh|
       netpipe_url = "http://pkgs.fedoraproject.org/repo/pkgs/NetPIPE/NetPIPE-3.7.1.tar.gz/5f720541387be065afdefc81d438b712/NetPIPE-3.7.1.tar.gz"
       ssh.exec!("mkdir -p netpipe_exp")
-      ssh.exec!("export http_proxy=\"http://proxy:3128\"; wget -O ~/netpipe_exp/NetPIPE.tar.gz #{netpipe_url}")
+      ssh.exec!("wget -O ~/netpipe_exp/NetPIPE.tar.gz #{netpipe_url}")
       ssh.exec!("cd netpipe_exp && tar -zvxf NetPIPE.tar.gz")
       ssh.exec!("cd netpipe_exp/NetPIPE-3.7.1 && make mpi")
       ssh.exec("mpirun --mca plm_rsh_agent \"oarsh\" -machinefile /tmp/machine_file ~/netpipe_exp/NetPIPE-3.7.1/NPmpi")
@@ -288,7 +302,7 @@ Now the code will look like this:
     Net::SSH.start(nodes.first, "oar", grid5000_opt) do |ssh|
       netpipe_url = "http://pkgs.fedoraproject.org/repo/pkgs/NetPIPE/NetPIPE-3.7.1.tar.gz/5f720541387be065afdefc81d438b712/NetPIPE-3.7.1.tar.gz"
       ssh.exec!("mkdir -p netpipe_exp")
-      ssh.exec!("export http_proxy=\"http://proxy:3128\"; wget -O ~/netpipe_exp/NetPIPE.tar.gz #{netpipe_url}")
+      ssh.exec!("wget -O ~/netpipe_exp/NetPIPE.tar.gz #{netpipe_url}")
       ssh.exec!("cd netpipe_exp && tar -zvxf NetPIPE.tar.gz")
       ssh.exec!("cd netpipe_exp/NetPIPE-3.7.1 && make mpi")
       ssh.exec("export OAR_JOB_KEY_FILE=~/my_ssh_jobkey;mpirun --mca plm_rsh_agent \"oarsh\" -machinefile /tmp/machine_file ~/netpipe_exp/NetPIPE-3.7.1/NPmpi")
@@ -321,7 +335,7 @@ We need to use `ssh.exec!` to capture the output of the commands.
     Net::SSH.start(nodes.first, "oar", grid5000_opt) do |ssh|
       netpipe_url = "http://pkgs.fedoraproject.org/repo/pkgs/NetPIPE/NetPIPE-3.7.1.tar.gz/5f720541387be065afdefc81d438b712/NetPIPE-3.7.1.tar.gz"
       ssh.exec!("mkdir -p netpipe_exp")
-      ssh.exec!("export http_proxy=\"http://proxy:3128\"; wget -O ~/netpipe_exp/NetPIPE.tar.gz #{netpipe_url}")
+      ssh.exec!("wget -O ~/netpipe_exp/NetPIPE.tar.gz #{netpipe_url}")
       ssh.exec!("cd netpipe_exp && tar -zvxf NetPIPE.tar.gz")
       ssh.exec!("cd netpipe_exp/NetPIPE-3.7.1 && make mpi")
 
@@ -373,12 +387,19 @@ This can help you to assemble everything together in a whole script.
 
 ## Running NAS benchmarks in Grid'5000: getting acquainted with parallel command execution
 
-In this experiment, we will run the NAS benchmark in Grid'5000. This experiment has the following requirements:
+In this experiment, we will run the NAS benchmark in Grid'5000 and we will script a scalability test for one of the benchmarks.
+This experiment has the following requirements:
 
 - 4 or 2 nodes from any Grid'5000 sites
 - Use of standard environment (no deploy)
 - NAS MPI behchmark
 - A MPI runtime (OpenMPI or MPICH)
+
+If you have not created a directory for the tutorial, create it and execute the `pry` console from there:
+
+    $ mkdir ruby-cute-tutorial
+    $ cd ruby-cute-tutorial
+    $ cute
 
 First, let's find the necessary nodes for our experiment. As resources in Grid'5000 could be very busy, we are going
 to script a loop that will explore all Grid'5000 sites and find the first site that can provide us with the required nodes.
@@ -623,12 +644,16 @@ Once finished, we could release the job:
     [34] pry(main)> $g5k.release(job)
     => ""
 
-## Network experiment
+## Performing network measurements within a reserved VLAN
 
-In this experiment, we will perform network measurements between two nodes located in different
-Grid'5000 sites. The network measurements will be carried out in an isolated VLAN.
+In this experiment, we will perform network measurements between two nodes located in different Grid'5000 sites.
+The network measurements will be carried out in an isolated VLAN.
+We will first reserved two nodes located in two different Grid'5000 sites in deploy mode and we will ask for two routed VLANs.
+Once the nodes are ready an environment will be deployed and the application iperf will be install in all nodes.
+Then, we will perform some network measurements among the nodes.
+Finally, we will query KWAPI using G5K metrology API for getting the network traffic generated during our experiment.
+
 This experiment has the following requirements:
-<!-- TODO expand explanation of what will follow. Generally, you need to give the global picture, then go to step-by-step stuff. Currently it's too much step-by-step without understanding the global picture. -->
 
 - Two nodes in two different G5K sites
 - Environment deployment
@@ -636,13 +661,18 @@ This experiment has the following requirements:
 - Iperf application
 - Access to Network traffic data.
 
+If you have not created a directory for the tutorial, create it and execute the `pry` console from there:
+
+    $ mkdir ruby-cute-tutorial
+    $ cd ruby-cute-tutorial
+    $ cute
+
 Let's create a small script that will help us with the reservation of nodes.
 Open the `pry` editor:
 
     [35] pry(main)> edit -n multisite.rb
 
 and type:
-<!-- Why two global VLANs? Maybe I don't get the global picture, but routed VLANs would be enough, no? (and that's easier because there are more of them on each site -->
 
     jobs = {}
     threads = []
@@ -652,27 +682,39 @@ and type:
 
         jobs[site] = job = $g5k.reserve(:site => site, :nodes => 1,
                                    :env => 'jessie-x64-min',
-                                   :vlan => :global)
+                                   :vlan => :routed)
       end
     end
 
     threads.each{ |t| t.join}
 
 
-In the script, we have chosen Nancy and Rennes sites. You are encouraged to try other sites as the number of global VLANs is limited in each site.
+In the script, we have chosen Nancy and Rennes sites. You are encouraged to try other sites as the number of routed VLANs is limited in each site.
 For the purpose of this tutorial you have to choose a site where Kwapi is available: Grenoble, Nancy, Rennes, Lyon, Nantes.
-We use the method {Cute::G5K::API#reserve reserve} with parameter *env* for specifying the environment we want to
-deploy. This will automatically submit a deploy job and it will deploy the specified environment.
+We use the method {Cute::G5K::API#reserve reserve} with parameter *env* for specifying the environment we want to deploy.
+This will automatically submit a deploy job and it will deploy the specified environment.
 The parameter *vlan* will additionally reserve a VLAN and pass it to Kadeploy to setup the VLAN.
 After executing this small script we got:
 
     [36] pry(main)> play multisite.rb
-    2015-12-18 12:53:12.813 => Reserving resources: {type='kavlan-global'}/vlan=1+/nodes=1,walltime=01:00 (type: deploy) (in rennes)
-    2015-12-18 12:53:12.817 => Reserving resources: {type='kavlan-global'}/vlan=1+/nodes=1,walltime=01:00 (type: deploy) (in nancy)
-    2015-12-18 12:53:13.809 => Waiting for reservation 736821
-    2015-12-18 12:53:14.219 => Waiting for reservation 730196
-    2015-12-18 12:53:18.891 => Reservation 736821 should be available at 2015-12-18 12:53:15 +0100 (0 s)
-    2015-12-18 12:53:19.357 => Reservation 730196 should be available at 2015-12-18 12:53:15 +0100 (0 s)
+    2016-01-20 12:48:15.010 => Reserving resources: {type='kavlan'}/vlan=1+/nodes=1,walltime=01:00 (type: deploy) (in nancy)
+    2016-01-20 12:48:15.010 => Reserving resources: {type='kavlan'}/vlan=1+/nodes=1,walltime=01:00 (type: deploy) (in rennes)
+    2016-01-20 12:48:16.145 => Waiting for reservation 740698
+    2016-01-20 12:48:16.246 => Waiting for reservation 802917
+    2016-01-20 12:48:21.270 => Reservation 740698 should be available at 2016-01-20 12:48:17 +0100 (0 s)
+    2016-01-20 12:48:26.344 => Reservation 740698 should be available at 2016-01-20 12:48:17 +0100 (0 s)
+    2016-01-20 12:48:26.404 => Reservation 802917 should be available at 2016-01-20 12:48:13 +0100 (0 s)
+    2016-01-20 12:48:26.404 => Reservation 802917 ready
+    2016-01-20 12:48:26.541 => Found VLAN with uid = 4
+    2016-01-20 12:48:26.541 => Creating deployment
+    2016-01-20 12:48:27.256 => Waiting for 1 deployment
+    2016-01-20 12:48:31.296 => Waiting for 1 deployment
+    2016-01-20 12:48:31.406 => Reservation 740698 should be available at 2016-01-20 12:48:17 +0100 (0 s)
+    2016-01-20 12:48:31.406 => Reservation 740698 ready
+    2016-01-20 12:48:31.469 => Found VLAN with uid = 4
+    2016-01-20 12:48:31.469 => Creating deployment
+    2016-01-20 12:48:31.869 => Waiting for 1 deployment
+    2016-01-20 12:48:35.414 => Waiting for 1 deployment
 
 At the end of the process the variable `jobs` will be defined and it will contain the jobs' information in each site.
 In this variable, we can find information related with the deployment.
@@ -724,11 +766,9 @@ We can use this method with the jobs we have just submitted
     all nodes OK in site: rennes
     all nodes OK in site: nancy
 
-
-<!-- TODO je ne comprends pas la phrase qui suit (et qui n'est pas vraiment une phrase, d'ailleurs -->
-As the reserved nodes are in a different VLAN. In the new VLAN there is a DHCP server that will assign new IP addresses
-to the nodes. You can configure your own if you want, please refer to {https://www.grid5000.fr/mediawiki/index.php/Network_isolation_on_Grid%275000 KVLAN tutorial}
-if you want to know more. We can get the new assigned names by doing:
+Now, the reserved nodes are in a VLAN; within this VLAN a DHCP server will assign new IP addresses to the nodes.
+You can configure your own if you want (please refer to {https://www.grid5000.fr/mediawiki/index.php/Network_isolation_on_Grid%275000 KVLAN tutorial}
+if you want to know more). We can get the new assigned names by doing:
 
     nodes = []
     jobs.each{ |site,job| nodes.push($g5k.get_vlan_nodes(job))}
@@ -741,7 +781,7 @@ After putting that into `pry` we will get something like this:
     [51] pry(main)> nodes.flatten
     => ["paranoia-6-kavlan-16.rennes.grid5000.fr", "graphite-4-kavlan-14.nancy.grid5000.fr"]
 
-Now, let's install `iperf` application in order to perform our network measures.
+Now, let's install `iperf` application in order to perform our network measurements.
 Copy-paste the following code into `pry`:
 
     nodes = nodes.flatten
@@ -868,7 +908,7 @@ Which will give us:
 
 
 Now let's look at the network traffic that we have generated during our experiment using KWAPI.
-**Ruby-cute** offers the {Cute::G5K::API#get_metric get_metric} method to consult the Metrology API.
+**Ruby-cute** offers the {Cute::G5K::API#get_metric get_metric} method to consult the G5K Metrology API.
 In order to carry out a query and get the values of a specific probe,
 we have to know the time interval of the values and the name of the probe.
 Let's get the values for the metric `network_in`.
@@ -891,16 +931,15 @@ If you type that in `pry` you will get:
     "paranoia-7",
     "paravance-72-eth0",
 
-We have to choose the one we are interested in. In order to do that we need to get the real names of the machines
+In order to choose the right probes, we need to get the real names of the machines
 and not the ones assigned by the VLAN. We can consult the job information:
 
     nodes_normal = []
     jobs.each{ |site,job| nodes_normal.push(job["assigned_nodes"])}
-    nodes_normal.flatten!
 
-which gives:
+Which will give us an Array of Arrays that we can flatten by doing:
 
-    [97] pry(main)> nodes_normal
+    [97] pry(main)> nodes_normal.flatten!
     => [["paranoia-6.rennes.grid5000.fr"], ["graphite-4.nancy.grid5000.fr"]]
 
 As we are going to fetch the data for Rennes (First node). We could do:
@@ -940,4 +979,21 @@ type:
       values.each{ |k,v| f.puts("#{k}\t#{v}")}
     end
 
-<!-- TODO il faudrait une conclusion. Peut-être résummer ce qu'on a vu, et finir par un message du genre "We hope Ruby-Cute will be useful for your experiments!" -->
+and execute it with:
+
+    pry(main)> play get_results.rb
+    => {1453293153.732378=>4498405298908,
+    1453293155.183099=>4498405298908,
+    1453293156.582115=>4498405298908,
+    1453293157.924968=>4498405298908,
+    1453293159.28666=>4498405298908,
+    1453293160.655534=>4498405298908,
+    1453293161.998718=>4498405299219,
+
+## Conclusions
+
+This tutorial has shown how the scripting of complex experiment can be done using Ruby scripting language.
+We saw that in the context of Grid'5000,
+**Ruby-Cute** offers useful methods for accessing the platform's services and executing commands in parallel.
+The aim of this tutorial was to give you some ideas for coding your experiments using **Ruby-Cute**
+and we hope it will be useful for your experiments.
