@@ -6,7 +6,9 @@ This tutorial aims at showing how **Ruby-Cute** can be used to
 help the scripting of an experiment in the context of the Grid'5000 testbed.
 The programming language used, as you would expect, is {https://www.ruby-lang.org/en/ Ruby}.
 We will use a powerful console debugger called {http://pryrepl.org/ Pry} which offers
-several functionalities that can be used for the step by step scripting of complex experiments.
+several functionalities that can be used for the step-by-step scripting of complex experiments.
+
+<!-- TODO expand intro: explain the various subparts that will follow, and that one can jump to the "network experiment" (the structure of the tutorial, and the titles for the two experiments, could maybe be improved) -->
 
 ## Installing Ruby cute
 
@@ -89,7 +91,7 @@ so you can observe which methods can be used with `$g5k` variable.
       cluster_uids      deploy_status     g5k_user         get_jobs     get_switch    logger          release       rest     site_uids    wait_for_job
       clusters          environment_uids  get_deployments  get_my_jobs  get_switches  logger=         release_all   site     sites
 
-We can access as well the respective YARD documentation of a given method by typing:
+We can access the respective YARD documentation of a given method by typing:
 
     [12] pry(main)> show-doc Cute::G5K::API#deploy
 
@@ -157,7 +159,7 @@ We will use OAR syntax to ask for two cores in two different nodes with ib10g in
     2015-12-04 14:07:41.444 => Reservation 692665 should be available at 2015-12-04 14:07:34 +0100 (0 s)
     2015-12-04 14:07:41.444 => Reservation 692665 ready
 
-A hash is returned containing all information about the job that we have just submitted.
+A hash is returned containing all the information about the job that we have just submitted.
 
     [58] pry(main)> job
     => {"uid"=>692665,
@@ -244,6 +246,7 @@ the benchmark. Create a Ruby file called netpipe:
     [12] pry(main)> edit -n netpipe.rb
 
 With the following content:
+<!-- TODO les proxies ne sont plus utiles, les enlever partout -->
 
     Net::SSH.start(nodes.first, "oar", grid5000_opt) do |ssh|
       netpipe_url = "http://pkgs.fedoraproject.org/repo/pkgs/NetPIPE/NetPIPE-3.7.1.tar.gz/5f720541387be065afdefc81d438b712/NetPIPE-3.7.1.tar.gz"
@@ -368,7 +371,7 @@ This can help you to assemble everything together in a whole script.
     19: edit -n netpipe.rb
     20: play netpipe.rb
 
-## Running NAS benchmark in Grid'5000: getting acquainted with parallel command execution
+## Running NAS benchmarks in Grid'5000: getting acquainted with parallel command execution
 
 In this experiment, we will run the NAS benchmark in Grid'5000. This experiment has the following requirements:
 
@@ -537,7 +540,7 @@ After typing it into `pry` console we will get something like:
     [genepi-2.grenoble.grid5000.fr] /home/cruizsanabria/machine_file
     [genepi-27.grenoble.grid5000.fr] /home/cruizsanabria/machine_file
 
-Which confirm the presence of both files on the nodes.
+Which confirms the presence of both files on the nodes.
 We can get the path of the binary by typing the following into `pry` console.
 
      Net::SSH::Multi.start do |session|
@@ -545,7 +548,7 @@ We can get the path of the binary by typing the following into `pry` console.
        results = session.exec!("find /tmp/ -name lu.A.32")
      end
 
-We will get some errors provoked by the `find` command:
+We will get some errors caused by the `find` command:
 
      [32] pry(main)> results
      => {"genepi-27.grenoble.grid5000.fr"=>{:stdout=>"/tmp/NPB3.3/NPB3.3-MPI/bin/lu.A.32", :stderr=>": Permission denied", :status=>1},
@@ -622,9 +625,10 @@ Once finished, we could release the job:
 
 ## Network experiment
 
-In this experiment, we will perform network measures between two nodes located in different
-Grid'5000 sites. The network measures will be carried out in an isolated VLAN.
+In this experiment, we will perform network measurements between two nodes located in different
+Grid'5000 sites. The network measurements will be carried out in an isolated VLAN.
 This experiment has the following requirements:
+<!-- TODO expand explanation of what will follow. Generally, you need to give the global picture, then go to step-by-step stuff. Currently it's too much step-by-step without understanding the global picture. -->
 
 - Two nodes in two different G5K sites
 - Environment deployment
@@ -638,6 +642,7 @@ Open the `pry` editor:
     [35] pry(main)> edit -n multisite.rb
 
 and type:
+<!-- Why two global VLANs? Maybe I don't get the global picture, but routed VLANs would be enough, no? (and that's easier because there are more of them on each site -->
 
     jobs = {}
     threads = []
@@ -720,6 +725,7 @@ We can use this method with the jobs we have just submitted
     all nodes OK in site: nancy
 
 
+<!-- TODO je ne comprends pas la phrase qui suit (et qui n'est pas vraiment une phrase, d'ailleurs -->
 As the reserved nodes are in a different VLAN. In the new VLAN there is a DHCP server that will assign new IP addresses
 to the nodes. You can configure your own if you want, please refer to {https://www.grid5000.fr/mediawiki/index.php/Network_isolation_on_Grid%275000 KVLAN tutorial}
 if you want to know more. We can get the new assigned names by doing:
@@ -861,10 +867,10 @@ Which will give us:
     [  3]  0.0-10.7 sec  2.25 MBytes  1.77 Mbits/sec
 
 
-Now let's consult the network traffic that we have generated during our experiment using KWAPI.
+Now let's look at the network traffic that we have generated during our experiment using KWAPI.
 **Ruby-cute** offers the {Cute::G5K::API#get_metric get_metric} method to consult the Metrology API.
 In order to carry out a query and get the values of a specific probe,
-we have two know the time interval of the values and the name of the probe.
+we have to know the time interval of the values and the name of the probe.
 Let's get the values for the metric `network_in`.
 We could get all the names of the probes specific to this metric by typing:
 
@@ -933,3 +939,5 @@ type:
       f.puts("time\t bytes")
       values.each{ |k,v| f.puts("#{k}\t#{v}")}
     end
+
+<!-- TODO il faudrait une conclusion. Peut-être résummer ce qu'on a vu, et finir par un message du genre "We hope Ruby-Cute will be useful for your experiments!" -->
