@@ -27,6 +27,7 @@ Rake::PackageTask::new("ruby-cute",get_version) do |p|
   p.package_files.include('ext/**/*')
   p.package_files.include('bin/**/*')
   p.package_files.include('test/**/*')
+  p.package_files.include('examples/**/*')
   p.package_files.include('Rakefile', 'COPYING','README', 'README.md')
 end
 
