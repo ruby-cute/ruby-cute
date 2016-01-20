@@ -13,12 +13,12 @@ You can skip those sections if you are already acquainted with **Ruby-Cute**.
 The other sections show how to use **Ruby-cute** for scripting complex experiments.
 This is shown through three examples:
 
-1. **Infiniband performance test**: the experiment will illustrates how to perform a reservation,
+1. **Infiniband performance test**: the experiment will illustrate how to perform a reservation,
    the execution of commands in a reserved node  and it explains several `pry` commands that will help you with the writing of your experiment.
 2. **Running NAS benchmarks in Grid’5000**: you will get acquainted with parallel execution using simple SSH or {http://taktuk.gforge.inria.fr/ TakTuk}.
 3. **Performing network measures within a reserved VLAN**: you will learn how to reserve a routed VLAN
-   and to query G5K metrology {https://www.grid5000.fr/mediawiki/index.php/API API}.
-   For this particular experiment we will query {https://www.grid5000.fr/mediawiki/index.php/Monitoring Kwapi} service.
+   and to query the G5K metrology {https://www.grid5000.fr/mediawiki/index.php/API API}.
+   For this particular experiment we will query the {https://www.grid5000.fr/mediawiki/index.php/Monitoring Kwapi} service.
 
 The aforementioned experiments are independent, you can perform them in any order.
 However, you may need some concepts that are explained only in specific sections.
@@ -651,7 +651,7 @@ The network measurements will be carried out in an isolated VLAN.
 We will first reserved two nodes located in two different Grid'5000 sites in deploy mode and we will ask for two routed VLANs.
 Once the nodes are ready an environment will be deployed and the application iperf will be install in all nodes.
 Then, we will perform some network measurements among the nodes.
-Finally, we will query KWAPI using G5K metrology API for getting the network traffic generated during our experiment.
+Finally, we will query the KWAPI using the G5K metrology API to get the network traffic generated during our experiment.
 
 This experiment has the following requirements:
 
@@ -992,7 +992,7 @@ and execute it with:
 
 ## Conclusions
 
-This tutorial has shown how the scripting of complex experiment can be done using Ruby scripting language.
+This tutorial has shown how the scripting of complex experiment can be done using the Ruby scripting language.
 We saw that in the context of Grid'5000,
 **Ruby-Cute** offers useful methods for accessing the platform's services and executing commands in parallel.
 The aim of this tutorial was to give you some ideas for coding your experiments using **Ruby-Cute**
