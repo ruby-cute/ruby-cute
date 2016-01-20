@@ -8,19 +8,18 @@ Grid'5000.
 
 ## Installation
 
+To install latest release from [RubyGems](https://rubygems.org/gems/ruby-cute):
+
+```bash
+$ gem install --user-install ruby-cute
+```
 From sources:
 
 ```bash
 $ git clone https://github.com/ruby-cute/ruby-cute
 $ cd ruby-cute
 $ gem build ruby-cute.gemspec
-$ gem install ruby-cute-*.gem
-```
-
-In Grid'5000 the installation procedure goes as follows:
-
-```bash
-$ gem install --user-install ruby-cute
+$ gem install --user-install ruby-cute-*.gem
 ```
 
 Then, type the following for having ruby cute in your path (this is only necessary if you want to use interactive mode).
