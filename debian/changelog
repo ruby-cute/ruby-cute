@@ -1,5 +1,5 @@
-ruby-cute (0.3) UNRELEASED; urgency=medium
+ruby-cute (0.4) UNRELEASED; urgency=medium
 
   * Initial release.
 
- -- Lucas Nussbaum <lucas@debian.org>  Tue, 10 Mar 2015 15:13:52 +0100
+ -- Lucas Nussbaum <lucas@debian.org>  Fri, 22 Jan 2016 08:54:42 +0100
