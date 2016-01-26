@@ -109,7 +109,10 @@ file with the following content in order to choose our prefered editor:
 
 Here, we will use **Ruby-cute** to carry out an experiment.
 In this experiment, we will ask for two nodes equipped with infiniband and
-then, we will perform some performance test using a network benchmark called *NETPIPE*.
+then, we will perform some performance test using a network benchmark called
+[NETPIPE](http://bitspjoule.org/netpipe/).
+NETPIPE performs simple ping-pong tests, bouncing messages of increasing size between two processes.
+Message sizes are chosen at regular intervals, and with slight perturbations, to provide a complete test of the communication system.
 For this particular experiment we have the following requirements:
 
 - A pair of SSH keys
@@ -148,7 +151,6 @@ ruby script:
 Then, we execute it using the `play` command which will execute line by line this script in the context of a Pry session.
 
     [21] pry(main)> play find_infiniband.rb
-    => ["grenoble", "lille", "luxembourg", "lyon", "nancy", "nantes", "reims", "rennes", "sophia"]
 
 We can observe that the variable `sites_infiniband` is now defined, telling us that Grenoble and Nancy sites offer Infiniband interconnection.
 
@@ -157,19 +159,20 @@ We can observe that the variable `sites_infiniband` is now defined, telling us t
 
 Then, create a pair of SSH keys (Necessary for OARSSH):
 
-    $ ssh-keygen -b 1024 -N "" -t rsa -f ~/my_ssh_jobkey
+    [23] pry(main)> .ssh-keygen -b 1024 -N "" -t rsa -f ~/my_ssh_jobkey
 
-We send the generated keys to the chosen site:
+We send the generated keys to the chosen site (ssh configuration has be set up for the following command to work,
+see [SSH Configuration](https://www.grid5000.fr/mediawiki/index.php/SSH_and_Grid%275000) for more information):
 
-    [22] pry(main)> .scp ~/my_ssh* nancy:~/
+    [24] pry(main)> .scp ~/my_ssh* nancy:~/
 
 Now that we have found the sites, let's submit a job. You can use between Grenoble and Nancy sites. If you
 take a look at {https://www.grid5000.fr/mediawiki/index.php/Status Monika} you will see that in Nancy we should use the OAR property 'ib20g' and in Grenoble we should use 'ib10g'.
 Given that the MPI bench uses just one MPI process, we will need in realty just one core of a given machine.
 We will use OAR syntax to ask for two cores in two different nodes with ib10g in Grenoble.
 
-    [23] pry(main)> job = $g5k.reserve(:site => "grenoble", :resources => "{ib10g='YES'}/nodes=2/core=1",:walltime => '01:00:00', :keys => "~/my_ssh_jobkey" )
-    2015-12-04 14:07:31.370 => Reserving resources: {ib20g='YES'}/nodes=2/core=1,walltime=01:00 (type: ) (in grenoble)
+    [25] pry(main)> job = $g5k.reserve(:site => "nancy", :resources => "{ib20g='YES'}/nodes=2/core=1",:walltime => '01:00:00', :keys => "~/my_ssh_jobkey" )
+    2015-12-04 14:07:31.370 => Reserving resources: {ib20g='YES'}/nodes=2/core=1,walltime=01:00 (type: ) (in nancy)
     2015-12-04 14:07:41.358 => Waiting for reservation 692665
     2015-12-04 14:07:41.444 => Reservation 692665 should be available at 2015-12-04 14:07:34 +0100 (0 s)
     2015-12-04 14:07:41.444 => Reservation 692665 ready
@@ -361,6 +364,12 @@ We can check the results by doing:
      8:      16 bytes  27177 times -->     71.87 Mbps in       1.70 usec
      9:      19 bytes  33116 times -->     85.00 Mbps in       1.71 usec
 
+The latency is given by the last column for a 1 byte message; the maximum throughput is given by the last line.
+Once finished, we could release the job:
+
+    [34] pry(main)> $g5k.release(job)
+    => ""
+
 At the end of the experiment you can use the command `hist` to see what you have done so far.
 This can help you to assemble everything together in a whole script.
 
@@ -387,7 +396,12 @@ This can help you to assemble everything together in a whole script.
 
 ## Running NAS benchmarks in Grid'5000: getting acquainted with parallel command execution
 
-In this experiment, we will run the NAS benchmark in Grid'5000 and we will script a scalability test for one of the benchmarks.
+In this experiment, we will run the NAS benchmarks in Grid'5000 and we will script a scalability test for one of the benchmarks.
+The NAS Parallel Benchmarks (NPB) are a set of benchmarks targeting performance evaluation of highly parallel supercomputers.
+These benchmarks gather parallel kernels and three simluated applications.
+They mimic the workload of large scale computational fluid dynamic applications.
+The objective of this tutorial is to perform a scalability test of the NAS benchmarks. We are going to study how the
+number of computing units used during the computation reduce the execution time of the application.
 This experiment has the following requirements:
 
 - 4 or 2 nodes from any Grid'5000 sites
@@ -583,9 +597,9 @@ Then, we can assign this to a new variable:
      [33] pry(main)> lu_path = results.values.first[:stdout]
      => "/tmp/NPB3.3/NPB3.3-MPI/bin/lu.A.32"
 
-The setup of the experiment is done. It is time to execute the benchmark by typing the following into `pry` console.
+The setup of the experiment is done. It is time to execute the benchmark by typing the following into `pry` console:
 
-    Net::SSH.start(nodes.first,"cruizsanabria") do |ssh|
+    Net::SSH.start(nodes.first) do |ssh|
       results = ssh.exec!("mpirun --mca btl self,sm,tcp -np 32 --machinefile machine_file #{lu_path}")
     end
 
@@ -610,7 +624,7 @@ And copy-paste the following script:
 
     expe_res = {}
 
-    Net::SSH.start(nodes.first,"cruizsanabria") do |ssh|
+    Net::SSH.start(nodes.first) do |ssh|
       binaries.each do |binary|
         processes = /A\.(\d*)/.match(binary)[1]
         expe_res[processes]= {}
@@ -649,7 +663,7 @@ Once finished, we could release the job:
 In this experiment, we will perform network measurements between two nodes located in different Grid'5000 sites.
 The network measurements will be carried out in an isolated VLAN.
 We will first reserved two nodes located in two different Grid'5000 sites in deploy mode and we will ask for two routed VLANs.
-Once the nodes are ready an environment will be deployed and the application iperf will be install in all nodes.
+Once the nodes are ready, an environment will be deployed and the application iperf will be install in all nodes.
 Then, we will perform some network measurements among the nodes.
 Finally, we will query the KWAPI using the G5K metrology API to get the network traffic generated during our experiment.
 
@@ -916,6 +930,7 @@ We could get all the names of the probes specific to this metric by typing:
 
     probes = $g5k.get_metric("rennes",:metric => "network_in").uids
 
+Please replace the first parameter with the site you have used in the experiment.
 If you type that in `pry` you will get:
 
     [13] pry(main)> probes
@@ -944,7 +959,7 @@ Which will give us an Array of Arrays that we can flatten by doing:
 
 As we are going to fetch the data for Rennes (First node). We could do:
 
-    [68] pry(main)> probe_expe = probes.select{ |p| p[nodes_normal[0].split(".")[0]]}
+    [68] pry(main)> probe_expe = probes.select{ |p| p == nodes_normal[0].split(".")[0] }
 
 So, at this point we already have the probe we want to request.
 Next step is to get the start time of the interval, we can choose for example, the time at which deployments have finished:
@@ -989,6 +1004,10 @@ and execute it with:
     1453293159.28666=>4498405298908,
     1453293160.655534=>4498405298908,
     1453293161.998718=>4498405299219,
+
+We can release the nodes:
+
+    [58] pry(main)> jobs.values.each{ |j| $g5k.release(j)}
 
 ## Conclusions
 
