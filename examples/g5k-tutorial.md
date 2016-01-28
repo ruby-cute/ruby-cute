@@ -109,7 +109,7 @@ file with the following content in order to choose our prefered editor:
 
 Here, we will use **Ruby-cute** to carry out an experiment.
 In this experiment, we will ask for two nodes equipped with infiniband and
-then, we will perform some performance test using a network benchmark called
+then, we will perform some performance tests using a network benchmark called
 [NETPIPE](http://bitspjoule.org/netpipe/).
 NETPIPE performs simple ping-pong tests, bouncing messages of increasing size between two processes.
 Message sizes are chosen at regular intervals, and with slight perturbations, to provide a complete test of the communication system.
