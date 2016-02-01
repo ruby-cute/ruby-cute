@@ -332,6 +332,20 @@ After running the script, it will show the output of the benchmark in the `pry` 
       11:      24 bytes  38808 times -->    106.69 Mbps in       1.72 usec
       12:      27 bytes  41271 times -->    119.77 Mbps in       1.72 usec
 
+The latency is given by the last column for a 1 byte message; the maximum throughput is given by the last line.
+We can try to performn the same test without using infiniband, in order to observe the difference in bandwidth and latency:
+
+    Net::SSH.start(nodes.first, "oar", grid5000_opt) do |ssh|
+      netpipe_url = "http://pkgs.fedoraproject.org/repo/pkgs/NetPIPE/NetPIPE-3.7.1.tar.gz/5f720541387be065afdefc81d438b712/NetPIPE-3.7.1.tar.gz"
+      ssh.exec!("mkdir -p netpipe_exp")
+      ssh.exec!("wget -O ~/netpipe_exp/NetPIPE.tar.gz #{netpipe_url}")
+      ssh.exec!("cd netpipe_exp && tar -zvxf NetPIPE.tar.gz")
+      ssh.exec!("cd netpipe_exp/NetPIPE-3.7.1 && make mpi")
+      mpi_command = "export OAR_JOB_KEY_FILE=~/my_ssh_jobkey;"
+      mpi_command+= "mpirun --mca plm_rsh_agent \"oarsh\" --mca btl self,sm,tcp -machinefile /tmp/machine_file ~/netpipe_exp/NetPIPE-3.7.1/NPmpi"
+      ssh.exec(mpi_command)
+    end
+
 We can modify slightly the previous script to write the result into a file.
 We need to use `ssh.exec!` to capture the output of the commands.
 
@@ -364,7 +378,8 @@ We can check the results by doing:
      8:      16 bytes  27177 times -->     71.87 Mbps in       1.70 usec
      9:      19 bytes  33116 times -->     85.00 Mbps in       1.71 usec
 
-The latency is given by the last column for a 1 byte message; the maximum throughput is given by the last line.
+
+
 Once finished, we could release the job:
 
     [34] pry(main)> $g5k.release(job)
