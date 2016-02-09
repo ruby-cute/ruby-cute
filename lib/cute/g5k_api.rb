@@ -943,7 +943,13 @@ module Cute
           resources += "/nodes=#{nodes}"
           resources += "/cpu=#{cpus}" unless cpus.nil?
           resources += "/core=#{cores}" unless cores.nil?
-          resources = "{cluster='#{cluster}'}" + resources unless cluster.nil?
+
+
+
+          if cluster
+            resources = (cluster.is_a?(Fixnum) ? "/cluster=#{cluster}" : "{cluster='#{cluster}'}") + resources
+          end
+
           resources = "{type='#{vlan}'}/vlan=1+" + resources unless vlan.nil?
           resources = "slash_#{subnets[0]}=#{subnets[1]}+" + resources unless subnets.nil?
         end
