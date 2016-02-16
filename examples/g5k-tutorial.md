@@ -442,7 +442,7 @@ and type the following code:
     job = {}
 
     sites.each do |site|
-      job = $g5k.reserve(:site => site, :nodes => 4, :wait => false, :walltime => "01:00:00")
+      job = $g5k.reserve(:site => site, :cluster => 1, :nodes => 4, :wait => false, :walltime => "01:00:00")
       begin
         job = $g5k.wait_for_job(job, :wait_time => 60)
         puts "Nodes assigned #{job['assigned_nodes']}"
