@@ -944,8 +944,6 @@ module Cute
           resources += "/cpu=#{cpus}" unless cpus.nil?
           resources += "/core=#{cores}" unless cores.nil?
 
-
-
           if cluster
             resources = (cluster.is_a?(Fixnum) ? "/cluster=#{cluster}" : "{cluster='#{cluster}'}") + resources
           end
@@ -1036,7 +1034,8 @@ module Cute
       #    }
       #
       # @param job [G5KJSON] as described in {Cute::G5K::G5KJSON job}
-      # @param opts [Hash] options
+      # @param [Hash] opts Options
+      # @option opts [Numeric] :wait_time Number of seconds to wait before triggering a timeout
       def wait_for_job(job,opts={})
         opts[:wait_time] = 36000 if opts[:wait_time].nil?
         jid = job['uid']
@@ -1082,7 +1081,7 @@ module Cute
       # @param job [G5KJSON] as described in {Cute::G5K::G5KJSON job}
       # @param [Hash] opts Deploy options
       # @option opts [String] :env {http://kadeploy3.gforge.inria.fr/ Kadeploy} environment to deploy
-      # @option opts [String] :nodes Specifies the nodes to deploy on
+      # @option opts [Array] :nodes Specifies the nodes to deploy on
       # @option opts [String] :keys Specifies the SSH keys to copy for the deployment
       # @option opts [Boolean] :wait Whether or not to wait until the deployment is done (default is false)
       # @return [G5KJSON] a job with deploy information as described in {Cute::G5K::G5KJSON job}
