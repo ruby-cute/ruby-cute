@@ -372,7 +372,7 @@ module Cute
     #
     #     puts "Assigned nodes : #{job['assigned_nodes']}"
     #
-    # Your public ssh key located in ~/.ssh will be copied by default on the deployed machines,
+    # By default your public ssh key '~/.ssh/id_rsa.pub' will be copied on the deployed machines,
     # you can specify another path for your keys with the option *:keys*.
     # In order to deploy your own environment, you have to put the tar file that contains the operating system you want to deploy and
     # the environment description file, under the public directory of a given site.
