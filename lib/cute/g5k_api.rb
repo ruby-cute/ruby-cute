@@ -1079,6 +1079,11 @@ module Cute
       #
       #    deploy(job, :nodes => ["genepi-2.grid5000.fr"], :env => "wheezy-x64-xen", :keys => "~/my_key")
       #
+      # The parameter *:keys* [String] can be a string specifying the path of the key (as the previous case)
+      # or the contents of the public ssh key as the example given below:
+      #
+      #    deploy(job,:env => "jessie-x64-big", :keys =>  File.read("/tmp/test_key/test_key.pub"))
+      #
       # @param job [G5KJSON] as described in {Cute::G5K::G5KJSON job}
       # @param [Hash] opts Deploy options
       # @option opts [String] :env {http://kadeploy3.gforge.inria.fr/ Kadeploy} environment to deploy
@@ -1108,9 +1113,19 @@ module Cute
 
         if opts[:keys].nil? then
           public_key_path = File.expand_path("~/.ssh/id_rsa.pub")
-          public_key_file = File.exist?(public_key_path) ? File.read(public_key_path) : ""
+          if File.exist?(public_key_path) then
+            public_key_file = File.read(public_key_path)
+          else
+            raise ArgumentError, "No public ssh key found"
+          end
+
         else
-          public_key_file = File.read("#{File.expand_path(opts[:keys])}.pub")
+          # We check if the string passed contains the ssh public
+          if (opts[:keys].length < 300 && (opts[:keys] =~ /^ssh.*/).nil?)
+            public_key_file = File.read("#{File.expand_path(opts[:keys])}.pub").chop
+          else
+            public_key_file = opts[:keys]
+          end
         end
 
         payload = {
