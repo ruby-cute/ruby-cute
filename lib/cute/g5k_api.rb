@@ -629,13 +629,18 @@ module Cute
       #         if a uid is provided only the jobs owned by the user are shown.
       # @param site [String] a valid Grid'5000 site name
       # @param uid [String] user name in Grid'5000
-      # @param state [String] jobs state: running, waiting
-      def get_jobs(site, uid = nil, state = nil)
-        filter = "?"
-        filter += state.nil? ? "" : "state=#{state}"
-        filter += uid.nil? ? "" : "&user=#{uid}"
-        filter += "limit=25" if (state.nil? and uid.nil?)
-        jobs = @g5k_connection.get_json(api_uri("/sites/#{site}/jobs/#{filter}")).items
+      # @param states [Array] or [String] jobs state: running, waiting (multiple states can be specified)
+      def get_jobs(site, uid = nil, states = nil)
+
+        parameters = []
+        if states then
+          states = [states] if states.is_a?(String)
+          parameters.push("state=#{states.join(",")}")
+        end
+        parameters.push("user=#{uid}") if uid
+        parameters.push("limit=25") if (states.nil? and uid.nil?)
+
+        jobs = @g5k_connection.get_json(api_uri("/sites/#{site}/jobs?#{parameters.join("&")}")).items
         jobs.map{ |j| @g5k_connection.get_json(j.rel_self)}
         # This request sometime is could take a little long when all jobs are requested
         # The API return by default 50 the limit was set to 25 (e.g., 23 seconds).
@@ -718,13 +723,18 @@ module Cute
       # By default it only shows the jobs in state *running*.
       # You can specify another state like this:
       #
-      # = Example
-      #    get_my_jobs("nancy", state="waiting")
+      # = Examples
+      #    get_my_jobs("nancy", "waiting")
+      # Getting several states:
+      #   get_my_jobs("nancy", ["waiting","running"])
       # Valid states are specified in {https://api.grid5000.fr/doc/4.0/reference/spec.html Grid'5000 API spec}
       # @return [Array] all my submitted jobs to a given site and their associated deployments.
       # @param site [String] a valid Grid'5000 site name
-      def get_my_jobs(site, state = "running")
-        jobs = get_jobs(site, g5k_user, state)
+      # @param states [String/Array]  possible job state values (waiting, launching, running, hold, error, terminated)
+      def get_my_jobs(site, states = "running")
+
+#        raise ArgumentError,"States parameter should be an Array" unless states.is_a?(Array)
+        jobs = get_jobs(site, g5k_user, states)
         deployments = get_deployments(site, g5k_user)
         # filtering deployments only the job in state running make sense
         jobs.map{ |j| j["deploy"] = deployments.select{ |d| d["created_at"] > j["started_at"]} if j["state"] == "running"}
