@@ -509,7 +509,7 @@ module Cute
         config = YAML.load(File.open(params[:conf_file],'r')) unless params[:conf_file].nil?
         @user = params[:username] || config["username"]
         @pass = params[:password] || config["password"]
-        @uri = params[:uri] || config["uri"]
+        @uri = params[:uri] || config["uri"] || "https://api.grid5000.fr/"
         @api_version = params[:version] || config["version"] || "sid"
         @logger = nil
 
