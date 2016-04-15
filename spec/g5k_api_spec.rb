@@ -13,12 +13,13 @@ describe Cute::G5K::API do
     index = ((day/31.to_f)*sites.length).to_i
     index = 1 if index == 0
     @rand_site = sites[index]
-    @env = subject.environment_uids(@rand_site).first
+    @env = "jessie-x64-big" # This could change but there is no way to get the available environments
     if ENV['TEST_REAL']
       WebMock.disable!
       puts "Testing in real Grid'5000 using site: #{@rand_site}"
       puts "Warning G5K_USER environment variable has to be defined for some tests" if ENV['G5K_USER'].nil?
     end
+
   end
 
   it "checks initialization of G5K::API" do
@@ -54,6 +55,10 @@ describe Cute::G5K::API do
 
   it "return my_jobs in the site" do
     expect(subject.get_my_jobs(@rand_site)).to be_an_instance_of(Array)
+  end
+
+  it "return my jobs in different states" do
+    expect(subject.get_my_jobs(@rand_site,["running","terminated"]).length).to be > 1
   end
 
   it "returns all deployments" do
