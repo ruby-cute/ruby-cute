@@ -116,8 +116,8 @@ module Cute
     #       "properties"=>"(deploy = 'YES') AND maintenance = 'NO'",
     #       "directory"=>"/home/name",
     #       "events"=>[],
-    #       "links"=>[{"rel"=>"self", "href"=>"/sid/sites/nancy/jobs/604692", "type"=>"application/vnd.grid5000.item+json"},
-    #                 {"rel"=>"parent", "href"=>"/sid/sites/nancy", "type"=>"application/vnd.grid5000.item+json"}],
+    #       "links"=>[{"rel"=>"self", "href"=>"/stable/sites/nancy/jobs/604692", "type"=>"application/vnd.grid5000.item+json"},
+    #                 {"rel"=>"parent", "href"=>"/stable/sites/nancy", "type"=>"application/vnd.grid5000.item+json"}],
     #       "resources_by_type"=>
     #        {"cores"=>
     #           ["griffon-8.nancy.grid5000.fr",
@@ -137,7 +137,7 @@ module Cute
     #       "deploy"=>
     #          {"created_at"=>1423575401,
     #           "environment"=>"http://public.sophia.grid5000.fr/~nniclausse/openmx.dsc",
-    #           "key"=>"https://api.grid5000.fr/sid/sites/nancy/files/cruizsanabria-key-84f3f1dbb1279bc1bddcd618e26c960307d653c5",
+    #           "key"=>"https://api.grid5000.fr/stable/sites/nancy/files/cruizsanabria-key-84f3f1dbb1279bc1bddcd618e26c960307d653c5",
     #           "nodes"=>["griffon-8.nancy.grid5000.fr", "griffon-9.nancy.grid5000.fr", "griffon-77.nancy.grid5000.fr"],
     #           "site_uid"=>"nancy",
     #           "status"=>"processing",
@@ -146,7 +146,7 @@ module Cute
     #           "user_uid"=>"cruizsanabria",
     #           "vlan"=>5,
     #           "links"=>
-    #              [{"rel"=>"self", "href"=>"/sid/sites/nancy/deployments/D-751096de-0c33-461a-9d27-56be1b2dd980", "type"=>"application/vnd.grid5000.item+json"},
+    #              [{"rel"=>"self", "href"=>"/stable/sites/nancy/deployments/D-751096de-0c33-461a-9d27-56be1b2dd980", "type"=>"application/vnd.grid5000.item+json"},
     class G5KJSON < Hash
 
       def items
@@ -200,7 +200,7 @@ module Cute
       def initialize(uri,api_version,user,pass,on_error)
         @user = user
         @pass = pass
-        @api_version = api_version.nil? ? "sid" : api_version
+        @api_version = api_version.nil? ? "stable" : api_version
         if (user.nil? or pass.nil?)
           @endpoint = uri # Inside Grid'5000
         else
@@ -323,7 +323,7 @@ module Cute
     #     $ uri: https://api.grid5000.fr/
     #     $ username: user
     #     $ password: **********
-    #     $ version: sid
+    #     $ version: stable
     #     $ EOF
     #
     # The *username* and *password* are not necessary if you are using the module from inside Grid'5000.
@@ -482,7 +482,7 @@ module Cute
       #
       # You can specify other parameter to use:
       #
-      #     g5k = Cute::G5K::API.new(:uri => "https://api.grid5000.fr", :version => "sid")
+      #     g5k = Cute::G5K::API.new(:uri => "https://api.grid5000.fr", :version => "stable")
       #
       # If you want to ignore {Cute::G5K::RequestFailed ResquestFailed} exceptions you can use:
       #
@@ -510,7 +510,7 @@ module Cute
         @user = params[:username] || config["username"]
         @pass = params[:password] || config["password"]
         @uri = params[:uri] || config["uri"]
-        @api_version = params[:version] || config["version"] || "sid"
+        @api_version = params[:version] || config["version"] || "stable"
         @logger = nil
 
         begin
