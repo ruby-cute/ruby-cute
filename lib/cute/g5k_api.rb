@@ -200,7 +200,7 @@ module Cute
       def initialize(uri,api_version,user,pass,on_error)
         @user = user
         @pass = pass
-        @api_version = api_version.nil? ? "sid" : api_version
+        @api_version = api_version.nil? ? "stable" : api_version
         if (user.nil? or pass.nil?)
           @endpoint = uri # Inside Grid'5000
         else
@@ -510,7 +510,7 @@ module Cute
         @user = params[:username] || config["username"]
         @pass = params[:password] || config["password"]
         @uri = params[:uri] || config["uri"] || "https://api.grid5000.fr/"
-        @api_version = params[:version] || config["version"] || "sid"
+        @api_version = params[:version] || config["version"] || "stable"
         @logger = nil
 
         begin
