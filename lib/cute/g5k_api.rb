@@ -320,14 +320,14 @@ module Cute
     # To simplify the use of the module, it is better to create a file with the following information:
     #
     #     $ cat > ~/.grid5000_api.yml << EOF
-    #     $ uri: https://api.grid5000.fr/
-    #     $ username: user
-    #     $ password: **********
-    #     $ version: sid
-    #     $ EOF
+    #       uri: https://api.grid5000.fr/
+    #       username: user
+    #       password: **********
+    #       version: sid
+    #       EOF
     #
     # The *username* and *password* are not necessary if you are using the module from inside Grid'5000.
-    # You can take a look at the {Cute::G5K::API#initialize G5K::API constructor} to see more details for
+    # You can take a look at the {Cute::G5K::API#initialize G5K::API constructor} to see more details of
     # this configuration.
     #
     # = Getting started
@@ -339,8 +339,8 @@ module Cute
     # In the presence of error, {Cute::G5K::API G5K::API} raises exceptions (see {Cute::G5K::Error G5K exceptions}),
     # that you can handle to decide the workflow of your experiment
     # (see {Cute::G5K::API#wait_for_deploy wait_for_deploy} and {Cute::G5K::API#wait_for_deploy wait_for_job}).
-    # Let's show how {Cute::G5K::API G5K::API} is used through an example, suppose we want to reserve 3 nodes in Nancy site for 1 hour.
-    # In order to do that we would write something like this:
+    # In the following example it is shown how {Cute::G5K::API G5K::API} is used. The example represent
+    # the reservation of 3 nodes in Nancy site for 1 hour:
     #
     #     require 'cute'
     #
@@ -354,7 +354,7 @@ module Cute
     #
     #     $ ruby example.rb
     #
-    # The execution will block until you got the reservation. Then, you can interact with the nodes you reserved the way you used to or
+    # The execution will block until you got the reservation. Then, you can interact with the nodes you reserved in the way you used to or
     # add more code to the previous script for controlling your experiment with Ruby-Cute as shown in this
     # {http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/file/examples/g5k_exp_virt.rb  example}.
     # We have just used the method {Cute::G5K::API#reserve reserve} that allow us to reserve resources in Grid'5000.
@@ -393,7 +393,7 @@ module Cute
     #     puts "Log in into the nodes using the following hostnames: #{g5k.get_vlan_nodes(job)}"
     #
     # If you do not want that the method {Cute::G5K::API#reserve reserve} perform the deployment for you, you have to use the option :type => :deploy.
-    # This can be useful when deploying different environments in your reserved nodes. For example deploying the environments for a small HPC cluster.
+    # This can be useful when deploying different environments in your reserved nodes, for example: deploying the environments for a small HPC cluster.
     # You have to use the method {Cute::G5K::API#deploy deploy} for performing the deploy.
     # This method do not block by default, that is why you have to use the method {Cute::G5K::API#wait_for_deploy wait_for_deploy} in order to block the execution
     # until the deployment is done.
@@ -480,7 +480,7 @@ module Cute
       #
       #     g5k = Cute::G5K::API.new(:conf_file =>"config file path")
       #
-      # You can specify other parameter to use:
+      # You can specify other parameters to use:
       #
       #     g5k = Cute::G5K::API.new(:uri => "https://api.grid5000.fr", :version => "sid")
       #
@@ -877,7 +877,7 @@ module Cute
       # @option opts [Numeric] :nodes Number of nodes to reserve
       # @option opts [String] :walltime Walltime of the reservation
       # @option opts [String] :site Grid'5000 site
-      # @option opts [Symbol] :type Type of reservation: :deploy, :allow_classic
+      # @option opts [Symbol] :type Type of reservation: :deploy, :allow_classic_ssh
       # @option opts [String] :name Reservation name
       # @option opts [String] :cmd The command to execute when the job starts (e.g. ./my-script.sh).
       # @option opts [String] :cluster Valid Grid'5000 cluster
