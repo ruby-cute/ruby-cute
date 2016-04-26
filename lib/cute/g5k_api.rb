@@ -339,7 +339,7 @@ module Cute
     # In the presence of error, {Cute::G5K::API G5K::API} raises exceptions (see {Cute::G5K::Error G5K exceptions}),
     # that you can handle to decide the workflow of your experiment
     # (see {Cute::G5K::API#wait_for_deploy wait_for_deploy} and {Cute::G5K::API#wait_for_deploy wait_for_job}).
-    # In the following example it is shown how {Cute::G5K::API G5K::API} is used. The example represent
+    # In the following example it is shown how {Cute::G5K::API G5K::API} is used. The example represents
     # the reservation of 3 nodes in Nancy site for 1 hour:
     #
     #     require 'cute'
@@ -1129,7 +1129,7 @@ module Cute
           end
 
         else
-          # We check if the string passed contains the ssh public
+          # We check if the string passed contains the ssh public key
           if (opts[:keys].length < 300 && (opts[:keys] =~ /^ssh.*/).nil?)
             public_key_file = File.read("#{File.expand_path(opts[:keys])}.pub").chop
           else
