@@ -296,7 +296,7 @@ module Cute
           if http_body["code"] == 400
             raise BadRequest.new("Bad request", e)
           else
-            raise RequestFailed.new("Service internal error", e)
+            raise RequestFailed.new("Grid5000 API internal error", e)
           end
         when  400
           raise BadRequest.new("Bad request", e)
