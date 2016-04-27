@@ -19,8 +19,66 @@ module Cute
   #       end
   #       puts results
   #
-  # You can go directly to the documentation of useful methods such {TakTuk::TakTuk#exec exec},
-  # {TakTuk::TakTuk#exec! exec!}, {TakTuk::TakTuk#put put}, {TakTuk::TakTuk#input input}, etc.
+  # = Understanding {TakTuk::TakTuk#exec exec} and {TakTuk::TakTuk#exec! exec!}
+  #
+  # This section explains the differences between {TakTuk::TakTuk#exec exec} and {TakTuk::TakTuk#exec! exec!} with
+  # several examples.
+  # == Example 1
+  #
+  #       Cute::TakTuk.start(['host1','host2','host3'],:user => "root") do |tak|
+  #            tak.exec("df")
+  #            tak.exec("ls -l")
+  #            tak.exec("sleep 20")
+  #            tak.exec("tar xvf file.tar")
+  #       end
+  #
+  # In the previous example all the commands will be executed concurrently on each host*.
+  # This will be equivalent to execute the following sequence in bash:
+  #
+  #       $ df &
+  #       $ ls -l &
+  #       $ sleep 20 &
+  #       $ tar xvf file.tar &
+  #       $ wait
+  #
+  # The {Cute::TakTuk#start start} method waits for all commands, it performs a {TakTuk::TakTuk#loop loop()} implicitly.
+  # This implicit {TakTuk::TakTuk#loop loop()} has the same behaviour as the 'wait' command in bash.
+  # == Example 2
+  #       Cute::TakTuk.start(['host1','host2','host3'],:user => "root") do |tak|
+  #            tak.exec("df")
+  #            tak.exec("ls -l")
+  #            tak.loop()
+  #            tak.exec("sleep 20")
+  #            tak.exec("tar xvf file.tar")
+  #       end
+  # This will execute the two first comamnds concurrently and then the remaining commands concurrently.
+  # It is equivalent to execute the following sequence in bash:
+  #       $ df &
+  #       $ ls -l &
+  #       $ wait
+  #       $ sleep 20 &
+  #       $ tar xvf file.tar &
+  #       $ wait
+  # == Example 3
+  #       Cute::TakTuk.start(['host1','host2','host3'],:user => "root") do |tak|
+  #            tak.exec("df")
+  #            tak.exec("ls -l")
+  #            tak.exec!("sleep 20")
+  #            tak.exec("tar xvf file.tar")
+  #       end
+  #
+  # Notice that we use now the {TakTuk::TakTuk#exec! exec!} method
+  # which will wait for the previous commands and then it will block until the command finishes.
+  # It is equivalent to execute the following sequence in bash:
+  #       $ df &
+  #       $ ls -l &
+  #       $ wait
+  #       $ sleep 20 &
+  #       $ wait
+  #       $ tar xvf file.tar &
+  #       $ wait
+  # You can go directly to the documentation of the mentioned methods {TakTuk::TakTuk#exec exec},
+  # {TakTuk::TakTuk#exec! exec!} and other useful methods such as: {TakTuk::TakTuk#put put}, {TakTuk::TakTuk#input input}, etc.
   # @see http://taktuk.gforge.inria.fr/.
   # @see TakTuk::TakTuk TakTuk Class for more documentation.
   module TakTuk
