@@ -904,7 +904,7 @@ module Cute
         nodes = opts.fetch(:nodes, 1)
         walltime = opts.fetch(:walltime, '01:00:00')
         site = opts[:site]
-        type = opts[:type]
+        type = opts.fetch(:type, [])
         name = opts.fetch(:name, 'rubyCute job')
         command = opts[:cmd]
         opts[:wait] = true if opts[:wait].nil?
@@ -916,7 +916,8 @@ module Cute
         properties = opts[:properties]
         reservation = opts[:reservation]
         resources = opts.fetch(:resources, "")
-        type = :deploy if opts[:env]
+        type = [:deploy] if opts[:env]
+        type = [type] if type.is_a?(Symbol)
         keys = opts[:keys]
         queue = opts[:queue]
 
@@ -938,7 +939,6 @@ module Cute
         walltime = walltime.to_time
 
         command = "sleep #{secs}" if command.nil?
-        type = type.to_sym unless type.nil?
 
         if resources == ""
           resources = "/switch=#{switches}" unless switches.nil?
@@ -965,10 +965,11 @@ module Cute
         info "Reserving resources: #{resources} (type: #{type}) (in #{site})"
 
         payload['properties'] = properties unless properties.nil?
-        payload['types'] = [ type.to_s ] unless type.nil?
+        payload['types'] = type.map{ |t| t.to_s} unless type.nil?
+        type.map!{|t| t.to_sym}  unless type.nil?
         payload['queue'] = queue if queue
 
-        if not type == :deploy
+        unless type.include?(:deploy)
           if opts[:keys]
             payload['import-job-key-from-file'] = [ File.expand_path(keys) ]
           else

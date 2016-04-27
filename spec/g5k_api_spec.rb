@@ -109,6 +109,12 @@ describe Cute::G5K::API do
     subject.release(job)
   end
 
+  it "reserves besteffort" do
+    job = subject.reserve(:site => @rand_site, :type => [:besteffort,:deploy])
+    expect(job).to be_an_instance_of(Cute::G5K::G5KJSON)
+    subject.release(job)
+  end
+
 
   it "reserves with vlan and get vlan hostnames" do
     job = subject.reserve(:site => @rand_site, :nodes => 1, :type => :deploy, :vlan => :routed)
