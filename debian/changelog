@@ -1,3 +1,9 @@
+ruby-cute (0.5) UNRELEASED; urgency=medium
+
+  * New release.
+
+ -- Cristian Ruiz <cristian.ruiz@inria.fr>  Tue, 3 May 2016 08:54:42 +0100
+
 ruby-cute (0.4) UNRELEASED; urgency=medium
 
   * Initial release.
