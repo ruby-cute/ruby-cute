@@ -377,12 +377,14 @@ module Cute
     #     g5k = Cute::G5K::API.new()
     #
     #     job = g5k.reserve(:site => "lille", :nodes => 10,
-    #                       :env => 'https://public.lyon.grid5000.fr/~user/debian_custom_img.yaml',
+    #                       :env => 'http://public.lyon.grid5000.fr/~user/debian_custom_img.yaml',
     #                       :vlan => :routed, :keys => "~/my_ssh_key")
     #
     #
     #     puts "Log in into the nodes using the following hostnames: #{g5k.get_vlan_nodes(job)}"
     #
+    # You should make sure when using custom environments that in the Kadeploy description file, you use an URL to specify the path to the tarball.
+    # Otherwise, you will get the error 'Invalid client's export'.
     # If you do not want that the method {Cute::G5K::API#reserve reserve} perform the deployment for you, you have to use the option :type => :deploy.
     # This can be useful when deploying different environments in your reserved nodes, for example: deploying the environments for a small HPC cluster.
     # You have to use the method {Cute::G5K::API#deploy deploy} for performing the deploy.
@@ -400,8 +402,8 @@ module Cute
     #     slaves = nodes[1..4]
     #     master = nodes-slaves
     #
-    #     g5k.deploy(job,:nodes => master, :env => 'https://public.lyon.grid5000.fr/~user/debian_master_img.yaml')
-    #     g5k.deploy(job,:nodes => slaves, :env => 'https://public.lyon.grid5000.fr/~user/debian_slaves_img.yaml')
+    #     g5k.deploy(job,:nodes => master, :env => 'http://public.lyon.grid5000.fr/~user/debian_master_img.yaml')
+    #     g5k.deploy(job,:nodes => slaves, :env => 'http://public.lyon.grid5000.fr/~user/debian_slaves_img.yaml')
     #
     #     g5k.wait_for_deploy(job)
     #
