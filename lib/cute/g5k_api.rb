@@ -309,7 +309,8 @@ module Cute
 
     # This class helps you to access Grid'5000 REST API.
     # Thus, the most common actions such as reservation of nodes and deployment can be easily scripted.
-    # To simplify the use of the module, it is better to create a file with the following information:
+    # If you are using this module outside Grid'5000 you should created a configuration file with
+    # the following contents:
     #
     #     $ cat > ~/.grid5000_api.yml << EOF
     #       uri: https://api.grid5000.fr/
@@ -318,9 +319,7 @@ module Cute
     #       version: sid
     #       EOF
     #
-    # The *username* and *password* are not necessary if you are using the module from inside Grid'5000.
-    # You can take a look at the {Cute::G5K::API#initialize G5K::API constructor} to see more details of
-    # this configuration.
+    # You can take a look at the {Cute::G5K::API#initialize G5K::API constructor} to see more details of this configuration.
     #
     # = Getting started
     #

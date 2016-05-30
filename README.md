@@ -27,6 +27,21 @@ Then, type the following for having ruby cute in your path (this is only necessa
 ```bash
 $ export PATH=$PATH:$(ruby -e 'puts "#{Gem.user_dir}/bin"')
 ```
+If you want to use Ruby-Cute outside Grid'5000 you need to create a configuration file with your credentials.
+By default you need to create a file called *.grid5000_api.yml* located in your home directory:
+
+```bash
+
+$ cat > ~/.grid5000_api.yml << EOF
+  uri: https://api.grid5000.fr/
+  username: user
+  password: **********
+  version: sid
+  EOF
+
+```
+
+For more details have a look at [G5K Module](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/G5K/API).
 
 ## Overview
 
