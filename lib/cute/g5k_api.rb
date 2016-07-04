@@ -505,6 +505,7 @@ module Cute
         @uri = params[:uri] || config["uri"] || "https://api.grid5000.fr/"
         @api_version = params[:version] || config["version"] || "stable"
         @logger = nil
+        @debug = params[:debug] || false
 
         begin
           @g5k_connection = G5KRest.new(@uri,@api_version,@user,@pass,params[:on_error])
@@ -587,6 +588,7 @@ module Cute
       # @return [Hash] all the status information of a given Grid'5000 site
       # @param site [String] a valid Grid'5000 site name
       def site_status(site)
+        info(debug_cmd(api_uri("sites/#{site}/status"),"GET"), :debug)
         @g5k_connection.get_json(api_uri("sites/#{site}/status"))
       end
 
@@ -643,6 +645,7 @@ module Cute
       # @param site [String] a valid Grid'5000 site name
       # @param uid [String] user name in Grid'5000
       def get_deployments(site, uid = nil)
+        info(debug_cmd(api_uri("sites/#{site}/deployments/?user=#{uid}"),"GET"), :debug)
         @g5k_connection.get_json(api_uri("sites/#{site}/deployments/?user=#{uid}")).items
       end
 
@@ -650,12 +653,14 @@ module Cute
       # @param site [String] a valid Grid'5000 site name
       # @param jid [Fixnum] a valid job identifier
       def get_job(site, jid)
+        info(debug_cmd(api_uri("/sites/#{site}/jobs/#{jid}"),"GET"), :debug)
         @g5k_connection.get_json(api_uri("/sites/#{site}/jobs/#{jid}"))
       end
 
       # @return [Hash] switches information available in a given Grid'5000 site.
       # @param site [String] a valid Grid'5000 site name
       def get_switches(site)
+        info(debug_cmd(api_uri("/sites/#{site}/network_equipments"),"GET"), :debug)
         items = @g5k_connection.get_json(api_uri("/sites/#{site}/network_equipments")).items
         items = items.select { |x| x['kind'] == 'switch' }
         # extract nodes connected to those switches
@@ -709,6 +714,7 @@ module Cute
           params+="?"
           opts[:query].each{ |k,v| params+="#{k}=#{v}&"}
         end
+        info debug_cmd(api_uri("sites/#{site}/metrics#{params}"),"GET"), :debug
         @g5k_connection.get_json(api_uri("sites/#{site}/metrics#{params}")).items
       end
 
@@ -993,6 +999,7 @@ module Cute
             sleep 1 # This is for being sure that our job appears on the list
             r = get_my_jobs(site,nil).select{ |j| j["uid"] == temp["id"] }.first
           else
+            info debug_cmd(api_uri("sites/#{site}/jobs"),"POST",payload.to_json), :debug
             r = @g5k_connection.post_json(api_uri("sites/#{site}/jobs"),payload)  # This makes reference to the same class
           end
         rescue Error => e
@@ -1148,6 +1155,7 @@ module Cute
         info "Creating deployment"
 
         begin
+          info debug_cmd(api_uri("sites/#{site}/deployments"),"POST",payload.to_json), :debug
           r = @g5k_connection.post_json(api_uri("sites/#{site}/deployments"), payload)
         rescue Error => e
           info "Fail to deploy"
@@ -1265,13 +1273,30 @@ module Cute
       private
       # Handles the output of messages within the module
       # @param msg [String] message to show
-      def info(msg)
+      def info(msg,mode =nil)
+
+        return if mode == :debug and not @debug
+
         if @logger.nil? then
           t = Time.now
           s = t.strftime('%Y-%m-%d %H:%M:%S.%L')
           puts "#{s} => #{msg}"
         else
-          @logger.info(msg)
+          if mode == :debug
+            @logger.debug(msg)
+          else
+            @logger.info(msg)
+          end
+        end
+
+      end
+
+      # @return a string containing the command line equivalent for debugging purposes
+      def debug_cmd(path,method,payload=nil)
+        if method == "GET"
+          return "CMD debug: curl -kn #{@uri}#{path}"
+        else
+          return "CMD debug: curl -kni #{@uri}#{path} -X POST -H'Content-Type: application/json' -d '#{payload}'"
         end
       end
 
@@ -1281,6 +1306,7 @@ module Cute
         path = path[1..-1] if path.start_with?('/')
         return "#{@api_version}/#{path}"
       end
+
 
     end
 

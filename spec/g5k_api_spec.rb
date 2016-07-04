@@ -3,7 +3,11 @@ require 'spec_helper'
 # Real tests can be activated by setting the shell variable TEST_REAL
 describe Cute::G5K::API do
 
-  subject { g5k = ENV['TEST_REAL'].nil?? Cute::G5K::API.new(:user => "test") : Cute::G5K::API.new() }
+  if ENV['TEST_REAL']
+    subject { g5k = ENV['DEBUG'].nil?? Cute::G5K::API.new() : Cute::G5K::API.new(:debug => true) }
+  else
+    subject { g5k = ENV['DEBUG'].nil?? Cute::G5K::API.new(:user => "test") : Cute::G5K::API.new(:user => "test",:debug => true) }
+  end
 
   let(:sites) { subject.site_uids}
 
