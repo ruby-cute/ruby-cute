@@ -886,14 +886,15 @@ module Cute
       # @option opts [Numeric] :nodes Number of nodes to reserve
       # @option opts [String] :walltime Walltime of the reservation
       # @option opts [String] :site Grid'5000 site
-      # @option opts [Symbol] :type Type of reservation: :deploy, :allow_classic_ssh
+      # @option opts [Array or Symbol] :type Type of reservation: :deploy, :allow_classic_ssh, [:deploy,:destructive]
       # @option opts [String] :name Reservation name
       # @option opts [String] :cmd The command to execute when the job starts (e.g. ./my-script.sh).
       # @option opts [String] :cluster Valid Grid'5000 cluster
       # @option opts [String] :queue A specific job queue
       # @option opts [Array]  :subnets 1) prefix_size, 2) number of subnets
       # @option opts [String] :env Environment name for {http://kadeploy3.gforge.inria.fr/ Kadeploy}
-      # @option opts [Symbol] :vlan Vlan type: :routed, :local, :global
+      # @option opts [String] :vlan VLAN type and number: kavlan-local, kavlan, kavlan-topo, etc
+      # @option opts [Numeric] :num_vlan Number of VLANs
       # @option opts [String] :properties OAR properties defined in the cluster
       # @option opts [String] :resources OAR syntax for complex submissions
       # @option opts [String] :reservation Request a job to be scheduled a specific date.
@@ -903,7 +904,7 @@ module Cute
 
         # checking valid options
         valid_opts = [:site, :cluster, :switches, :cpus, :cores, :nodes, :walltime, :cmd,
-                      :type, :name, :subnets, :env, :vlan, :properties, :resources,
+                      :type, :name, :subnets, :env, :vlan, :num_vlan,:properties, :resources,
                       :reservation, :wait, :keys, :queue, :env_user]
         unre_opts = opts.keys - valid_opts
         raise ArgumentError, "Unrecognized option #{unre_opts}" unless unre_opts.empty?
@@ -927,15 +928,18 @@ module Cute
         type = [type] if type.is_a?(Symbol)
         keys = opts[:keys]
         queue = opts[:queue]
+        vlan = opts[:vlan]
+        num_vlan = opts.fetch(:num_vlan, 1)
 
-        vlan_opts = {:routed => "kavlan",:global => "kavlan-global",:local => "kavlan-local"}
-        vlan = nil
+
+        available_vlans = nil
+        if opts[:vlan]
+          available_vlans = @g5k_connection.get_json(api_uri("sites/#{site}/vlans")).items.map{ |item| item["type"]}.uniq
+          available_vlans.delete("NULL")
+        end
+
         unless opts[:vlan].nil?
-          if vlan_opts.include?(opts[:vlan]) then
-            vlan = vlan_opts.fetch(opts[:vlan])
-          else
-            raise ArgumentError, 'Option for vlan not recognized'
-          end
+          raise ArgumentError, "VLAN type not available in site #{site}" unless available_vlans.include?(vlan)
         end
 
         raise 'At least nodes, time and site must be given'  if [nodes, walltime, site].any? { |x| x.nil? }
@@ -957,7 +961,7 @@ module Cute
             resources = (cluster.is_a?(Fixnum) ? "/cluster=#{cluster}" : "{cluster='#{cluster}'}") + resources
           end
 
-          resources = "{type='#{vlan}'}/vlan=1+" + resources unless vlan.nil?
+          resources = "{type='#{vlan}'}/vlan=#{num_vlan}+" + resources unless vlan.nil?
           resources = "slash_#{subnets[0]}=#{subnets[1]}+" + resources unless subnets.nil?
         end
 
@@ -1012,7 +1016,17 @@ module Cute
         job = @g5k_connection.get_json(r.rel_self)
         job = wait_for_job(job) if opts[:wait] == true
         opts.delete(:nodes) # to not collapse with deploy options
-        deploy(job,opts) unless opts[:env].nil? #type == :deploy
+        opts.delete(:vlan)
+        opts.delete(:num_vlan)
+        if opts[:env]
+          if opts[:vlan]
+            vlan_id = job.resources["vlans"].first
+            deploy(job,opts.merge!({:vlan_id => vlan_id}))
+          else
+            deploy(job,opts) #type == :deploy
+          end
+        end
+
         return job
 
       end
@@ -1105,7 +1119,7 @@ module Cute
 
         # checking valid options, same as reserve option even though some option dont make any sense
         valid_opts = [:site, :cluster, :switches, :cpus, :cores, :nodes, :walltime, :cmd,
-                      :type, :name, :subnets, :env, :vlan, :properties, :resources,
+                      :type, :name, :subnets, :env, :vlan_id, :properties, :resources,
                       :reservation, :wait, :keys, :queue, :env_user]
 
         unre_opts = opts.keys - valid_opts
@@ -1144,11 +1158,7 @@ module Cute
                    'key' => public_key_file,
                   }
 
-        if !job.resources["vlans"].nil?
-          vlan = job.resources["vlans"].first
-          payload['vlan'] = vlan
-          info "Found VLAN with uid = #{vlan}"
-        end
+        payload['vlan'] = opts[:vlan_id] if opts[:vlan_id]
 
         payload['user'] = opts[:env_user] unless opts[:env_user].nil?
 

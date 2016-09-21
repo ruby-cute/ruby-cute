@@ -103,7 +103,7 @@ describe Cute::G5K::API do
   end
 
   it "raises error vlan" do
-    expect {subject.reserve(:site => @rand_site, :vlan => :nonsense)}.to raise_error(ArgumentError,'Option for vlan not recognized')
+    expect {subject.reserve(:site => @rand_site, :vlan => :nonsense)}.to raise_error(ArgumentError,"VLAN type not available in site #{@rand_site}")
   end
 
 
@@ -121,7 +121,7 @@ describe Cute::G5K::API do
 
 
   it "reserves with vlan and get vlan hostnames" do
-    job = subject.reserve(:site => @rand_site, :nodes => 1, :type => :deploy, :vlan => :routed)
+    job = subject.reserve(:site => @rand_site, :nodes => 1, :type => :deploy, :vlan => "kvlan")
     expect(subject.get_vlan_nodes(job)).to be_an_instance_of(Array)
     subject.release(job)
   end

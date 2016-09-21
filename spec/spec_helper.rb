@@ -55,6 +55,11 @@ RSpec.configure do |config|
     stub_request(:any,/^https:\/\/.*\:.*@api.grid5000.fr\/...\/sites\/non-found\/.*/).
       to_return(:status => 404)
 
+    stub_request(:get,/^https:\/\/.*\:.*@api.grid5000.fr\/...\/sites\/.*vlans$/).
+      to_return(:status => 200, :body => {'total' => 3, 'items' => [{'type' => "kavlan-local"},{'type' => "kvlan"}]}.to_json)
+
+      # to_return(:status => 200, :body => {:total => 3, :items => [{:type => "kavlan-local"},{:type => "kavlan"}]})
+
     stub_request(:post, /^https:\/\/.*\:.*@api.grid5000.fr\/.*/).
       with(:body => hash_including("resources" => "/slash_22=1+{nonsense},walltime=01:00")).
       to_return(:status => 400, :body => "Oarsub failed: please verify your request syntax")
