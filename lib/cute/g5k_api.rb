@@ -367,9 +367,11 @@ module Cute
     # you can specify another path for your keys with the option *:keys*.
     # In order to deploy your own environment, you have to put the tar file that contains the operating system you want to deploy and
     # the environment description file, under the public directory of a given site.
-    # *VLANS* are supported by adding the parameter :vlan => type where type can be: *:routed*, *:local*, *:global*.
+    # *VLANS* are supported by adding the parameter :vlan => type where type can be: *kavlan*, *kavlan-global*, *kavlan-local*.
     # The following example, reserves 10 nodes in the Lille site, starts the deployment of a custom environment over the nodes
-    # and puts the nodes under a routed VLAN. We used the method {Cute::G5K::API#get_vlan_nodes get_vlan_nodes} to get the
+    # and puts the nodes under a routed VLAN. The different types of VLANs are described
+    # in {https://www.grid5000.fr/mediawiki/index.php/KaVLAN KaVLAN}
+    # We used the method {Cute::G5K::API#get_vlan_nodes get_vlan_nodes} to get the
     # new hostnames assigned to your nodes.
     #
     #     require 'cute'
@@ -378,7 +380,7 @@ module Cute
     #
     #     job = g5k.reserve(:site => "lille", :nodes => 10,
     #                       :env => 'http://public.lyon.grid5000.fr/~user/debian_custom_img.yaml',
-    #                       :vlan => :routed, :keys => "~/my_ssh_key")
+    #                       :vlan => "kavlan", :keys => "~/my_ssh_key")
     #
     #
     #     puts "Log in into the nodes using the following hostnames: #{g5k.get_vlan_nodes(job)}"
