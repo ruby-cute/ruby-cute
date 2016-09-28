@@ -840,6 +840,13 @@ module Cute
       #                            :env => 'wheezy-x64-xen', :keys => "~/my_ssh_jobkey",
       #                            :subnets => [22,2])
       #
+      # == Multiple types
+      #
+      # The option *:type* accepts an array for specifying multiple types.
+      # For example, if we want to submit a job deploy and destructive, we will type:
+      #
+      #     job = g5k.reserve(:site => "nancy", :nodes => 1, :walltime => "2:00:00", :type => [:deploy,:destructive])
+      #
       # == Before using OAR hierarchy
       # All non-deploy reservations are submitted by default with the OAR option "-allow_classic_ssh"
       # which does not take advantage of the CPU/core management level.
