@@ -546,7 +546,7 @@ module Cute
       end
 
       # It returns the site name. Example:
-      #    site #=> "rennes"
+      #     site #=> "rennes"
       # This will only work when {Cute::G5K::API G5K::API} is used within Grid'5000.
       # In the other cases it will return *nil*
       # @return [String] the site name where the method is called on
@@ -556,7 +556,15 @@ module Cute
         res[1] unless res.nil?
       end
 
-      # @api private
+      # It returns the RestClient::Resource object which provides you the *get_json* and  *post_json* methods. This enables to perform low level REST requests.
+      # This method is intended to be used along with the {G5K::API#api_uri api_uri} method for generating valid URI.
+      #
+      # = Example:
+      #     require 'cute'
+      #
+      #     g5k = Cute::G5K::API.new()
+      #     g5k.rest.get_json(g5k.api_uri("/sites/grenoble/clusters")
+      #
       # @return the rest point for performing low level REST requests
       def rest
         @g5k_connection
@@ -714,7 +722,7 @@ module Cute
       #    get_metric("rennes")
       #
       # If you are only interested in the names of the available metrics:
-      #   get_metric("rennes").uids #=> ["cpu_nice", "boottime", "bytes_in", ...]
+      #    get_metric("rennes").uids #=> ["cpu_nice", "boottime", "bytes_in", ...]
       #
       # Then, you can get information about the probes available for a specific metric:
       #    get_metric("rennes",:metric => "network_in")
@@ -745,7 +753,7 @@ module Cute
       # = Examples
       #    get_my_jobs("nancy", "waiting")
       # Getting several states:
-      #   get_my_jobs("nancy", ["waiting","running"])
+      #    get_my_jobs("nancy", ["waiting","running"])
       # Valid states are specified in {https://api.grid5000.fr/doc/4.0/reference/spec.html Grid'5000 API spec}
       # @return [Array] all my submitted jobs to a given site and their associated deployments.
       # @param site [String] a valid Grid'5000 site name
@@ -1070,21 +1078,21 @@ module Cute
       #
       #    require 'cute'
       #
-      #    g5k = Cute::G5K::API.new()
+      #     g5k = Cute::G5K::API.new()
       #
-      #    sites = g5k.site_uids
+      #     sites = g5k.site_uids
       #
-      #    sites.each{ |site|
-      #       job = g5k.reserve(:site => site, :nodes => 5, :wait => false, :walltime => "03:00:00")
-      #       begin
-      #         job = g5k.wait_for_job(job, :wait_time => 60)
-      #         puts "Nodes assigned #{job['assigned_nodes']}"
-      #         break
-      #       rescue  Cute::G5K::EventTimeout
-      #         puts "We waited too long in site #{site} let's release the job and try in another site"
-      #         g5k.release(job)
-      #       end
-      #    }
+      #     sites.each{ |site|
+      #        job = g5k.reserve(:site => site, :nodes => 5, :wait => false, :walltime => "03:00:00")
+      #        begin
+      #          job = g5k.wait_for_job(job, :wait_time => 60)
+      #          puts "Nodes assigned #{job['assigned_nodes']}"
+      #          break
+      #        rescue  Cute::G5K::EventTimeout
+      #          puts "We waited too long in site #{site} let's release the job and try in another site"
+      #          g5k.release(job)
+      #        end
+      #     }
       #
       # @param job [G5KJSON] as described in {Cute::G5K::G5KJSON job}
       # @param [Hash] opts Options
@@ -1218,7 +1226,7 @@ module Cute
       #
       # = Example
       #
-      #   deploy_status(job, :nodes => ["adonis-10.grenoble.grid5000.fr"], :status => "terminated")
+      #    deploy_status(job, :nodes => ["adonis-10.grenoble.grid5000.fr"], :status => "terminated")
       #
       # @return [Array] status of deploys within a job
       # @param job [G5KJSON] as described in {Cute::G5K::G5KJSON job}
@@ -1308,6 +1316,13 @@ module Cute
         deploy_info["result"].select{ |p,v|  v["state"] == "KO"}.keys
       end
 
+      # Returns a valid  URI using the current G5K API version.
+      # @return [String] valid URI
+      def api_uri(path)
+        path = path[1..-1] if path.start_with?('/')
+        return "#{@api_version}/#{path}"
+      end
+
       private
       # Handles the output of messages within the module
       # @param msg [String] message to show
@@ -1337,14 +1352,6 @@ module Cute
           return "CMD debug: curl -kni #{@uri}#{path} -X POST -H'Content-Type: application/json' -d '#{payload}'"
         end
       end
-
-      # @return a valid Grid'5000 resource
-      # it avoids "//"
-      def api_uri(path)
-        path = path[1..-1] if path.start_with?('/')
-        return "#{@api_version}/#{path}"
-      end
-
 
     end
 
