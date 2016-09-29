@@ -453,6 +453,14 @@ module Cute
     #
     #    [12] pry(main)> $g5k.release(job)
     #    [13] pry(main)> $g5k.release_all("grenoble")
+    # == How to debug
+    #
+    # There are two ways for debugging: (1) by using the option *:debug* when initializing the {Cute::G5K::API#initialize G5K::API} object or
+    # (2) by enabling the RestClient's logging:
+    #
+    #     RESTCLIENT_LOG=stdout cute
+    #     RESTCLIENT_LOG=stdout path/to/my/script
+    #
     class API
 
       # Assigns a logger
@@ -483,6 +491,15 @@ module Cute
       #
       #     g5k = Cute::G5K::API.new(:on_error => :ignore)
       #
+      # To activate debugging mode you can use the option *:debug*:
+      #
+      #     g5k =  Cute::G5K::API.new(:debug => true)
+      #
+      # This will provide you with a *curl* command to try by hand the same request the library is trying to perform.
+      # For example:
+      #
+      #     2016-09-27 11:25:34.039 => CMD debug: curl -kn https://api.grid5000.fr/3.0/sites/nancy/deployments/?user=cruizsanabria
+      #
       # @param [Hash] params Contains initialization parameters.
       # @option params [String] :conf_file Path for configuration file
       # @option params [String] :uri REST API URI to contact
@@ -490,6 +507,7 @@ module Cute
       # @option params [String] :username Username to access the REST API
       # @option params [String] :password Password to access the REST API
       # @option params [Symbol] :on_error Set to :ignore if you want to ignore {Cute::G5K::RequestFailed ResquestFailed} exceptions.
+      # @option params [Boolean] :debug Activate the debug mode
       def initialize(params={})
         config = {}
         default_file = "#{ENV['HOME']}/.grid5000_api.yml"
