@@ -863,7 +863,7 @@ module Cute
       # If walltime is not specified, 1 hour walltime will be assigned to the reservation.
       #
       #     job = g5k.reserve(:site => 'lille', :cluster => 'chirloute', :nodes => 2,
-      #                            :env => 'wheezy-x64-xen', :keys => "~/my_ssh_jobkey",
+      #                            :env => 'wheezy-x64-xen', :keys => "path/to/my_ssh_jobkey",
       #                            :subnets => [22,2])
       #
       # == Multiple types
@@ -878,7 +878,8 @@ module Cute
       # which does not take advantage of the CPU/core management level.
       # Therefore, in order to take advantage of this capability, SSH keys have to be specified at the moment of reserving resources.
       # This has to be used whenever we perform a reservation with cpu and core hierarchy.
-      # Users are encouraged to create a pair of SSH keys for managing jobs, for instance the following command can be used:
+      # Given that OAR needs access to both keys private and public users are encouraged
+      # to create a pair of SSH keys for managing jobs, for instance the following command can be used:
       #
       #     ssh-keygen -N "" -t rsa -f ~/my_ssh_jobkey
       #
@@ -886,8 +887,11 @@ module Cute
       # You have to specify different keys per reservation if you want several jobs running at the same time in the same site.
       # Example using the OAR hierarchy:
       #
-      #     job = g5k.reserve(:site => "grenoble", :switches => 3, :nodes => 1, :cpus => 1, :cores => 1, :keys => "~/my_ssh_jobkey")
+      #     job = g5k.reserve(:site => "grenoble", :switches => 3, :nodes => 1, :cpus => 1, :cores => 1, :keys => "path/to/my_ssh_jobkey")
       #
+      # Remember that the path passed in the *:keys* parameter corresponds to the path in the Grid'5000 site frontend where you are submitting the job.
+      # This is because OAR needs to access to both keys (private and public) locally.
+      # For deployments the path corresponds to the local path from where the script is being executed (See {Cute::G5K::API#deploy deploy} method).
       # == Using OAR syntax
       #
       # The parameter *:resources* can be used instead of parameters such as: *:cluster*, *:nodes*, *:cpus*, *:walltime*, *:vlan*, *:subnets*, *:properties*, etc,
