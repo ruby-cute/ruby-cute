@@ -199,8 +199,8 @@ A hash is returned containing all the information about the job that we have jus
      "directory"=>"/home/cruizsanabria",
      "events"=>[],
      "links"=>
-       [{"rel"=>"self", "href"=>"/sid/sites/nancy/jobs/692665", "type"=>"application/vnd.grid5000.item+json"},
-       {"rel"=>"parent", "href"=>"/sid/sites/nancy", "type"=>"application/vnd.grid5000.item+json"}],
+       [{"rel"=>"self", "href"=>"/3.0/sites/nancy/jobs/692665", "type"=>"application/vnd.grid5000.item+json"},
+       {"rel"=>"parent", "href"=>"/3.0/sites/nancy", "type"=>"application/vnd.grid5000.item+json"}],
      "resources_by_type"=>{"cores"=>["graphene-67.nancy.grid5000.fr", "graphene-45.nancy.grid5000.fr"]},
      "assigned_nodes"=>["graphene-67.nancy.grid5000.fr", "graphene-45.nancy.grid5000.fr"]}
 
@@ -751,7 +751,7 @@ In this variable, we can find information related with the deployment.
     [44] pry(main)> jobs["nancy"]["deploy"]
     => [{"created_at"=>1450439620,
     "environment"=>"jessie-x64-min",
-    "key"=>"https://api.grid5000.fr/sid/sites/nancy/files/cruizsanabria-key-84f3f1dbb1279bc1bddcd618e26c960307d653c5",
+    "key"=>"https://api.grid5000.fr/3.0/sites/nancy/files/cruizsanabria-key-84f3f1dbb1279bc1bddcd618e26c960307d653c5",
     "nodes"=>["graphite-4.nancy.grid5000.fr"],
     "result"=>{"graphite-4.nancy.grid5000.fr"=>{"macro"=>nil, "micro"=>nil, "state"=>"OK"}},
     "site_uid"=>"nancy",
@@ -761,8 +761,8 @@ In this variable, we can find information related with the deployment.
     "user_uid"=>"cruizsanabria",
     "vlan"=>14,
     "links"=>
-    [{"rel"=>"self", "href"=>"/sid/sites/nancy/deployments/D-b026879e-b185-4e20-8bc5-ea0842a6954b", "type"=>"application/vnd.grid5000.item+json"},
-    		     {"rel"=>"parent", "href"=>"/sid/sites/nancy", "type"=>"application/vnd.grid5000.item+json"}]}]
+    [{"rel"=>"self", "href"=>"/3.0/sites/nancy/deployments/D-b026879e-b185-4e20-8bc5-ea0842a6954b", "type"=>"application/vnd.grid5000.item+json"},
+    		     {"rel"=>"parent", "href"=>"/3.0/sites/nancy", "type"=>"application/vnd.grid5000.item+json"}]}]
 
 Some important information are: the status of the whole process and the state per node.
 We can use this information to check if the deployment have finished successfully in all nodes.

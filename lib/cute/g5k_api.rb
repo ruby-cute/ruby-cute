@@ -116,8 +116,8 @@ module Cute
     #       "properties"=>"(deploy = 'YES') AND maintenance = 'NO'",
     #       "directory"=>"/home/name",
     #       "events"=>[],
-    #       "links"=>[{"rel"=>"self", "href"=>"/sid/sites/nancy/jobs/604692", "type"=>"application/vnd.grid5000.item+json"},
-    #                 {"rel"=>"parent", "href"=>"/sid/sites/nancy", "type"=>"application/vnd.grid5000.item+json"}],
+    #       "links"=>[{"rel"=>"self", "href"=>"/3.0/sites/nancy/jobs/604692", "type"=>"application/vnd.grid5000.item+json"},
+    #                 {"rel"=>"parent", "href"=>"/3.0/sites/nancy", "type"=>"application/vnd.grid5000.item+json"}],
     #       "resources_by_type"=>
     #        {"cores"=>
     #           ["griffon-8.nancy.grid5000.fr",
@@ -137,7 +137,7 @@ module Cute
     #       "deploy"=>
     #          {"created_at"=>1423575401,
     #           "environment"=>"http://public.sophia.grid5000.fr/~nniclausse/openmx.dsc",
-    #           "key"=>"https://api.grid5000.fr/sid/sites/nancy/files/cruizsanabria-key-84f3f1dbb1279bc1bddcd618e26c960307d653c5",
+    #           "key"=>"https://api.grid5000.fr/3.0/sites/nancy/files/cruizsanabria-key-84f3f1dbb1279bc1bddcd618e26c960307d653c5",
     #           "nodes"=>["griffon-8.nancy.grid5000.fr", "griffon-9.nancy.grid5000.fr", "griffon-77.nancy.grid5000.fr"],
     #           "site_uid"=>"nancy",
     #           "status"=>"processing",
@@ -146,7 +146,7 @@ module Cute
     #           "user_uid"=>"cruizsanabria",
     #           "vlan"=>5,
     #           "links"=>
-    #              [{"rel"=>"self", "href"=>"/sid/sites/nancy/deployments/D-751096de-0c33-461a-9d27-56be1b2dd980", "type"=>"application/vnd.grid5000.item+json"},
+    #              [{"rel"=>"self", "href"=>"/3.0/sites/nancy/deployments/D-751096de-0c33-461a-9d27-56be1b2dd980", "type"=>"application/vnd.grid5000.item+json"},
     class G5KJSON < Hash
 
       def items
@@ -324,7 +324,7 @@ module Cute
     #       uri: https://api.grid5000.fr/
     #       username: user
     #       password: **********
-    #       version: sid
+    #       version: stable
     #       EOF
     #
     # You can take a look at the {Cute::G5K::API#initialize G5K::API constructor} to see more details of this configuration.
