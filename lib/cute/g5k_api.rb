@@ -259,8 +259,8 @@ module Cute
       def delete_json(path)
         begin
           return resource(path).delete()
-        rescue RestClient::InternalServerError => e
-          raise RequestFailed.new("Service internal error", e)
+        rescue  => e
+          handle_exception(e)
         end
       end
 
@@ -281,7 +281,15 @@ module Cute
       end
 
       # Issues a Cute::G5K exception according to the http status code
-      def handle_exception(e)
+      def handle_exception(e, req = nil)
+        puts("Error: #{$!}")
+        puts("Backtrace:\n\t"+e.backtrace.join("\n\t"))
+        if e.respond_to? :http_code
+          puts("HTTP Code: #{e.http_code}")
+        end
+        if e.respond_to? :response and e.response != ''
+          puts("Response: #{e.response}")
+        end
 
         unless e.respond_to? :http_code
           raise e
