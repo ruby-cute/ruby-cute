@@ -36,7 +36,6 @@ $ cat > ~/.grid5000_api.yml << EOF
   uri: https://api.grid5000.fr/
   username: user
   password: **********
-  version: sid
   EOF
 
 ```
