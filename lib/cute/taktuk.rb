@@ -184,7 +184,7 @@ module Cute
       # Return just the value 0:(.*)
       def treat_value(string)
         tmp = string.split(":",2)
-        value = tmp[1].nil? ? "" : tmp[1]
+        return tmp[1].nil? ? "" : tmp[1]
       end
 
       def to_cmd
