@@ -105,9 +105,86 @@ Within this shell you have preloaded [G5K Module](http://www.rubydoc.info/github
 [Net::SSH::Multi](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Net/SSH/Multi),
 you can go directly to their respective documentation to know how to take advantage of them.
 
-### Experiment example
+### Examples
 
-The following example shows how to use the [G5K Module](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/G5K/API) in an experiment.
+The following examples show how to use the [G5K Module](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute/G5K/API) in an experiment.
+
+#### Example 1: automatic experiment bootstrap
+
+This example (also available as
+[examples/xp-bootstrap](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/file/examples/xp-bootstrap)
+is simple script automating the initial bootstrap of an experiment.
+
+```ruby
+#!/usr/bin/ruby -w
+
+# This script, to be executed on a frontend, automates the initial setup
+# of an experiment, and then sleeps to let the user take over.
+# The same script, run with --reserve, will handle resources reservation
+
+# To make this work:
+# - connect to a frontend
+# - install ruby-cute: gem install --user-install ruby-cute
+# - get this script, make it executable (chmod a+rx xp-bootstrap)
+# - run it: ./xp-bootstrap --reserve
+
+gem 'ruby-cute', ">=0.6"
+require 'cute'
+require 'pp'
+
+g5k = Cute::G5K::API.new
+G5K_SITE = `hostname --fqdn`.split('.')[-3] # get the site name from the `hostname` command
+G5K_ENV = 'jessie-x64-base' # environment to deploy
+NODES = 2
+WALLTIME = '0:30'
+
+# When the script is run with --reserve, use Ruby-Cute to reserve resources and run the script again inside the reservation, when it starts
+if ARGV[0] == '--reserve'
+  # reserve two nodes for 30 mins
+  job = g5k.reserve(:site => G5K_SITE, :nodes => NODES, :walltime => WALLTIME, :type => :deploy, :wait => false,
+                    :name => 'xp-bootstrap',
+                    :cmd => File::realpath(__FILE__)
+                   )
+  puts "Job #{job['uid']} created. Monitor its status with e.g.: oarstat -fj #{job['uid']}"
+  exit(0)
+end
+
+###########################################################################
+#### What follows is what gets executed inside the resources reservation
+
+# for better output, redirect stderr to stdout, make stdout a synchronized output stream
+STDERR.reopen(STDOUT)
+STDOUT.sync = true
+
+jobid = ENV['OAR_JOB_ID']
+raise "OAR_JOB_ID not set. Are you running inside a OAR reservation? Maybe you should use #{__FILE__} --reserve?" if not jobid
+
+# get job details
+job = g5k.get_job(G5K_SITE, jobid)
+nodes = job['assigned_nodes']
+puts "Running on: #{nodes.join(' ')}"
+
+# deploying all nodes, waiting for the end of deployment
+g5k.deploy(job,  :env => G5K_ENV, :wait => true)
+
+raise "Deployment ended with error" if ((job['deploy'].last['status'] == 'error') or (not job['deploy'].last['result'].to_a.all? { |e| e[1]['state'] == 'OK' }))
+
+cmd = 'apt-get update && apt-get -y install nuttcp'
+puts "Running command: #{cmd}"
+# Run a command on each node and analyze result
+ssh = Net::SSH::Multi::Session::new
+nodes.each { |n| ssh.use "root@#{n}" }
+r = ssh.exec!(cmd)
+raise "Command failed on at least one node\n#{r}" if not r.to_a.all? { |e| e[1][:status] == 0 }
+
+# Sleep for a very long time to avoid reservation termination 
+puts "Experiment preparation finished."
+puts "Nodes: #{nodes.join(' ')}"
+sleep 86400*365
+```
+
+#### Example 2: running MPI
+
 This example implements the experiment described in
 [MPI on Grid5000](https://www.grid5000.fr/mediawiki/index.php/Run_MPI_On_Grid%275000#Setting_up_and_starting_Open_MPI_to_use_high_performance_interconnect).
 
@@ -154,16 +231,16 @@ g5k.release(job) # Frees resources.
 
 ## Contact information
 
-Ruby-Cute is maintained by the Algorille team at LORIA/Inria Nancy - Grand Est, and specifically by:
+Ruby-Cute is maintained by the Madynes team at LORIA/Inria Nancy - Grand Est, and specifically by:
 
-* Cristian Ruiz <cristian.ruiz@inria.fr>
-* Emmanuel Jeanvoine <emmanuel.jeanvoine@inria.fr>
 * Lucas Nussbaum <lucas.nussbaum@loria.fr>
 
 Past contributors include:
 
 * Sébastien Badia <sebastien.badia@inria.fr>
 * Tomasz Buchert <tomasz.buchert@inria.fr>
+* Emmanuel Jeanvoine <emmanuel.jeanvoine@inria.fr>
+* Cristian Ruiz <cristian.ruiz@inria.fr>
 * Luc Sarzyniec <luc.sarzyniec@inria.fr>
 
-Questions/comments should be directed to Lucas Nussbaum and Emmanuel Jeanvoine.
+Questions/comments should be directed to Lucas Nussbaum.
