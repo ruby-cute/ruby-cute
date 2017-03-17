@@ -1,10 +1,16 @@
-ruby-cute (0.5) UNRELEASED; urgency=medium
+ruby-cute (0.6) unstable; urgency=medium
+
+  * New release.
+
+ -- Lucas Nussbaum <lucas@debian.org>  Fri, 17 Mar 2017 23:38:19 +0100
+
+ruby-cute (0.5) unstable; urgency=medium
 
   * New release.
 
  -- Cristian Ruiz <cristian.ruiz@inria.fr>  Tue, 3 May 2016 08:54:42 +0100
 
-ruby-cute (0.4) UNRELEASED; urgency=medium
+ruby-cute (0.4) unstable; urgency=medium
 
   * Initial release.
 
