@@ -1,7 +1,13 @@
 require 'restclient'
 require 'yaml'
 require 'json'
-require 'ipaddress'
+begin
+  old_verbose, $VERBOSE = $VERBOSE, false
+  require 'ipaddress'
+ensure
+  $VERBOSE = old_verbose
+end
+
 require 'uri'
 
 module Cute
