@@ -23,10 +23,10 @@ Gem::Specification.new do |s|
   s.add_development_dependency "yard", "~> 0.8"
   s.add_development_dependency "simplecov", "~> 0.7"
 
-  s.add_dependency 'rest-client', '1.6.7'
-  s.add_dependency 'json', '~> 1.8'
-  s.add_dependency 'ipaddress', '~>0.8'
-  s.add_dependency 'net-ssh-multi', '~>1.2'
+  s.add_dependency 'rest-client', '>= 1.6'
+  s.add_dependency 'json', '>= 1.8'
+  s.add_dependency 'ipaddress', '>= 0.8'
+  s.add_dependency 'net-ssh-multi', '>= 1.2'
 
   s.extra_rdoc_files = ['README.md', 'LICENSE']
   s.license = 'CeCILL-B'
