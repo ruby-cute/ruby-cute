@@ -1,4 +1,9 @@
-require 'net/ssh/multi'
+begin # load it without warnings
+  old_verbose, $VERBOSE = $VERBOSE, false
+  require 'net/ssh/multi'
+ensure
+  $VERBOSE = old_verbose
+end
 require 'logger'
 
 module Net; module SSH
