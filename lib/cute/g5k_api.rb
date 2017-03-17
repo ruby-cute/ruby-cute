@@ -225,14 +225,24 @@ module Cute
         return @api[path]
       end
 
+      RETRY_503_MAX = 10
+      RETRY_503_SLEEP = 1
+
       # @return [Hash] the HTTP response
       # @param path [String] this complements the URI to address to a specific resource
       def get_json(path)
-
+        retries = 0
         begin
           r = resource(path).get(:content_type => "application/json",
                                  :user_agent => @user_agent)
         rescue => e
+          if e.kind_of?(RestClient::Exception) and e.http_code == 503 and retries < RETRY_503_MAX
+            # the G5K REST API sometimes fail with error 503. In that case we should just wait and retry
+            puts("G5KRest: GET #{path} failed with error 503, retrying after #{RETRY_503_SLEEP} seconds")
+            retries += 1
+            sleep RETRY_503_SLEEP
+            retry
+          end
           handle_exception(e)
         end
         return G5KJSON.parse(r)
@@ -242,13 +252,20 @@ module Cute
       # @param path [String] this complements the URI to address to a specific resource
       # @param json [Hash] contains the characteristics of the resources to be created.
       def post_json(path, json)
-
+        retries = 0
         begin
           r = resource(path).post(json.to_json,
                                   :content_type => "application/json",
                                   :accept => "application/json",
                                   :user_agent => @user_agent)
         rescue => e
+          if e.kind_of?(RestClient::Exception) and e.http_code == 503 and retries < RETRY_503_MAX
+            # the G5K REST API sometimes fail with error 503. In that case we should just wait and retry
+            puts("G5KRest: POST #{path} failed with error 503, retrying after #{RETRY_503_SLEEP} seconds")
+            retries += 1
+            sleep RETRY_503_SLEEP
+            retry
+          end
           handle_exception(e)
         end
         return G5KJSON.parse(r)
@@ -257,9 +274,17 @@ module Cute
       # Deletes a resource on the server
       # @param path [String] this complements the URI to address to a specific resource
       def delete_json(path)
+        retries = 0
         begin
           return resource(path).delete()
         rescue  => e
+          if e.kind_of?(RestClient::Exception) and e.http_code == 503 and retries < RETRY_503_MAX
+            # the G5K REST API sometimes fail with error 503. In that case we should just wait and retry
+            puts("G5KRest: DELETE #{path} failed with error 503, retrying after #{RETRY_503_SLEEP} seconds")
+            retries += 1
+            sleep RETRY_503_SLEEP
+            retry
+          end
           handle_exception(e)
         end
       end

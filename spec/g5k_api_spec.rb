@@ -220,4 +220,17 @@ describe Cute::G5K::API do
     expect(subject.release_all(@rand_site)).to be true
   end
 
+  it "retries GET automatically when there is an error" do
+    expect(subject.get_jobs("tmpfail")).to be_truthy
+  end
+
+  it "retries POST automatically when there is an error" do
+    job = subject.reserve(:site => 'tmpfail', :wait => false)
+    expect(job).to be_truthy
+  end
+
+  it "retries DELETE automatically when there is an error" do
+    job = subject.rest.delete_json("3.0/sites/tmpfail/aa")
+    expect(job).to be_truthy
+  end
 end
