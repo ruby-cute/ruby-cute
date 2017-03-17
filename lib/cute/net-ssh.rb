@@ -96,6 +96,7 @@ module SessionActions
   #
   def exec!(command, &block)
 
+    Multi.logger.debug "SSH execution: #{command}"
     results = {}
 
     main =open_channel do |channel|
@@ -105,36 +106,38 @@ module SessionActions
 
         results[ch.connection.host] ||= {}
 
-        channel.on_data do |ch, data|
+        channel.on_data do |c, data|
           if block
-            block.call(ch, :stdout, data)
+            block.call(c, :stdout, data)
           else
-            results[ch.connection.host][:stdout] = data.strip
-            Multi.logger.debug("[#{ch.connection.host}] #{data.strip}")
+            results[c.connection.host][:stdout] ||= ""
+            results[c.connection.host][:stdout] += data.strip
+            Multi.logger.debug("[#{c.connection.host}] #{data.strip}")
           end
         end
-        channel.on_extended_data do |ch, type, data|
+        channel.on_extended_data do |c, type, data|
           if block
-            block.call(ch, :stderr, data)
+            block.call(c, :stderr, data)
           else
-            results[ch.connection.host][:stderr] = data.strip
-            Multi.logger.debug("[#{ch.connection.host}] #{data.strip}")
+            results[c.connection.host][:stderr] ||= ""
+            results[c.connection.host][:stderr] += data.strip
+            Multi.logger.debug("[#{c.connection.host}] #{data.strip}")
           end
         end
-        channel.on_request("exit-status") do |ch, data|
-          ch[:exit_status] = data.read_long
-          results[ch.connection.host][:status] = ch[:exit_status]
-          if ch[:exit_status] != 0
-            Multi.logger.info("execution of '#{command}' on #{ch.connection.host}
-                            failed with return status #{ch[:exit_status].to_s}")
-            if results[ch.connection.host][:stdout]
+        channel.on_request("exit-status") do |c, data|
+          c[:exit_status] = data.read_long
+          results[c.connection.host][:status] = c[:exit_status]
+          if c[:exit_status] != 0
+            Multi.logger.info("execution of '#{command}' on #{c.connection.host}
+                            failed with return status #{c[:exit_status].to_s}")
+            if results[c.connection.host][:stdout]
               Multi.logger.info("--- stdout dump ---")
-              Multi.logger.info(results[ch.connection.host][:stdout])
+              Multi.logger.info(results[c.connection.host][:stdout])
             end
 
-            if  results[ch.connection.host][:stderr]
+            if  results[c.connection.host][:stderr]
               Multi.logger.info("--stderr dump ---")
-              Multi.logger.info(results[ch.connection.host][:stderr])
+              Multi.logger.info(results[c.connection.host][:stderr])
             end
           end
         end
