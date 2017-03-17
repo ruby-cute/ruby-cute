@@ -641,6 +641,7 @@ module Cute
         environment_uids = environments(site).uids.map{ |e|
           e_match = /(.*)-(.*)/.match(e)
           new_name = e_match.nil? ? "" : e_match[1]
+          new_name
         }
 
         return environment_uids.uniq
