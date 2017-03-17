@@ -1,5 +1,4 @@
 require 'cute/version'
-require 'cute/bash'
 require 'cute/execute'
 require 'cute/taktuk'
 require 'cute/g5k_api'
