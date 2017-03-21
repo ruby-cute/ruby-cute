@@ -112,8 +112,8 @@ The following examples show how to use the [G5K Module](http://www.rubydoc.info/
 #### Example 1: automatic experiment bootstrap
 
 This example (also available as
-[examples/xp-bootstrap](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/file/examples/xp-bootstrap)
-is simple script automating the initial bootstrap of an experiment.
+[examples/xp-bootstrap](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/file/examples/xp-bootstrap))
+is a simple script automating the initial bootstrap of an experiment (deployment, software setup).
 
 ```ruby
 #!/usr/bin/ruby -w
