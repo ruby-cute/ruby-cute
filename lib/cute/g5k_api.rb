@@ -231,7 +231,7 @@ module Cute
         return @api[path]
       end
 
-      RETRY_503_MAX = 10
+      RETRY_503_MAX = 120
       RETRY_503_SLEEP = 1
 
       # @return [Hash] the HTTP response
