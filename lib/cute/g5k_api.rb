@@ -1191,9 +1191,11 @@ module Cute
       # @param job [G5KJSON] as described in {Cute::G5K::G5KJSON job}
       # @param [Hash] opts Deploy options
       # @option opts [String] :env {http://kadeploy3.gforge.inria.fr/ Kadeploy} environment to deploy
+      # @option opts [String] :user User owning the Kadeploy environment
       # @option opts [Array] :nodes Specifies the nodes to deploy on
       # @option opts [String] :keys Specifies the SSH keys to copy for the deployment. By default, the content of ~/.ssh/id_rsa.pub is used.
       # @option opts [Boolean] :wait Whether or not to wait until the deployment is done (default is false)
+      # @option opts [Boolean] :vlan VLAN id (number) to use (default is none)
       # @return [G5KJSON] a job with deploy information as described in {Cute::G5K::G5KJSON job}
       def deploy(job, opts = {})
 
