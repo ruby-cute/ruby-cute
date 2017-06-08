@@ -1063,7 +1063,7 @@ module Cute
           if opts[:keys]
             payload['import-job-key-from-file'] = [ File.expand_path(keys) ]
           else
-            payload['types'] = [ 'allow_classic_ssh' ]
+            payload['types'] += [ 'allow_classic_ssh' ]
           end
         end
 
