@@ -1073,19 +1073,8 @@ module Cute
         end
 
         begin
-          # Support for the option "import-job-key-from-file"
-          # The request has to be redirected to the OAR API given that Grid'5000 API
-          # does not support some OAR options. Bug #7360: https://intranet.grid5000.fr/bugzilla/show_bug.cgi?id=7360
-          if payload['import-job-key-from-file'] then
-
-            temp = @g5k_connection.post_json(api_uri("sites/#{site}/internal/oarapi/jobs"),payload)
-            info debug_cmd(api_uri("sites/#{site}/internal/oarapi/jobs"),"POST",payload.to_json), :debug
-            sleep 1 # This is for being sure that our job appears on the list
-            r = get_my_jobs(site,nil).select{ |j| j["uid"] == temp["id"] }.first
-          else
-            info debug_cmd(api_uri("sites/#{site}/jobs"),"POST",payload.to_json), :debug
-            r = @g5k_connection.post_json(api_uri("sites/#{site}/jobs"),payload)  # This makes reference to the same class
-          end
+          info debug_cmd(api_uri("sites/#{site}/jobs"),"POST",payload.to_json), :debug
+          r = @g5k_connection.post_json(api_uri("sites/#{site}/jobs"),payload)  # This makes reference to the same class
         rescue Error => e
           info "Fail to submit job"
           info e.message
