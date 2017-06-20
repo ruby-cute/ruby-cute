@@ -1055,7 +1055,7 @@ module Cute
         info "Reserving resources: #{resources} (type: #{type}) (in #{site})"
 
         payload['properties'] = properties unless properties.nil?
-        payload['types'] = type.map{ |t| t.to_s} unless type.nil?
+        payload['type'] = type.map{ |t| t.to_s} unless type.nil?
         type.map!{|t| t.to_sym}  unless type.nil?
         payload['queue'] = queue if queue
 
@@ -1063,7 +1063,7 @@ module Cute
           if opts[:keys]
             payload['import-job-key-from-file'] = [ File.expand_path(keys) ]
           else
-            payload['types'] += [ 'allow_classic_ssh' ]
+            payload['type'] += [ 'allow_classic_ssh' ]
           end
         end
 
