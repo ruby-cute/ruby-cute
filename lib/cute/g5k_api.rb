@@ -914,9 +914,7 @@ module Cute
       #     job = g5k.reserve(:site => "nancy", :nodes => 1, :walltime => "2:00:00", :type => [:deploy,:destructive])
       #
       # == Before using OAR hierarchy
-      # All non-deploy reservations are submitted by default with the OAR option "-allow_classic_ssh"
-      # which does not take advantage of the CPU/core management level.
-      # Therefore, in order to take advantage of this capability, SSH keys have to be specified at the moment of reserving resources.
+      # In order to take advantage of this capability, SSH keys have to be specified at the moment of reserving resources.
       # This has to be used whenever we perform a reservation with cpu and core hierarchy.
       # Given that OAR needs access to both keys private and public users are encouraged
       # to create a pair of SSH keys for managing jobs, for instance the following command can be used:
@@ -1062,8 +1060,6 @@ module Cute
         unless type.include?(:deploy)
           if opts[:keys]
             payload['import-job-key-from-file'] = [ File.expand_path(keys) ]
-          else
-            payload['types'] += [ 'allow_classic_ssh' ]
           end
         end
 

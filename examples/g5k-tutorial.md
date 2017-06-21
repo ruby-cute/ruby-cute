@@ -468,12 +468,10 @@ Let's execute the script using `play` command:
     Nodes assigned ["edel-10.grenoble.grid5000.fr", "edel-11.grenoble.grid5000.fr", "edel-12.grenoble.grid5000.fr", "edel-13.grenoble.grid5000.fr"]
     => nil
 
-The variable `job` is updated in Pry context. When no keys are specified, the option *-allow_classic_ssh* is activated
-which enables the access via default SSH to the reserved machines. You can verify it by doing:
+The variable `job` is updated in Pry context.
 
-    [11] pry(main)> .ssh edel-11.grenoble.grid5000.fr "hostname"
-    Warning: Permanently added 'edel-11.grenoble.grid5000.fr,172.16.17.11' (RSA) to the list of known hosts.
-    edel-11.grenoble.grid5000.fr
+Up to version 0.10 of ruby-cute, when no job types were specified, the type *allow_classic_ssh* was activated
+which enabled the access via default SSH to the reserved machines. You now have to specify it manually.
 
 Let's explore the available modules for the parallel execution of commands in several remote machines.
 The following example shows how to use the {Cute::TakTuk TakTuk} module.
