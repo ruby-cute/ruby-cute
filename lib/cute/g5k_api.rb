@@ -709,12 +709,16 @@ module Cute
         # The API return by default 50 the limit was set to 25 (e.g., 23 seconds).
       end
 
-      # @return [Hash] the last 50 deployments performed in a Grid'5000 site
+      # @return [Hash] the current or recent deployments on a grid5000 site
       # @param site [String] a valid Grid'5000 site name
-      # @param uid [String] user name in Grid'5000
+      # @param uid [String] user name in Grid'5000 (optional)
       def get_deployments(site, uid = nil)
-        info(debug_cmd(api_uri("sites/#{site}/deployments/?user=#{uid}"),"GET"), :debug)
-        @g5k_connection.get_json(api_uri("sites/#{site}/deployments/?user=#{uid}")).items
+        info(debug_cmd(api_uri("sites/#{site}/deployment/"),"GET"), :debug)
+        d = @g5k_connection.get_json(api_uri("sites/#{site}/deployment/"))
+        if not uid.nil?
+          d.select! { |e| e['user'] == uid }
+        end
+        return d
       end
 
       # @return [Hash] information concerning a given job submitted in a Grid'5000 site
@@ -1178,7 +1182,7 @@ module Cute
       # @option opts [String] :env {http://kadeploy3.gforge.inria.fr/ Kadeploy} environment to deploy
       # @option opts [String] :user User owning the Kadeploy environment
       # @option opts [Array] :nodes Specifies the nodes to deploy on
-      # @option opts [String] :keys Specifies the SSH keys to copy for the deployment. By default, the content of ~/.ssh/id_rsa.pub is used.
+      # @option opts [String] :keys Specify the URL to a file containing the SSH keys to be copied to nodes at the end of the deployment
       # @option opts [Boolean] :wait Whether or not to wait until the deployment is done (default is false)
       # @option opts [Boolean] :vlan VLAN id (number) to use (default is none)
       # @return [G5KJSON] a job with deploy information as described in {Cute::G5K::G5KJSON job}
@@ -1203,37 +1207,35 @@ module Cute
         site = @g5k_connection.follow_parent(job).uid
 
         if opts[:keys].nil? then
-          public_key_path = File.expand_path("~/.ssh/id_rsa.pub")
-          if File.exist?(public_key_path) then
-            public_key_file = File.read(public_key_path)
-          else
-            raise ArgumentError, "No public ssh key found"
-          end
+          info("No public key specified. The node might not be accessible after deployment.")
+        elsif opts[:keys] !~ /^(http(s)?|local|server):/
+          info("The path to the SSH key does not look like a valid URL")
+        end
 
+        if env =~ /^http(s)?:/ or env =~ /^server:/
+          envdesc = { kind: 'anonymous', 'image': { 'file': env } }
+        elsif env =~ /file:/
+          raise "file:// URLs not supported for environments"
         else
-          # We check if the string passed contains the ssh public key
-          if (opts[:keys].length < 300 && (opts[:keys] =~ /^ssh.*/).nil?)
-            public_key_file = File.read("#{File.expand_path(opts[:keys])}.pub").chop
-          else
-            public_key_file = opts[:keys]
-          end
+          envdesc = { kind: 'database', 'name': env }
         end
 
         payload = {
                    'nodes' => nodes,
-                   'environment' => env,
-                   'key' => public_key_file,
-                  }
+                   'environment' => envdesc
+        }
 
-        payload['vlan'] = opts[:vlan_id] if opts[:vlan_id]
+        payload['ssh_authorized_keys'] = opts[:keys] if opts[:keys]
+
+        payload['vlan'] = opts[:vlan_id].to_s if opts[:vlan_id]
 
         payload['user'] = opts[:env_user] unless opts[:env_user].nil?
 
         info "Creating deployment"
 
         begin
-          info debug_cmd(api_uri("sites/#{site}/deployments"),"POST",payload.to_json), :debug
-          r = @g5k_connection.post_json(api_uri("sites/#{site}/deployments"), payload)
+          info debug_cmd(api_uri("sites/#{site}/deployment"),"POST",payload.to_json), :debug
+          r = @g5k_connection.post_json(api_uri("sites/#{site}/deployment"), payload)
         rescue Error => e
           info "Fail to deploy"
           info e.message
@@ -1264,6 +1266,8 @@ module Cute
       # @param filter [Hash] filter the deployments to be returned.
       def deploy_status(job,filter = {})
 
+        require 'pp'
+        pp job['deploy']
         job["deploy"].map!{  |d| d.refresh(@g5k_connection) }
 
         filter.keep_if{ |k,v| v} # removes nil values
