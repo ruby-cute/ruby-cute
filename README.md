@@ -33,10 +33,12 @@ By default you need to create a file called *.grid5000_api.yml* located in your 
 ```bash
 
 $ cat > ~/.grid5000_api.yml << EOF
-  uri: https://api.grid5000.fr/
-  username: user
-  password: **********
-  EOF
+uri: https://api.grid5000.fr/
+username: user
+password: **********
+EOF
+
+$ chmod og-r ~/.grid5000_api.yml
 
 ```
 
