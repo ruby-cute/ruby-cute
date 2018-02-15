@@ -53,16 +53,16 @@ The variable *$g5k* is available which can be used to access the Grid'5000 API t
 let's request the name of the sites available in Grid'5000.
 
     [2] pry(main)> $g5k.site_uids()
-    => ["grenoble", "lille", "luxembourg", "lyon", "nancy", "nantes", "reims", "rennes", "sophia", "toulouse"]
+    => ["grenoble", "lille", "luxembourg", "lyon", "nancy", "nantes", "rennes", "sophia"]
 
 We can consult the name of the clusters available in a specific site.
 
     [3] pry(main)> $g5k.cluster_uids("grenoble")
-    => ["adonis", "edel", "genepi"]
+    => ["edel", "genepi"]
 
 It is possible to execute shell commands, however all commands have to be prefixed with a dot ".". For example we could generate a pair of SSH keys using:
 
-    [7] pry(main)> .ssh-keygen -b 1024 -N "" -t rsa -f ~/my_ssh_jobkey
+    [7] pry(main)> .ssh-keygen -b 4096 -N "" -t rsa -f ~/my_ssh_jobkey
 
 Another advantage is the possibility of exploring the loaded Ruby modules.
 Let's explore the [Cute](http://www.rubydoc.info/github/ruby-cute/ruby-cute/master/Cute) module.
@@ -159,20 +159,25 @@ We can observe that the variable `sites_infiniband` is now defined, telling us t
 
 Then, create a pair of SSH keys (Necessary for OARSSH):
 
-    [23] pry(main)> .ssh-keygen -b 1024 -N "" -t rsa -f ~/my_ssh_jobkey
+    [23] pry(main)> .ssh-keygen -b 4096 -N "" -t rsa -f ~/my_ssh_jobkey
 
 We send the generated keys to the chosen site (ssh configuration has be set up for the following command to work,
 see [SSH Configuration](https://www.grid5000.fr/mediawiki/index.php/SSH_and_Grid%275000) for more information):
 
     [24] pry(main)> .scp ~/my_ssh* nancy:~/
 
-Now that we have found the sites, let's submit a job. You can use between Grenoble and Nancy sites. If you
-take a look at {https://www.grid5000.fr/mediawiki/index.php/Status Monika} you will see that in Nancy we should use the OAR property 'ib20g' and in Grenoble we should use 'ib10g'.
-Given that the MPI bench uses just one MPI process, we will need in realty just one core of a given machine.
-We will use OAR syntax to ask for two cores in two different nodes with ib10g in Grenoble.
+Now that we have found the sites, let's submit a job. You can use between
+Grenoble and Nancy sites. If you take a look at
+{https://www.grid5000.fr/mediawiki/index.php/Status Monika} you will see that in
+Nancy we should use the OAR property 'ib_rate=20' and in Grenoble we should use
+'ib_rate=10'. More simply you can use the property ib_count=1 which will give
+you nodes with infiniband whatever the rate.
 
-    [25] pry(main)> job = $g5k.reserve(:site => "nancy", :resources => "{ib20g='YES'}/nodes=2/core=1",:walltime => '01:00:00', :keys => "~/my_ssh_jobkey" )
-    2015-12-04 14:07:31.370 => Reserving resources: {ib20g='YES'}/nodes=2/core=1,walltime=01:00 (type: ) (in nancy)
+Given that the MPI bench uses just one MPI process, we will need in realty just one core of a given machine.
+We will use OAR syntax to ask for two cores in two different nodes with ib_rate=10 in Grenoble.
+
+    [25] pry(main)> job = $g5k.reserve(:site => "nancy", :resources => "{ib_rate=20}/nodes=2/core=1",:walltime => '01:00:00', :keys => "~/my_ssh_jobkey" )
+    2015-12-04 14:07:31.370 => Reserving resources: {ib_rate=20}/nodes=2/core=1,walltime=01:00 (type: ) (in nancy)
     2015-12-04 14:07:41.358 => Waiting for reservation 692665
     2015-12-04 14:07:41.444 => Reservation 692665 should be available at 2015-12-04 14:07:34 +0100 (0 s)
     2015-12-04 14:07:41.444 => Reservation 692665 ready
@@ -394,7 +399,7 @@ This can help you to assemble everything together in a whole script.
     4: sites_infiniband
     5: .ls ~/my_ssh*
     6: .scp ~/my_ssh* nancy:~/
-    7: job = $g5k.reserve(:site => "nancy", :resources => "{ib20g='YES'}/nodes=2/core=1",:walltime => '01:00:00', :keys => "~/my_ssh_jobkey" )
+    7: job = $g5k.reserve(:site => "nancy", :resources => "{ib_rate=20}/nodes=2/core=1",:walltime => '01:00:00', :keys => "~/my_ssh_jobkey" )
     8: nodes = job["assigned_nodes"]
     9: machine_file = Tempfile.open('machine_file')
     10: nodes.each{ |node| machine_file.puts node }
