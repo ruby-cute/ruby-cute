@@ -198,6 +198,8 @@ module Cute
     class G5KRest
 
       attr_reader :user
+      attr_accessor :user_agent
+
       # Initializes a REST connection
       # @param uri [String] resource identifier which normally is the URL of the Rest API
       # @param user [String] user if authentication is needed
@@ -216,7 +218,7 @@ module Cute
         end
 
         machine =`uname -ov`.chop
-        @user_agent = "ruby-cute/#{VERSION} (#{machine}) Ruby #{RUBY_VERSION}"
+        @user_agent = "ruby-cute/#{VERSION} Ruby/#{RUBY_VERSION}"
         @api = RestClient::Resource.new(@endpoint, :timeout => 30,:verify_ssl => false)
         # some versions of restclient do not verify by default SSL certificates , :verify_ssl => true)
         # SSL verify is disabled due to Grid'5000 API certificate problem
