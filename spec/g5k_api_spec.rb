@@ -185,10 +185,10 @@ describe Cute::G5K::API do
   end
 
 
-  it "submits a job and then deploy" do
-    expect(subject.reserve(:site => @rand_site, :env => @env)).to have_key("deploy")
-  end
-
+#  it "submits a job and then deploy" do
+#    expect(subject.reserve(:site => @rand_site, :env => @env)).to have_key("deploy")
+#  end
+#
 
   it "returns the same information" do
     #low level REST access
