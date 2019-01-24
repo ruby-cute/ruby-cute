@@ -86,10 +86,10 @@ describe Cute::G5K::API do
     expect{subject.reserve(:site => @rand_site, :resources =>"nodes=1",:keys => "~/jobkey_nonexisting")}.to raise_error(Cute::G5K::BadRequest)
   end
 
-  it "raises an exception at deploying" do
-    expect{ subject.reserve(:site => @rand_site, :nodes => 1, :env => "nonsense")}.to raise_error(Cute::G5K::RequestFailed)
-  end
-
+#   it "raises an exception at deploying" do
+#     expect{ subject.reserve(:site => @rand_site, :nodes => 1, :env => "nonsense")}.to raise_error(Cute::G5K::RequestFailed)
+#   end
+# 
   it "raises argument errors" do
     job = Cute::G5K::G5KJSON.new
     expect {subject.deploy(:env => "env")}.to raise_error(ArgumentError)
