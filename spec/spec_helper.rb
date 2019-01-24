@@ -46,20 +46,23 @@ RSpec.configure do |config|
   # uri_sites = Addressable::Template.new "https://{user}:{password}@api.grid5000.fr/{version}/sites"
   config.before(:each) do
 
+    stub_request(:any,/^https:\/\/.*\:.*@api.grid5000.fr\/.*\/sites\/not-found\/.*/).
+      to_return(:status => 404)
+
+    stub_request(:any,/^https:\/\/api.grid5000.fr\/.*/).
+      to_return(:status => 200, :body => g5k_media_type.to_json, :headers => {})
+
     stub_request(:any,/^https:\/\/.*\:.*@api.grid5000.fr\/.*/).
       to_return(:status => 200, :body => g5k_media_type.to_json, :headers => {})
 
     stub_request(:any,/^https:\/\/fake:fake@api.grid5000.fr\.*/).
       to_return(:status => 401)
 
-    stub_request(:any,/^https:\/\/.*\:.*@api.grid5000.fr\/...\/sites\/non-found\/.*/).
-      to_return(:status => 404)
-
-    stub_request(:any,/^https:\/\/.*\:.*@api.grid5000.fr\/...\/sites\/tmpfail\/.*/).
+    stub_request(:any,/^https:\/\/.*\:.*@api.grid5000.fr\/.*\/sites\/tmpfail\/.*/).
       to_return(:status => 503).
       to_return(:status => 200, :body => g5k_media_type.to_json, :headers => {})
 
-    stub_request(:get,/^https:\/\/.*\:.*@api.grid5000.fr\/...\/sites\/.*vlans$/).
+    stub_request(:get,/^https:\/\/.*\:.*@api.grid5000.fr\/.*\/sites\/.*vlans$/).
       to_return(:status => 200, :body => {'total' => 3, 'items' => [{'type' => "kavlan-local"},{'type' => "kvlan"}]}.to_json)
 
       # to_return(:status => 200, :body => {:total => 3, :items => [{:type => "kavlan-local"},{:type => "kavlan"}]})
