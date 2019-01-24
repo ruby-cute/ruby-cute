@@ -73,6 +73,15 @@ describe Cute::G5K::API do
     expect{Cute::G5K::API.new(:user => "fake", :pass => "fake") }.to raise_error
   end
 
+  it "raises a not found error" do
+    expect{subject.get_jobs("not-found")}.to raise_error(Cute::G5K::NotFound)
+  end
+
+  it "raises a bad request error" do
+    expect{ subject.reserve(:site => @rand_site, :resources =>"/slash_22=1+{nonsense}")}.to raise_error(Cute::G5K::BadRequest)
+#    expect{ subject.reserve(:site => @rand_site, :resources =>"{ib30g='YES'}/nodes=2")}.to raise_error(Cute::G5K::BadRequest)
+  end
+
   it "raises a bad request using OAR API" do
     expect{subject.reserve(:site => @rand_site, :resources =>"nodes=1",:keys => "~/jobkey_nonexisting")}.to raise_error(Cute::G5K::BadRequest)
   end
