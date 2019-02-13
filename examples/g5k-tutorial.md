@@ -1,7 +1,6 @@
 # @title Grid'5000 tutorial
 # Grid'5000 tutorial
 
-
 This tutorial aims at showing how **Ruby-Cute** can be used to
 help the scripting of an experiment in the context of the Grid'5000 testbed.
 The programming language used, as you would expect, is {https://www.ruby-lang.org/en/ Ruby}.
@@ -34,6 +33,12 @@ Before using **Ruby-Cute** you have to create the following file:
     $ uri: https://api.grid5000.fr/
     $ version: 3.0
     $ EOF
+
+You will also need 2 gems to do this tutorial:
+- net-ssh
+- net-scp
+
+If you want to use taktuk you will need to have the executable on the machine where you are running the ruby script
 
 ## Getting acquainted with the pry console
 
@@ -117,7 +122,7 @@ For this particular experiment we have the following requirements:
 
 - A pair of SSH keys
 - Use of standard environment (no deploy)
-- Two nodes connected with infiniband (10G or 20G)
+- Two nodes connected with infiniband
 - MPI benchmark NETPIPE
 - A MPI runtime (OpenMPI or MPICH)
 
@@ -169,7 +174,7 @@ see [SSH Configuration](https://www.grid5000.fr/mediawiki/index.php/SSH_and_Grid
 Now that we have found the sites, let's submit a job. You can use between
 Grenoble and Nancy sites. If you take a look at
 {https://www.grid5000.fr/mediawiki/index.php/Status Monika} you will see that in
-Nancy we should use the OAR property 'ib_rate=20' and in Grenoble we should use
+Nancy we can use the OAR property 'ib_rate=20' and in Grenoble we can use
 'ib_rate=10'. More simply you can use the property ib_count=1 which will give
 you nodes with infiniband whatever the rate.
 
@@ -250,7 +255,7 @@ Here to illustrate the use of temporary files, let's type the following:
 and copy-paste the following code:
 
     Net::SSH.start(nodes.first, "oar", grid5000_opt) do |ssh|
-      puts ssh.exec("cat /tmp/machine_file")
+      puts ssh.exec!("cat /tmp/machine_file")
     end
 
 If we save and quit the editor, the code will be evaluated in Pry context.
@@ -271,12 +276,12 @@ the benchmark. Create a Ruby file called netpipe:
 With the following content:
 
     Net::SSH.start(nodes.first, "oar", grid5000_opt) do |ssh|
-      netpipe_url = "http://pkgs.fedoraproject.org/repo/pkgs/NetPIPE/NetPIPE-3.7.1.tar.gz/5f720541387be065afdefc81d438b712/NetPIPE-3.7.1.tar.gz"
+      netpipe_url = "https://fossies.org/linux/privat/NetPIPE-3.7.2.tar.gz"
       ssh.exec!("mkdir -p netpipe_exp")
       ssh.exec!("wget -O ~/netpipe_exp/NetPIPE.tar.gz #{netpipe_url}")
       ssh.exec!("cd netpipe_exp && tar -zvxf NetPIPE.tar.gz")
-      ssh.exec!("cd netpipe_exp/NetPIPE-3.7.1 && make mpi")
-      ssh.exec("mpirun --mca plm_rsh_agent \"oarsh\" -machinefile /tmp/machine_file ~/netpipe_exp/NetPIPE-3.7.1/NPmpi")
+      ssh.exec!("cd netpipe_exp/NetPIPE-3.7.2 && make mpi")
+      puts ssh.exec!("mpirun --mca plm_rsh_agent \"oarsh\" -machinefile /tmp/machine_file ~/netpipe_exp/NetPIPE-3.7.2/NPmpi")
     end
 
 Then, execute the created script:
@@ -308,13 +313,15 @@ We can fix this problem by prefixing the `mpirun` command with `export OAR_JOB_K
 Now the code will look like this:
 
     Net::SSH.start(nodes.first, "oar", grid5000_opt) do |ssh|
-      netpipe_url = "http://pkgs.fedoraproject.org/repo/pkgs/NetPIPE/NetPIPE-3.7.1.tar.gz/5f720541387be065afdefc81d438b712/NetPIPE-3.7.1.tar.gz"
+      netpipe_url = "https://fossies.org/linux/privat/NetPIPE-3.7.2.tar.gz"
       ssh.exec!("mkdir -p netpipe_exp")
       ssh.exec!("wget -O ~/netpipe_exp/NetPIPE.tar.gz #{netpipe_url}")
       ssh.exec!("cd netpipe_exp && tar -zvxf NetPIPE.tar.gz")
-      ssh.exec!("cd netpipe_exp/NetPIPE-3.7.1 && make mpi")
-      ssh.exec("export OAR_JOB_KEY_FILE=~/my_ssh_jobkey;mpirun --mca plm_rsh_agent \"oarsh\" -machinefile /tmp/machine_file ~/netpipe_exp/NetPIPE-3.7.1/NPmpi")
+      ssh.exec!("cd netpipe_exp/NetPIPE-3.7.2 && make mpi")
+      puts ssh.exec!("export OAR_JOB_KEY_FILE=~/my_ssh_jobkey;mpirun --mca plm_rsh_agent \"oarsh\" -machinefile /tmp/machine_file ~/netpipe_exp/NetPIPE-3.7.2/NPmpi")
     end
+
+[comment]: # output of the last ssh.exec still doesn't show
 
 After running the script, it will show the output of the benchmark in the `pry` console:
 
@@ -341,13 +348,13 @@ The latency is given by the last column for a 1 byte message; the maximum throug
 We can try to performn the same test without using infiniband, in order to observe the difference in bandwidth and latency:
 
     Net::SSH.start(nodes.first, "oar", grid5000_opt) do |ssh|
-      netpipe_url = "http://pkgs.fedoraproject.org/repo/pkgs/NetPIPE/NetPIPE-3.7.1.tar.gz/5f720541387be065afdefc81d438b712/NetPIPE-3.7.1.tar.gz"
+      netpipe_url = "https://fossies.org/linux/privat/NetPIPE-3.7.2.tar.gz"
       ssh.exec!("mkdir -p netpipe_exp")
       ssh.exec!("wget -O ~/netpipe_exp/NetPIPE.tar.gz #{netpipe_url}")
       ssh.exec!("cd netpipe_exp && tar -zvxf NetPIPE.tar.gz")
-      ssh.exec!("cd netpipe_exp/NetPIPE-3.7.1 && make mpi")
+      ssh.exec!("cd netpipe_exp/NetPIPE-3.7.2 && make mpi")
       mpi_command = "export OAR_JOB_KEY_FILE=~/my_ssh_jobkey;"
-      mpi_command+= "mpirun --mca plm_rsh_agent \"oarsh\" --mca btl self,sm,tcp -machinefile /tmp/machine_file ~/netpipe_exp/NetPIPE-3.7.1/NPmpi"
+      mpi_command+= "mpirun --mca plm_rsh_agent \"oarsh\" --mca btl self,sm,tcp -machinefile /tmp/machine_file ~/netpipe_exp/NetPIPE-3.7.2/NPmpi"
       ssh.exec(mpi_command)
     end
 
@@ -355,14 +362,14 @@ We can modify slightly the previous script to write the result into a file.
 We need to use `ssh.exec!` to capture the output of the commands.
 
     Net::SSH.start(nodes.first, "oar", grid5000_opt) do |ssh|
-      netpipe_url = "http://pkgs.fedoraproject.org/repo/pkgs/NetPIPE/NetPIPE-3.7.1.tar.gz/5f720541387be065afdefc81d438b712/NetPIPE-3.7.1.tar.gz"
+      netpipe_url = "https://fossies.org/linux/privat/NetPIPE-3.7.2.tar.gz"
       ssh.exec!("mkdir -p netpipe_exp")
       ssh.exec!("wget -O ~/netpipe_exp/NetPIPE.tar.gz #{netpipe_url}")
       ssh.exec!("cd netpipe_exp && tar -zvxf NetPIPE.tar.gz")
-      ssh.exec!("cd netpipe_exp/NetPIPE-3.7.1 && make mpi")
+      ssh.exec!("cd netpipe_exp/NetPIPE-3.7.2 && make mpi")
 
       File.open("output_netpipe.txt", 'w') do |f|
-        f.puts ssh.exec!("OAR_JOB_KEY_FILE=~/my_ssh_jobkey; mpirun --mca plm_rsh_agent \"oarsh\" -machinefile /tmp/machine_file ~/netpipe_exp/NetPIPE-3.7.1/NPmpi")
+        f.puts ssh.exec!("OAR_JOB_KEY_FILE=~/my_ssh_jobkey; mpirun --mca plm_rsh_agent \"oarsh\" -machinefile /tmp/machine_file ~/netpipe_exp/NetPIPE-3.7.2/NPmpi")
       end
     end
 
@@ -447,7 +454,7 @@ and type the following code:
     job = {}
 
     sites.each do |site|
-      job = $g5k.reserve(:site => site, :cluster => 1, :nodes => 4, :wait => false, :walltime => "01:00:00")
+      job = $g5k.reserve(:site => site, :cluster => 1, :nodes => 4, :wait => false, :walltime => "01:00:00", :type => :allow_classic_ssh)
       begin
         job = $g5k.wait_for_job(job, :wait_time => 60)
         puts "Nodes assigned #{job['assigned_nodes']}"
@@ -554,7 +561,7 @@ Open the editor in pry console:
 
 Then, type:
 
-     SOURCE_NAS = "http://public.rennes.grid5000.fr/~cruizsanabria/NPB3.3.tar"
+     SOURCE_NAS = "http://public.rennes.grid5000.fr/~ddelabroye/NPB3.3.tar"
 
      `wget #{SOURCE_NAS} -O /tmp/NAS.tar`
 
