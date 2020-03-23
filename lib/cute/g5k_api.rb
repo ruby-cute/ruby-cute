@@ -239,6 +239,12 @@ module Cute
       # @return [Hash] the HTTP response
       # @param path [String] this complements the URI to address to a specific resource
       def get_json(path)
+        return G5KJSON.parse(get_raw(path))
+      end
+      
+      # @return [String] the HTTP response
+      # @param path [String] this complements the URI to address to a specific resource
+      def get_raw(path)
         retries = 0
         begin
           r = resource(path).get(:content_type => "application/json",
@@ -253,7 +259,7 @@ module Cute
           end
           handle_exception(e)
         end
-        return G5KJSON.parse(r)
+        return r
       end
 
       # Creates a resource on the server
