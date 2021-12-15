@@ -1082,7 +1082,7 @@ module Cute
         rescue Error => e
           info "Fail to submit job"
           info e.message
-          e.http_body.split("\\n").each{ |line| info line}
+          e.http_body.split("\\n").each{ |line| info line} if e.http_body
           raise
         end
 
