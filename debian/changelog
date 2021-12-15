@@ -1,3 +1,9 @@
+ruby-cute (0.14) unstable; urgency=medium
+
+  * 57fcd01 Fix issue when catching errors from Grid'5000 API
+
+ -- Samir Noir <samir.noir@inria.fr>  Wed, 15 Dec 2021 11:39:02 +0100
+
 ruby-cute (0.13) unstable; urgency=medium
 
   * New release.
