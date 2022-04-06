@@ -14,6 +14,7 @@ class Net::SSH::Connection::Session
     res[:stderr] = ""
     res[:exit_code] = nil
     res[:exit_signal] = nil
+    ts = Time::now
     open_channel do |channel|
       channel.exec(command) do |ch, success|
         unless success
@@ -35,12 +36,14 @@ class Net::SSH::Connection::Session
 
         channel.on_request("exit-status") do |ch,data|
           res[:exit_code] = data.read_long
-          puts "EXITCODE: #{res[:exit_code]}" unless o[:no_log]
+          d = sprintf("%.1f", Time::now - ts)
+          puts "EXITCODE: #{res[:exit_code]} (duration: #{d}s)" unless o[:no_log]
         end
 
         channel.on_request("exit-signal") do |ch, data|
           res[:exit_signal] = data.read_long
-          puts "EXITSIGNAL: #{res[:exit_signal]}" unless o[:no_log]
+          d = sprintf("%.1f", Time::now - ts)
+          puts "EXITSIGNAL: #{res[:exit_signal]} (duration: #{d}s)" unless o[:no_log]
         end
       end
     end
