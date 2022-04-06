@@ -5,9 +5,9 @@ require 'cute/version'
 Gem::Specification.new do |s|
   s.name        = "ruby-cute"
   s.version     = Cute::VERSION
-  s.authors     = ["Algorille team"]
-  s.email       = "ruby-cute-staff@lists.gforge.inria.fr"
-  s.homepage    = "http://ruby-cute.gforge.inria.fr/"
+  s.authors     = ["Algorille/Madynes/RESIST teams at Inria/LORIA"]
+  s.email       = "lucas.nussbaum@inria.fr"
+  s.homepage    = "http://ruby-cute.github.io/"
   s.summary     = "Critically Useful Tools for Experiments"
   s.description = "Ruby library for controlling experiments"
   s.required_rubygems_version = ">= 1.3.6"
@@ -26,6 +26,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'rest-client', '>= 1.6'
   s.add_dependency 'json', '>= 1.8'
   s.add_dependency 'ipaddress', '>= 0.8'
+  s.add_dependency 'net-ssh', '>= 5.1'
   s.add_dependency 'net-ssh-multi', '>= 1.2'
 
   s.extra_rdoc_files = ['README.md', 'LICENSE']

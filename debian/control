@@ -2,18 +2,36 @@ Source: ruby-cute
 Section: ruby
 Priority: optional
 Maintainer: Lucas Nussbaum <lucas@debian.org>
-Build-Depends: debhelper (>= 7.0.50~), gem2deb, ruby-rspec, rake, yard, ruby-webmock, ruby-simplecov, ruby-rest-client, ruby-ipaddress, ruby-net-ssh-multi
-Standards-Version: 3.9.5
+Build-Depends: debhelper-compat (= 12),
+               gem2deb,
+               rake,
+               ruby-ipaddress (>= 0.8),
+               ruby-json (>= 1.8),
+               ruby-net-ssh (>= 5.1),
+               ruby-net-ssh-multi (>= 1.2),
+               ruby-rest-client (>= 1.6),
+               ruby-rspec,
+               ruby-simplecov,
+               ruby-webmock,
+               yard
+Standards-Version: 4.5.0
 Vcs-Git: git://github.com/ruby-cute/ruby-cute
 Vcs-Browser: https://github.com/ruby-cute/ruby-cute
 Homepage: http://ruby-cute.github.io/
-Testsuite: autopkgtest
+Testsuite: autopkgtest-pkg-ruby
 XS-Ruby-Versions: all
+Rules-Requires-Root: no
 
 Package: ruby-cute
 Architecture: all
 XB-Ruby-Versions: ${ruby:Versions}
-Depends: ${shlibs:Depends}, ${misc:Depends}, ruby | ruby-interpreter, ruby-rest-client, ruby-json, ruby-ipaddress, ruby-net-ssh-multi
-Recommends: pry
+Depends: ruby | ruby-interpreter,
+         ruby-ipaddress (>= 0.8),
+         ruby-json (>= 1.8),
+         ruby-net-ssh (>= 5.1),
+         ruby-net-ssh-multi (>= 1.2),
+         ruby-rest-client (>= 1.6),
+         ${misc:Depends},
+         ${shlibs:Depends}
 Description: Critically Useful Tools for Experiments
  Ruby library for controlling experiments

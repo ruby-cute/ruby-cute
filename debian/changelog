@@ -1,3 +1,9 @@
+ruby-cute (0.15) unstable; urgency=low
+
+  * dcb4bdd Refresh packaging
+
+ -- Lucas Nussbaum <lucas.nussbaum@inria.fr>  Wed, 06 Apr 2022 08:46:56 +0200
+
 ruby-cute (0.14) unstable; urgency=medium
 
   * 57fcd01 Fix issue when catching errors from Grid'5000 API

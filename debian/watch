@@ -1,2 +1,2 @@
-version=3
-http://pkg-ruby-extras.alioth.debian.org/cgi-bin/gemwatch/ruby-cute .*/ruby-cute-(.*).tar.gz
+version=4
+https://gemwatch.debian.net/ruby-cute .*/ruby-cute-(.*).tar.gz
