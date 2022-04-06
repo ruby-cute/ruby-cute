@@ -1,0 +1,473 @@
+#!/usr/bin/ruby
+
+gem 'ruby-cute', '>= 0.12'
+require 'cute'
+require 'optparse'
+require 'pp'
+require 'net/ssh/gateway'
+require 'net/ssh'
+require 'net/scp'
+
+def cute_init
+  $logger = Logger.new(STDOUT)
+  STDOUT.sync = true
+  STDERR.sync = true
+  conf = ENV['HOME']+'/.grid5000_api.yml'
+  if File::exists?(conf)
+    yconf = YAML::load(IO::read(conf)) rescue {}
+    $login = yconf['username']
+    $password = yconf['password']
+    $g5k = Cute::G5K::API.new(:conf_file => conf, :debug => true)
+  elsif g5k_internal?
+    $login = `whoami`.chomp
+    $g5k = Cute::G5K::API.new(:debug => true)
+  else
+    puts "ERROR: no .grid5000_api.yml found, and outside Grid'5000. Need API credentials."
+    exit(1)
+  end
+  $g5k.rest.user_agent += " grd"
+  $logger.level = Logger::INFO
+  $logger.formatter = proc { |severity, datetime, progname, msg| "%s, [%s] %s\n" % [severity[0..0], datetime.strftime("%Y-%m-%d %H:%M:%S"), msg ]  }
+  $g5k.logger = $logger
+end
+
+def do_provisioning(site, job, o)
+  if o[:env]
+    keys = Dir::glob(ENV['HOME'] + '/.ssh/*.pub').map { |f| IO::read(f) }.join("\n")
+    ts = Time::now
+    d = {
+      :env => o[:env],
+      :keys => keys
+    }
+    $logger.level = Logger::WARN
+    job = $g5k.deploy(job, d)
+    $logger.level = Logger::INFO
+    duid = job['deploy'].last['uid']
+    $logger.info "Started provisioning of environment #{o[:env]}. Live log: https://api.grid5000.fr/3.0/sites/#{site}/internal/kadeployapi/deployment/#{duid}/logs"
+    $logger.level = Logger::WARN
+    job = $g5k.wait_for_deploy(job)
+    $logger.level = Logger::INFO
+    deploy = job['deploy'].last
+    failed = ((deploy['status'] == 'error') or (not deploy['result'].to_a.select { |e| e[1]['state'] != 'OK' }.empty?))
+    if failed
+      $logger.error "Provisioning failed. Terminating resources reservation and exiting."
+      $g5k.release(job)
+      exit(1)
+    end
+    $logger.info "Provisioning completed after #{(Time::now - ts).to_i}s"
+  end
+end
+
+def show_nodes(job)
+  nodes = job['assigned_nodes']
+  $logger.info "Nodes: #{nodes.join(' ')}"
+  if nodes.length > 1
+    $logger.info "Nodeset: #{nodeset(nodes)}"
+  end
+end
+
+$cache = {}
+def get_api_sites
+  unless $cache["sites"]
+    $cache['sites'] = $g5k.site_uids
+    $cache['sites'].freeze
+  end
+  return $cache['sites']
+end
+
+def resolve_site(s)
+  s = 'nancy' if s == 'ncy' or s == 'ny'
+  s = 'nantes' if s == 'ns'
+  sites = get_api_sites
+  l = sites.select { |e| e.start_with?(s) }.sort
+  if l.length == 0
+    raise "Invalid site: #{s}"
+  elsif l.length > 1
+    raise "Invalid site: #{s} (matches: #{l.join(' ')})"
+  else
+    return l.first
+  end
+end
+
+def nodeset(nodes)
+  return `echo #{nodes.join(',')} | nodeset -f`.chomp
+end
+
+def g5k_internal?
+  return `hostname --fqdn`.chomp =~ /\.grid5000\.fr$/ ? true : false
+end
+
+if ['bootstrap', 'bs'].include?(ARGV[0])
+  ARGV.shift
+  o = {}
+  o[:type] = []
+  OptionParser.new do |opts|
+    opts.banner =  "usage: grd bootstrap [options]"
+    opts.separator "  Reserve, provision, configure and connect to resources (alias: bs)"
+    opts.separator ""
+    opts.separator "# Options:"
+    opts.separator "## (A) Select which resources to reserve, and for how long:"
+    opts.on("-s", "--site SITE", "Site on which resources will be requested") do |d|
+      o[:site] = d
+    end
+    opts.on("-l", "--resources DESCRIPTION", "description of the requested resources (using the syntax for oarsub -l). default: nodes=1") do |d|
+      o[:resources] = d
+    end
+    opts.on("-w", "--walltime DURATION", "maximum duration of the reservation (using the syntax for oarsub -l)") do |d|
+      o[:walltime] = d
+    end
+    opts.separator ""
+    opts.separator "## (B) Choose when to reserve resources (default: ASAP, and wait interactively):"
+    opts.on("-d", "--detach", "Reserve resources ASAP, but do not wait interactively (batch/submission mode)") do |d|
+     o[:detach] = true
+    end
+    opts.on("-r", "--reservation DATE", "Resources at a specified date and time. Do not wait for the reservation to start.") do |d|
+      o[:reservation] = d
+      o[:detach] = true
+    end
+    opts.separator ""
+    opts.separator "## (C) Set some advanced OAR parameters if needed:"
+    opts.on("-t", "--type JOB_TYPE", "OAR job type (can be specified multiple times") do |d|
+      o[:type] << d
+    end
+    opts.on("-q", "--queue QUEUE", "OAR queue") do |d|
+      o[:queue] = d
+    end
+    opts.on("-p", "--project PROJECT", "OAR project") do |d|
+      o[:project] = d
+    end
+    opts.on("-n", "--name NAME", "OAR name") do |d|
+      o[:name] = d
+    end
+    opts.separator ""
+    opts.separator "## (D) Set the environment to provision. If none specified, the 'standard' environment will be used"
+    opts.on("-e", "--environment ENV", "Kadeploy environment to provision") do |d|
+      o[:env] = d
+    end
+    opts.separator ""
+    opts.separator "## (E) Run a file (a script) on the first node"
+    opts.on("-f", "--script FILE", "script") do |d|
+      o[:script] = d
+    end
+    opts.on("-a", "--script-arg ARG", "argument to pass to the script (can be specified multiple times)") do |d|
+      o[:script_arg] ||= []
+      o[:script_arg] << d
+    end
+    opts.separator ""
+    opts.separator "## (F) Connect interactively to the first node (incompatible with '--reservation' and '--detach')."
+    opts.on("-c", "--connect") do |d|
+      o[:connect] = true
+    end
+    opts.separator ""
+    opts.separator "# Notes:"
+    opts.separator "* All options are optional except '--site' if running from outside Grid'5000."
+    opts.separator "* In steps (E) and (F), the connection is done as 'root' if an environment was provisioned (and as the normal user otherwise)."
+    opts.separator ""
+    opts.separator "# Examples:"
+    opts.separator "## Basic usage: reserve one node on the current site, as soon as possible, and for the default walltime, and wait until it is available"
+    opts.separator "  grd bs"
+    opts.separator ""
+    opts.separator "## Some more complex examples..."
+    opts.separator "  grd bs -s ly -l nodes=3 -w 0:10 -e debian11-x64-min -f setup-script -c"
+  end.parse!
+
+  cute_init
+
+  if not o[:site]
+    if `hostname --fqdn`.chomp =~ /.*\.([^.]+)\.grid5000\.fr$/
+      o[:site] = $1
+    else
+      $logger.error("Running outside Grid'5000: the target site must be specified using '-s SITE'.")
+      exit(1)
+    end
+  end
+  site = resolve_site(o[:site])
+  jo = {}
+  jo[:site] = site
+  jo[:resources] = o[:resources] || 'nodes=1'
+  jo[:walltime] = o[:walltime] if o[:walltime] # else use OAR's default
+  jo[:reservation] = o[:reservation] if o[:reservation]
+  jo[:queue] = o[:queue] if o[:queue] # else use OAR's default
+  jo[:project] = o[:project] if o[:project] # else use OAR's default
+  o[:name] ||= 'grd'
+  jo[:name] = o[:name]
+  jo[:wait] = false
+  if o[:env] and not o[:type].include?('deploy')
+    o[:type] << 'deploy'
+  end
+  jo[:type] = o[:type]
+
+  if o[:detach]
+    if o[:connect]
+      $logger.error("--connect and --detach (or --reservation) are incompatible. Exiting.")
+      exit(1)
+    end
+    jo[:cmd] = 'grd inner'
+    if o[:env]
+      jo[:cmd] += " -e '#{o[:env]}'"
+    end
+    if o[:script]
+      # upload script to frontend
+      ssh = nil
+      gateway = nil
+      fnode = "#{site}.grid5000.fr"
+      if g5k_internal?
+        ssh = Net::SSH.start(fnode, $login)
+      else
+        gateway = Net::SSH::Gateway.new('access.grid5000.fr', $login)
+        ssh = gateway.ssh(fnode, $login)
+      end
+      tmpfile = ssh.exec3!("mkdir -p .cache/grd ; mktemp .cache/grd/script.XXXXXX", { :no_log => true, :no_output => true })[:stdout].chomp
+      ssh.scp.upload!(o[:script], tmpfile)
+      ssh.exec3!("chmod u+x #{tmpfile}", { :no_log => true, :no_output => true })
+      ssh.close
+      ssh.shutdown!
+      if not g5k_internal?
+        gateway.shutdown!
+      end
+      jo[:cmd] += " -f '#{tmpfile}'"
+      (o[:script_arg] || []).each do |a|
+        jo[:cmd] += " -a '#{a}'"
+      end
+    end
+    if jo[:cmd] == 'grd inner'
+      # since we have nothing specific to do, we just sleep instead of calling 'grd inner'.
+      jo[:cmd] = "sleep infinity"
+    end
+  end
+
+  job = $g5k.reserve(jo)
+  $logger.info("OAR job ID: #{job['uid']}")
+
+  begin
+    t = nil
+    ts = Time::now
+    loop do
+      tries = 0
+      begin
+        job = $g5k.get_job(site, job['uid'])
+      rescue Cute::G5K::RequestFailed, Cute::G5K::BadRequest => e
+        $logger.info "Fetching job status failed due to API error: #{e.message}"
+        tries += 1
+        if tries < 5
+          $logger.info "Retrying.."
+          sleep 5
+          retry
+        else
+          $logger.info "Too many attempts, exiting. The job might still be running."
+          exit(1)
+        end
+      end
+      break if job['state'] == 'running'
+      oldt = t
+      t = job['scheduled_at']
+      if !t.nil?
+        t = Time.at(t)
+        secs = [ t - Time.now, 0 ].max.to_i
+        $logger.info "Reservation #{job['uid']} should be available at #{t} (in #{secs} s)"
+        break if o[:detach]
+      end
+      Kernel.sleep(2)
+    end
+
+    if o[:detach]
+      $logger.info "Your reservation will run in the background. Follow its status:"
+      $logger.info "  Using the API: https://api.grid5000.fr/3.0/sites/#{site}/jobs/#{job['uid']}?pretty"
+      $logger.info "  Using the Gantt: https://intranet.grid5000.fr/oar/#{site}/drawgantt-svg/"
+      $logger.info "  When it will be running, using its output files:"
+      $logger.info "    #{site}:/home/#{$login}/OAR.#{o[:name]}.#{job['uid']}.stdout"
+      $logger.info "    #{site}:/home/#{$login}/OAR.#{o[:name]}.#{job['uid']}.stderr"
+      $logger.info "Exiting."
+      exit(0)
+    end
+
+    $logger.info "Resources are available after #{(Time::now - ts).to_i}s"
+    show_nodes(job)
+    # deployment
+    do_provisioning(site, job, o)
+
+  rescue Interrupt => e
+    $logger.info "Interrupted. Releasing resources."
+    $g5k.release(job)
+  end
+
+  # execute script
+  tlogin = o[:env] ? 'root' : $login
+  fnode = job['assigned_nodes'].first
+  if o[:script]
+    ssh = nil
+    gateway = nil
+    if g5k_internal?
+      ssh = Net::SSH.start(fnode, tlogin)
+    else
+      gateway = Net::SSH::Gateway.new('access.grid5000.fr', $login)
+      ssh = gateway.ssh(fnode, tlogin)
+    end
+    tmpfile = ssh.exec3!("mktemp /tmp/grd.XXXXXX", { :no_log => true, :no_output => true })[:stdout].chomp
+    ssh.scp.upload!(o[:script], tmpfile)
+    ssh.exec3!("chmod u+x #{tmpfile}", { :no_log => true, :no_output => true })
+    args = (o[:script_arg] || []).join(' ')
+    $logger.info "Running script on #{fnode} ..."
+    ssh.exec3!("#{tmpfile} #{args}")
+    $logger.info "Script finished."
+    ssh.close
+    ssh.shutdown!
+    if not g5k_internal?
+      gateway.shutdown!
+    end
+  end
+
+  # connect
+  if o[:connect]
+    jh = g5k_internal? ? "" : "-J #{$login}@access.grid5000.fr "
+    cmd = "ssh -o StrictHostKeyChecking=accept-new #{jh}#{tlogin}@#{job['assigned_nodes'].first}"
+    $logger.info "Connecting to first node using:"
+    $logger.info "  #{cmd}"
+    puts
+    system(cmd)
+    puts
+    s = nil
+    loop do
+      print "Connection to node terminated. Terminate resources reservation? (Y/N) "
+      s = gets.chomp.upcase
+      break if s == "Y" or s == "N"
+    end
+    if s == 'Y'
+      $logger.info("Releasing resources.")
+      $g5k.release(job)
+    end
+  end
+elsif ['inner'].include?(ARGV[0])
+  ARGV.shift
+  o = {}
+  o[:type] = []
+  OptionParser.new do |opts|
+    opts.banner =  "usage: grd inner [options]"
+    opts.separator "  Do the actions that need to be performed inside a reservation"
+    opts.on("-e", "--environment ENV", "Kadeploy environment to provision") do |d|
+      o[:env] = d
+    end
+    opts.on("-f", "--script FILE", "script") do |d|
+      o[:script] = d
+    end
+    opts.on("-a", "--script-arg ARG", "argument to pass to the script (can be specified multiple times)") do |d|
+      o[:script_arg] ||= []
+      o[:script_arg] << d
+    end
+  end.parse!
+
+
+  if `hostname --fqdn`.chomp =~ /.*\.([^.]+)\.grid5000\.fr$/
+    o[:site] = $1
+    site = $1
+  else
+    $logger.error("ERROR: could not determine site.")
+    exit(1)
+  end
+
+  cute_init
+
+  jobid = ENV['OAR_JOB_ID'].to_i
+
+  $logger.info "Arguments: #{ARGV.inspect}"
+  $logger.info "OAR job ID: #{jobid}"
+  # we use OAR_NODEFILE to avoid an API request that would not work from a node
+  nodes = IO::readlines(ENV['OAR_NODEFILE']).map { |l| l.chomp }.uniq
+  $logger.info "Nodes: #{nodes.join(' ')}"
+  if nodes.length > 1
+    $logger.info "Nodeset: #{nodeset(nodes)}"
+  end
+
+  if o[:env]
+    job = $g5k.get_job(site, jobid) # check if this works from node
+    do_provisioning(site, job, o)
+  end
+
+  if o[:script]
+    args = (o[:script_arg] || []).join(' ')
+    if o[:env]
+      # we need to copy the script to the node using ssh
+      fnode = nodes.first
+      tlogin = 'root'
+      ssh = Net::SSH.start(fnode, tlogin)
+      tmpfile = ssh.exec3!("mktemp /tmp/grd.XXXXXX", { :no_log => true, :no_output => true })[:stdout].chomp
+      ssh.scp.upload!(o[:script], tmpfile)
+      ssh.exec3!("chmod u+x #{tmpfile}", { :no_log => true, :no_output => true })
+      $logger.info "Running script on #{fnode} ..."
+      ssh.exec3!("#{tmpfile} #{args}")
+      $logger.info "Script finished."
+      ssh.close
+      ssh.shutdown!
+    else
+      # we are already on the node
+      system("chmod u+x #{o[:script]}") or raise
+      $logger.info "Running script ..."
+      system("#{o[:script]} #{args}") or raise
+      $logger.info "Script finished."
+    end
+  end
+
+  sleep() # sleep until end of reservation
+
+elsif ['terminate', 't'].include?(ARGV[0])
+  cute_init
+
+  ARGV.shift
+  o = {}
+  OptionParser.new do |opts|
+    opts.banner =  "usage: grd terminate [options]"
+    opts.separator "  Terminate reservations"
+    opts.on("-s", "--site SITE", "Only terminate reservations on the specified site") do |d|
+      o[:site] = resolve_site(d)
+    end
+    opts.on("-j", "--job JOB_ID", "Only terminate the specified job (implies -y)") do |j|
+      o[:job] = j
+      o[:yes] = true
+    end
+    opts.on("-y", "--yes", "Do not ask for confirmation") do
+      o[:yes] = true
+    end
+  end.parse!
+
+  if o[:site]
+    sites = [ o[:site] ]
+  else
+    sites = get_api_sites
+  end
+  sites.each do |site|
+    jobs = $g5k.get_jobs(site, $login, %w{waiting launching running hold error terminated} - %w{error terminated})
+    jobs.each do |j|
+      next if o[:job] and j['uid'].to_i != o[:job].to_i
+      sa = j['started_at'] ? Time::at(j['started_at']) : nil
+      sig = "site=#{site} id=#{j['uid']} state=#{j['state']} started_at=#{sa} nodes=#{nodeset(j['assigned_nodes'])}"
+      if o[:yes]
+        puts "Terminating #{sig}"
+        $g5k.release(j)
+      else
+        print "Terminate #{sig} ? (Y/N) "
+        s = nil
+        loop do
+          s = gets.chomp.upcase
+          break if s == "Y" or s == "N"
+          print "Terminate? (Y/N) "
+        end
+        if s == 'Y'
+          $g5k.release(j)
+        end
+      end
+    end
+  end
+
+else
+  puts <<-EOF
+usage: grd <command> [options]
+
+Available commands:
+   bootstrap   Reserve, provision, configure and connect to resources (alias: bs)
+   terminate   Terminate resources reservation(s) (alias: t)
+
+Use 'grd <command> --help' for details.
+  EOF
+  exit(1)
+end
+

@@ -1073,7 +1073,6 @@ module Cute
 
         if reservation
           payload['reservation'] = reservation
-          info "Starting this reservation at #{reservation}"
         end
 
         begin
