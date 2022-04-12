@@ -1,3 +1,9 @@
+ruby-cute (0.16) unstable; urgency=low
+
+  * 1cedd61 Downgrade version requirement of net-ssh so that it is installable on Debian stretch
+
+ -- Lucas Nussbaum <lucas.nussbaum@inria.fr>  Tue, 12 Apr 2022 22:01:51 +0200
+
 ruby-cute (0.15) unstable; urgency=low
 
   * 78de76f Add inital version of grd
