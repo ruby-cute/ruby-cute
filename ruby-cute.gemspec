@@ -26,7 +26,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'rest-client', '>= 1.6'
   s.add_dependency 'json', '>= 1.8'
   s.add_dependency 'ipaddress', '>= 0.8'
-  s.add_dependency 'net-ssh', '>= 5.1'
+  s.add_dependency 'net-ssh', '>= 3.2'
   s.add_dependency 'net-ssh-multi', '>= 1.2'
   s.add_dependency 'net-scp', '>= 1.2'
 
