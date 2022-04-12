@@ -1,8 +1,10 @@
 ruby-cute (0.15) unstable; urgency=low
 
-  * dcb4bdd Refresh packaging
+  * 78de76f Add inital version of grd
+  * 2fc8bda exec3: add some timing information
+  * 1676cf9 Refresh packaging and bump version to 0.15
 
- -- Lucas Nussbaum <lucas.nussbaum@inria.fr>  Wed, 06 Apr 2022 08:46:56 +0200
+ -- Lucas Nussbaum <lucas.nussbaum@inria.fr>  Tue, 12 Apr 2022 21:56:20 +0200
 
 ruby-cute (0.14) unstable; urgency=medium
 
