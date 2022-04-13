@@ -995,7 +995,7 @@ module Cute
         raise ArgumentError, "Unrecognized option #{unre_opts}" unless unre_opts.empty?
 
         nodes = opts.fetch(:nodes, 1)
-        walltime = opts.fetch(:walltime, '01:00:00')
+        walltime = opts[:walltime]
         site = opts[:site]
         type = opts.fetch(:type, [])
         name = opts.fetch(:name, 'rubyCute job')
@@ -1027,12 +1027,9 @@ module Cute
           raise ArgumentError, "VLAN type not available in site #{site}" unless available_vlans.include?(vlan)
         end
 
-        raise 'At least nodes, time and site must be given'  if [nodes, walltime, site].any? { |x| x.nil? }
+        raise 'At least nodes and site must be given'  if [nodes, site].any? { |x| x.nil? }
 
         raise 'nodes should be an integer or a string containing either ALL or BEST' unless (nodes.is_a?(Fixnum) or ["ALL","BEST"].include?(nodes))
-
-        secs = walltime.to_secs
-        walltime = walltime.to_time
 
         command = "sleep #{secs}" if command.nil?
 
@@ -1050,7 +1047,9 @@ module Cute
           resources = "slash_#{subnets[0]}=#{subnets[1]}+" + resources unless subnets.nil?
         end
 
-        resources += ",walltime=#{walltime}" unless resources.include?("walltime")
+        if walltime
+          resources += ",walltime=#{walltime}" unless resources.include?("walltime")
+        end
 
         payload = {
                    'resources' => resources,
