@@ -1,3 +1,17 @@
+ruby-cute (0.17) unstable; urgency=low
+
+  * b81c224 Merge remote-tracking branch 'gh/master'
+  * 6dc473b Merge pull request #36 from deadlybore/master
+  * a3341ff Exit immediately if interrupted
+  * a44218f Improve 'bs -h'
+  * a7f2649 Improve output
+  * a91b0e7 Make walltime non-mandatory
+  * 234aa96 Add dep on ruby-net-scp
+  * 0ce884b update changelog
+  * 0a10f78 update of the documentation
+
+ -- Lucas Nussbaum <lucas.nussbaum@inria.fr>  Wed, 13 Apr 2022 08:04:26 +0200
+
 ruby-cute (0.16) unstable; urgency=low
 
   * 1cedd61 Downgrade version requirement of net-ssh so that it is installable on Debian stretch
