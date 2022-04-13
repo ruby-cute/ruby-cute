@@ -1,8 +1,9 @@
 ruby-cute (0.18) unstable; urgency=low
 
   * f43a834 Minor bugfixes
+  * d1d538f Upgrade packaging to dh 13 and build on bullseye
 
- -- Lucas Nussbaum <lucas.nussbaum@inria.fr>  Wed, 13 Apr 2022 08:12:12 +0200
+ -- Lucas Nussbaum <lucas.nussbaum@inria.fr>  Wed, 13 Apr 2022 09:26:08 +0200
 
 ruby-cute (0.17) unstable; urgency=low
 
