@@ -297,6 +297,7 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
   rescue Interrupt => e
     $logger.info "Interrupted. Releasing resources."
     $g5k.release(job)
+    exit(1)
   end
 
   # execute script
