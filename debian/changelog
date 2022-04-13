@@ -1,8 +1,8 @@
-ruby-cute (0.17) unstable; urgency=low
+ruby-cute (0.18) unstable; urgency=low
 
-  * 130e6f6 update changelog
+  * f43a834 Minor bugfixes
 
- -- Lucas Nussbaum <lucas.nussbaum@loria.fr>  Wed, 13 Apr 2022 08:11:50 +0200
+ -- Lucas Nussbaum <lucas.nussbaum@inria.fr>  Wed, 13 Apr 2022 08:12:12 +0200
 
 ruby-cute (0.17) unstable; urgency=low
 
