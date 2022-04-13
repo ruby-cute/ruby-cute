@@ -11,7 +11,7 @@ build:
   stage: build
   tags:
    - grid5000-docker
-  image: debian:buster
+  image: debian:bullseye
   script:
    - apt-get update && apt-get -y --no-install-recommends install devscripts build-essential equivs
    - mk-build-deps -ir -t 'apt-get -y --no-install-recommends'

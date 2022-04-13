@@ -2,7 +2,7 @@ Source: ruby-cute
 Section: ruby
 Priority: optional
 Maintainer: Lucas Nussbaum <lucas@debian.org>
-Build-Depends: debhelper-compat (= 12),
+Build-Depends: debhelper-compat (= 13),
                gem2deb,
                rake,
                ruby,
@@ -27,14 +27,8 @@ Rules-Requires-Root: no
 Package: ruby-cute
 Architecture: all
 XB-Ruby-Versions: ${ruby:Versions}
-Depends: ruby | ruby-interpreter,
-         ruby-ipaddress (>= 0.8),
-         ruby-json (>= 1.8),
-         ruby-net-scp (>= 1.2),
-         ruby-net-ssh (>= 5.1),
-         ruby-net-ssh-multi (>= 1.2),
-         ruby-rest-client (>= 1.6),
-         ${misc:Depends},
+Depends: ${misc:Depends},
+         ${ruby:Depends},
          ${shlibs:Depends}
 Description: Critically Useful Tools for Experiments
  Ruby library for controlling experiments
