@@ -126,8 +126,29 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
       o[:detach] = true
     end
     opts.separator ""
-    opts.separator "## (C) Set some advanced OAR parameters if needed:"
-    opts.on("-t", "--type JOB_TYPE", "OAR job type (can be specified multiple times") do |d|
+    opts.separator "## (C) Set the environment to provision. If none specified, the 'standard' environment will be used"
+    opts.on("-e", "--environment ENV", "Kadeploy environment to provision") do |d|
+      o[:env] = d
+    end
+    opts.separator ""
+    opts.separator "## (D) Run a file (a script) on the first node"
+    opts.on("-f", "--script FILE", "script") do |d|
+      o[:script] = d
+    end
+    opts.on("-a", "--script-arg ARG", "argument to pass to the script (can be specified multiple times)") do |d|
+      o[:script_arg] ||= []
+      o[:script_arg] << d
+    end
+    opts.separator ""
+    opts.separator "## (E) Connect interactively to the first node (incompatible with '--reservation' and '--detach')."
+    opts.on("-c", "--connect") do |d|
+      o[:connect] = true
+    end
+    opts.separator ""
+    opts.separator "## Advanced options:"
+    opts.separator "### Related to reservation"
+
+    opts.on("-t", "--type JOB_TYPE", "OAR job type (can be specified multiple times)") do |d|
       o[:type] << d
     end
     opts.on("-q", "--queue QUEUE", "OAR queue") do |d|
@@ -140,35 +161,22 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
       o[:name] = d
     end
     opts.separator ""
-    opts.separator "## (D) Set the environment to provision. If none specified, the 'standard' environment will be used"
-    opts.on("-e", "--environment ENV", "Kadeploy environment to provision") do |d|
-      o[:env] = d
-    end
-    opts.separator ""
-    opts.separator "## (E) Run a file (a script) on the first node"
-    opts.on("-f", "--script FILE", "script") do |d|
-      o[:script] = d
-    end
-    opts.on("-a", "--script-arg ARG", "argument to pass to the script (can be specified multiple times)") do |d|
-      o[:script_arg] ||= []
-      o[:script_arg] << d
-    end
-    opts.separator ""
-    opts.separator "## (F) Connect interactively to the first node (incompatible with '--reservation' and '--detach')."
-    opts.on("-c", "--connect") do |d|
-      o[:connect] = true
-    end
-    opts.separator ""
     opts.separator "# Notes:"
     opts.separator "* All options are optional except '--site' if running from outside Grid'5000."
-    opts.separator "* In steps (E) and (F), the connection is done as 'root' if an environment was provisioned (and as the normal user otherwise)."
+    opts.separator "* In steps (D) and (E), the connection is done as 'root' if an environment was provisioned (and as the normal user otherwise)."
     opts.separator ""
     opts.separator "# Examples:"
     opts.separator "## Basic usage: reserve one node on the current site, as soon as possible, and for the default walltime, and wait until it is available"
     opts.separator "  grd bs"
     opts.separator ""
-    opts.separator "## Some more complex examples..."
+    opts.separator "## Reserve, provision, execute a script, and connect to the node"
     opts.separator "  grd bs -s ly -l nodes=3 -w 0:10 -e debian11-x64-min -f setup-script -c"
+    opts.separator ""
+    opts.separator "Examples for -l / --resources:"
+    opts.separator '  nodes=3  {"gpu_count>0"}/nodes=1  {"cluster=\'gros\'"}/nodes=1  {nova}/nodes=3  (see https://www.grid5000.fr/w/OAR_Syntax_simplification)'
+    opts.separator ""
+    opts.separator "Examples for -r / --reservation:"
+    opts.separator '  "2022-03-30 19:30:05"  "2022-03-30 19"  "19"  "2022-03-30 19,2022-04-02 04"  "13,15"'
   end.parse!
 
   cute_init
