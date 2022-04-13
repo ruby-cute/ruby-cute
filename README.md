@@ -6,6 +6,16 @@ aggregating various Ruby snippets useful in the context of (but not limited to)
 development of experiment software on distributed systems testbeds such as
 Grid'5000.
 
+Ruby-Cute also includes the **grd** command line utility, that provides a
+modern interface to typical Grid'5000 workflows. As an example, `grd bootstrap -s
+ly -l nodes=3 -w 0:10 -e debian11-x64-min -f setup-script -c` will reserve 3
+nodes on the *lyon* site, provision the *debian11-x64-min* environment, run
+*setup-script* on the first node, and then connect interactively using SSH.
+
+For more information about how to use **grd**, run `grd --help` and `grd
+bootstrap --help` on any frontend. **grd** can also work from your own computer
+(outside Grid'5000).
+
 ## Installation
 
 To install latest release from [RubyGems](https://rubygems.org/gems/ruby-cute):
@@ -22,7 +32,8 @@ $ gem build ruby-cute.gemspec
 $ gem install --user-install ruby-cute-*.gem
 ```
 
-Then, type the following for having ruby cute in your path (this is only necessary if you want to use interactive mode).
+Then, type the following to have ruby-cute in your path (this is only necessary
+if you want to use the executables included in ruby-cute, such as grd).
 
 ```bash
 $ export PATH=$PATH:$(ruby -e 'puts "#{Gem.user_dir}/bin"')
