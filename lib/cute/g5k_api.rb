@@ -1057,7 +1057,7 @@ module Cute
                    'command' => command
                   }
 
-        info "Reserving resources: #{resources} (type: #{type}) (in #{site})"
+        info "Reserving resources: #{resources} (types: #{type.join(' ')}) (in #{site})"
 
         payload['properties'] = properties unless properties.nil?
         payload['types'] = type.map{ |t| t.to_s} unless type.nil?
