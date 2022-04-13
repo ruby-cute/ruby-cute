@@ -1031,7 +1031,7 @@ module Cute
 
         raise 'nodes should be an integer or a string containing either ALL or BEST' unless (nodes.is_a?(Fixnum) or ["ALL","BEST"].include?(nodes))
 
-        command = "sleep #{secs}" if command.nil?
+        command = "sleep infinity" if command.nil?
 
         if resources == ""
           resources = "/switch=#{switches}" unless switches.nil?
