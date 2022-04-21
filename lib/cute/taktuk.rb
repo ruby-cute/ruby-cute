@@ -123,7 +123,6 @@ module Cute
           yield  taktuk_cmd
           taktuk_cmd.loop unless taktuk_cmd.commands.empty?
           taktuk_cmd.free! if taktuk_cmd
-          taktuk_cmd = nil
         end
       else
         return taktuk_cmd
@@ -372,9 +371,9 @@ module Cute
       def to_cmd
         self.inject([]) do |ret,val|
           if val =~ /^\[(.*)\]$/
-            ret += ['[',Regexp.last_match(1).strip,']']
+            ret + ['[',Regexp.last_match(1).strip,']']
           else
-            ret += val.split(' ')
+            ret + val.split(' ')
           end
         end
       end
@@ -417,7 +416,7 @@ module Cute
 
         @streams.types.each{ |name|
           @args << '-o'
-          @args << "#{name.to_s}=#{@streams.to_cmd}"
+          @args << "#{name}=#{@streams.to_cmd}"
         }
 
         connector = build_connector
@@ -563,7 +562,7 @@ module Cute
       #    tak.input(:file => "test_file.tar")
       def input(opts = {})
         mode = "broadcast"
-        @commands << "#{mode} input #{opts.keys.first.to_s}"
+        @commands << "#{mode} input #{opts.keys.first}"
         @commands << "[ #{opts.values.first} ]"
         @commands << ';'
       end

@@ -4,9 +4,9 @@ require 'spec_helper'
 describe Cute::G5K::API do
 
   if ENV['TEST_REAL']
-    subject { g5k = ENV['DEBUG'].nil?? Cute::G5K::API.new() : Cute::G5K::API.new(:debug => true) }
+    subject { ENV['DEBUG'].nil?? Cute::G5K::API.new() : Cute::G5K::API.new(:debug => true) }
   else
-    subject { g5k = ENV['DEBUG'].nil?? Cute::G5K::API.new(:user => "test") : Cute::G5K::API.new(:user => "test",:debug => true) }
+    subject { ENV['DEBUG'].nil?? Cute::G5K::API.new(:user => "test") : Cute::G5K::API.new(:user => "test",:debug => true) }
   end
 
   let(:sites) { subject.site_uids}
@@ -190,7 +190,6 @@ describe Cute::G5K::API do
   end
 
   it "submit and does not wait for the reservation" do
-    cluster = subject.cluster_uids(@rand_site).first
     job = subject.reserve(:site => @rand_site, :wait => false)
     job = subject.wait_for_job(job, :wait_time => 600)
     expect(job).to include('state' => "running")

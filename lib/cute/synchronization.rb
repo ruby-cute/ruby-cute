@@ -1,8 +1,6 @@
 module Cute
    module Synchronization
-    require 'thread'
-
-    class Semaphore
+     class Semaphore
       def initialize(max)
         @lock = Mutex.new
         @cond = ConditionVariable.new

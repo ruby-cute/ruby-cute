@@ -4,7 +4,7 @@ require 'spec_helper'
 
 describe Cute::G5K::API do
 
-  subject { g5k = ENV['TEST_REAL'].nil?? Cute::G5K::API.new(:user => "test") : Cute::G5K::API.new() }
+  subject { ENV['TEST_REAL'].nil?? Cute::G5K::API.new(:user => "test") : Cute::G5K::API.new() }
 
   before :each do
     if ENV['TEST_REAL']

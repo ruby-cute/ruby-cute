@@ -47,7 +47,7 @@ if jobs.keys.empty? then
 end
 
 nodes = []
-jobs.each{ |k,v| nodes+=v["assigned_nodes"]}
+jobs.each{ |_k,v| nodes+=v["assigned_nodes"]}
 
 puts("Nodes reserved: #{nodes.inspect}")
 

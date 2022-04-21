@@ -13,14 +13,12 @@ module Cute
     end
 
     def Network::wait_open_port(host, port, timeout = 120)
-      def now()
-        return Time.now.to_f
-      end
-      bound = now() + timeout
-      while now() < bound do
-        t = now()
+      now = -> { return Time.now.to_f }
+      bound = now.call + timeout
+      while now.call < bound do
+        t = now.call
         return true if port_open?(host, port)
-        dt = now() - t
+        dt = now.call - t
         sleep(0.5 - dt) if dt < 0.5
       end
       return false
