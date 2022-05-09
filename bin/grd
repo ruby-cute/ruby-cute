@@ -13,7 +13,7 @@ def cute_init
   STDOUT.sync = true
   STDERR.sync = true
   conf = ENV['HOME']+'/.grid5000_api.yml'
-  if File::exists?(conf)
+  if File::exist?(conf)
     yconf = YAML::load(IO::read(conf)) rescue {}
     $login = yconf['username']
     $password = yconf['password']
@@ -27,7 +27,7 @@ def cute_init
   end
   $g5k.rest.user_agent += " grd"
   $logger.level = Logger::INFO
-  $logger.formatter = proc { |severity, datetime, progname, msg| "%s, [%s] %s\n" % [severity[0..0], datetime.strftime("%Y-%m-%d %H:%M:%S"), msg ]  }
+  $logger.formatter = proc { |severity, datetime, _progname, msg| "%s, [%s] %s\n" % [severity[0..0], datetime.strftime("%Y-%m-%d %H:%M:%S"), msg ]  }
   $g5k.logger = $logger
 end
 
@@ -118,7 +118,7 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
     end
     opts.separator ""
     opts.separator "## (B) Choose when to reserve resources (default: ASAP, and wait interactively):"
-    opts.on("-d", "--detach", "Reserve resources ASAP, but do not wait interactively (batch/submission mode)") do |d|
+    opts.on("-d", "--detach", "Reserve resources ASAP, but do not wait interactively (batch/submission mode)") do
      o[:detach] = true
     end
     opts.on("-r", "--reservation DATE", "Resources at a specified date and time. Do not wait for the reservation to start.") do |d|
@@ -126,7 +126,7 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
       o[:detach] = true
     end
     opts.separator ""
-    opts.separator "## (C) Set the environment to provision. If none specified, the 'standard' environment will be used"
+    opts.separator "## (C) Set the environment (system image) to provision. If none specified, the 'standard' environment will be used"
     opts.on("-e", "--environment ENV", "Kadeploy environment to provision") do |d|
       o[:env] = d
     end
@@ -141,7 +141,7 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
     end
     opts.separator ""
     opts.separator "## (E) Connect interactively to the first node (incompatible with '--reservation' and '--detach')."
-    opts.on("-c", "--connect") do |d|
+    opts.on("-c", "--connect") do
       o[:connect] = true
     end
     opts.separator ""
@@ -267,7 +267,6 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
         end
       end
       break if job['state'] == 'running'
-      oldt = t
       t = job['scheduled_at']
       if !t.nil?
         t = Time.at(t)
@@ -294,7 +293,7 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
     # deployment
     do_provisioning(site, job, o)
 
-  rescue Interrupt => e
+  rescue Interrupt
     $logger.info "Interrupted. Releasing resources."
     $g5k.release(job)
     exit(1)
@@ -443,12 +442,12 @@ elsif ['terminate', 't'].include?(ARGV[0])
   else
     sites = get_api_sites
   end
-  sites.each do |site|
-    jobs = $g5k.get_jobs(site, $login, %w{waiting launching running hold error terminated} - %w{error terminated})
+  sites.each do |cursite|
+    jobs = $g5k.get_jobs(cursite, $login, %w{waiting launching running hold error terminated} - %w{error terminated})
     jobs.each do |j|
       next if o[:job] and j['uid'].to_i != o[:job].to_i
       sa = j['started_at'] ? Time::at(j['started_at']) : nil
-      sig = "site=#{site} id=#{j['uid']} state=#{j['state']} started_at=#{sa} nodes=#{nodeset(j['assigned_nodes'])}"
+      sig = "site=#{cursite} id=#{j['uid']} state=#{j['state']} started_at=#{sa} nodes=#{nodeset(j['assigned_nodes'])}"
       if o[:yes]
         puts "Terminating #{sig}"
         $g5k.release(j)
