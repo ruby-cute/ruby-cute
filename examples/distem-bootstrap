@@ -132,7 +132,7 @@ optparse = OptionParser.new do |opts|
   opts.on( '-c', '--coordinator <coordinator_address>', 'Address of the coordinator (default: first node)' ) do |c|
     options[:coordinator] = c || nil
   end
-  opts.on( '-x', '--no-init-pnodes', 'Do not initialize all pnodes' ) do |c|
+  opts.on( '-x', '--no-init-pnodes', 'Do not initialize all pnodes' ) do
     options[:init_pnodes] = false
   end
   opts.on( '--max-vifaces <nb>', 'Set the maximum number of vifaces on a physical node (used only without --no-init-pnodes)' ) do |n|
@@ -174,7 +174,7 @@ optparse = OptionParser.new do |opts|
   opts.on( '-B', '--branch <branch_name>', "Checkout a specific branch and rebuild a Debian package" ) do |n|
     options[:branch] = n
   end
-  opts.on( '-S', '--stealth-mode', 'Do not report usage statistics (Grid\'5000 only)' ) do |c|
+  opts.on( '-S', '--stealth-mode', 'Do not report usage statistics (Grid\'5000 only)' ) do
     options[:stats] = false
   end
   opts.on( '--btrfs-format <tmp_device>', 'Format the device with btrfs support to allow COW on Vnodes (experimental)' ) do |d|
@@ -411,7 +411,7 @@ Net::SSH::Multi.start do |session|
         session.with(:coord).exec! "cd #{gitdir} && git fetch origin #{options[:branch]}"
         session.with(:coord).exec! "cd #{gitdir} && git checkout #{options[:branch]}"
       end
-    else option[:gerrit] # gerrit
+    elsif option[:gerrit] # gerrit
       logger.info("Setting up git repository from gerrit ref:#{options[:gerrit]} on #{coordinator}")
       session.with(:coord).exec! "git clone #{GERRIT_REPOSITORY} #{gitdir}"
       session.with(:coord).exec! "cd #{gitdir} && git fetch #{GERRIT_REPOSITORY} #{options[:gerrit]} && git checkout FETCH_HEAD"
@@ -554,7 +554,7 @@ Net::SSH::Multi.start do |session|
 
         argv_dup = ARGV.dup
         argv_dup.shift
-        script_args = (argv_dup.length > 0 ? argv_dup.join(" ") : "")
+        #script_args = (argv_dup.length > 0 ? argv_dup.join(" ") : "")
         #session.with(:coord).exec! "export #{VAR_DISTEM_NODES}='#{(nodelist + [coordinator]) * "\n"}'; export #{VAR_DISTEM_COORD}='#{coordinator}';#{filename} #{script_args}"
         session.with(:coord).exec! "rm #{filename}"
       end
@@ -582,6 +582,6 @@ Net::SSH::Multi.start do |session|
        sock.send(stats.to_yaml,0)
        sock.close
      rescue SocketError, Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::ETIMEDOUT, Errno::EHOSTUNREACH
-   end
+     end
    end
 end
