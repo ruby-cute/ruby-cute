@@ -1,3 +1,16 @@
+ruby-cute (0.19) unstable; urgency=low
+
+  * fef0ea7 Better error handling when reservation fails
+  * 9ea4d3d Various improvements to grd list
+  * 95dbe26 Add debug mode
+  * 8805c55 Update packaging
+  * 10fcfd1 Add 'grd list'
+  * 5f1ae78 more rubocop warnings
+  * b8420ac resolve rubocop warnings
+  * 0d55e0e Improve documentation about grd
+
+ -- Lucas Nussbaum <lucas.nussbaum@inria.fr>  Tue, 10 May 2022 09:56:47 +0200
+
 ruby-cute (0.18) unstable; urgency=low
 
   * f43a834 Minor bugfixes
