@@ -701,7 +701,9 @@ module Cute
       # @param site [String] a valid Grid'5000 site name
       # @param uid [String] user name in Grid'5000
       # @param states [Array] or [String] jobs state: running, waiting (multiple states can be specified)
-      def get_jobs(site, uid = nil, states = nil)
+      # @param details [String] pass "resources=yes to the query to get the list of resources
+      # @param recurse [String] after fetching the list of jobs, fetch details about each job individualy
+      def get_jobs(site, uid = nil, states = nil, details = false, recurse = true)
 
         parameters = []
         if states then
@@ -709,12 +711,19 @@ module Cute
           parameters.push("state=#{states.join(",")}")
         end
         parameters.push("user=#{uid}") if uid
-        parameters.push("limit=25") if (states.nil? and uid.nil?)
+        parameters
+        parameters.push("limit=1000000")
+        parameters.push("resources=yes") if details
 
+        info(debug_cmd(api_uri("/sites/#{site}/jobs?#{parameters.join("&")}"),"GET"), :debug)
         jobs = @g5k_connection.get_json(api_uri("/sites/#{site}/jobs?#{parameters.join("&")}")).items
-        jobs.map{ |j| @g5k_connection.get_json(j.rel_self)}
-        # This request sometime is could take a little long when all jobs are requested
-        # The API return by default 50 the limit was set to 25 (e.g., 23 seconds).
+        if recurse
+          jobs.map! do |j|
+            info(debug_cmd(j.rel_self, "GET"), :debug)
+            @g5k_connection.get_json(j.rel_self)
+          end
+        end
+        jobs
       end
 
       # @return [Hash] the last 50 deployments performed in a Grid'5000 site

@@ -458,13 +458,14 @@ elsif ['list', 'l'].include?(ARGV[0])
   if o[:all]
     r += ['project', 'user']
   end
-  r += ['queue', 'state', 'start', 'end', 'duration', 'nodes', 'count' ]
+  r += ['queue', 'state', 'start', 'end', 'duration', 'name', 'types', 'nodes', 'count' ]
   a << r
 
   login = o[:all] ? nil : $login
   m = Mutex::new
   sites.peach do |cursite|
-    jobs = $g5k.get_jobs(cursite, login, %w{waiting launching running hold error terminated} - %w{error terminated})
+    # FIXME implement pagination (see https://intranet.grid5000.fr/bugzilla/show_bug.cgi?id=13882 about missing doc)
+    jobs = $g5k.get_jobs(cursite, login, %w{waiting launching running hold error terminated} - %w{error terminated}, true, false)
     jobs.each do |j|
       sa = if j['started_at'] and j['started_at'] > 0
              Time::at(j['started_at'])
@@ -486,15 +487,17 @@ elsif ['list', 'l'].include?(ARGV[0])
       mm, ss = t.divmod(60)            #=> [4515, 21]
       hh, mm = mm.divmod(60)           #=> [75, 15]
       dd, hh = hh.divmod(24)           #=> [3, 3]
-      walltime_s = "%dd %2dh %2dm %2ds" % [dd, hh, mm, ss]
+      walltime_s = "%dd%2dh%2dm%2ds" % [dd, hh, mm, ss]
       nodes = nodeset(j['assigned_nodes'])
       nodes_count = j['assigned_nodes'].uniq.length
+      # we hide the default monitor type to avoid useless noise
+      types = j['types'].reject { |t| t == 'monitor=prom_.*default_metrics' }.join(',')
       m.synchronize do
         r = [ cursite, j['uid'] ]
         if o[:all]
           r += [ j['project'], j['user'] ]
         end
-        r += [ j['queue'], j['state'], sa_s, endt_s, walltime_s, nodes, nodes_count ]
+        r += [ j['queue'], j['state'], sa_s, endt_s, walltime_s, j['name'], types, nodes, nodes_count ]
         a << r
       end
     end
