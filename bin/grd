@@ -27,7 +27,12 @@ def cute_init
     exit(1)
   end
   $g5k.rest.user_agent += " grd"
-  $logger.level = Logger::INFO
+  $debug = true if ENV['GRD_DEBUG']
+  if $debug
+    $logger.level = Logger::DEBUG
+  else
+    $logger.level = Logger::INFO
+  end
   $logger.formatter = proc { |severity, datetime, _progname, msg| "%s, [%s] %s\n" % [severity[0..0], datetime.strftime("%Y-%m-%d %H:%M:%S"), msg ]  }
   $g5k.logger = $logger
 end
@@ -40,14 +45,14 @@ def do_provisioning(site, job, o)
       :env => o[:env],
       :keys => keys
     }
-    $logger.level = Logger::WARN
+    $logger.level = Logger::WARN unless $debug
     job = $g5k.deploy(job, d)
-    $logger.level = Logger::INFO
+    $logger.level = Logger::INFO unless $debug
     duid = job['deploy'].last['uid']
     $logger.info "Started provisioning of environment #{o[:env]}. Live log: https://api.grid5000.fr/3.0/sites/#{site}/internal/kadeployapi/deployment/#{duid}/logs"
-    $logger.level = Logger::WARN
+    $logger.level = Logger::WARN unless $debug
     job = $g5k.wait_for_deploy(job)
-    $logger.level = Logger::INFO
+    $logger.level = Logger::INFO unless $debug
     deploy = job['deploy'].last
     failed = ((deploy['status'] == 'error') or (not deploy['result'].to_a.select { |e| e[1]['state'] != 'OK' }.empty?))
     if failed
