@@ -7,6 +7,7 @@ require 'pp'
 require 'net/ssh/gateway'
 require 'net/ssh'
 require 'net/scp'
+require 'peach'
 
 def cute_init
   $logger = Logger.new(STDOUT)
@@ -417,9 +418,96 @@ elsif ['inner'].include?(ARGV[0])
 
   sleep() # sleep until end of reservation
 
-elsif ['terminate', 't'].include?(ARGV[0])
+elsif ['list', 'l'].include?(ARGV[0])
   cute_init
 
+  ARGV.shift
+  o = {}
+  OptionParser.new do |opts|
+    opts.banner =  "usage: grd list [options]"
+    opts.separator "  List reservations"
+    opts.on("-s", "--site SITE", "Only list reservations on the specified site") do |d|
+      o[:site] = resolve_site(d)
+    end
+    opts.on("-a", "--all", "List all reservations, not just the current user's") do
+      o[:all] = true
+    end
+    opts.on("-r", "--raw", "Raw output (suitable for scripts)") do
+      o[:raw] = true
+    end
+  end.parse!
+
+  if o[:site]
+    sites = [ o[:site] ]
+  else
+    sites = get_api_sites.sort
+  end
+  begin
+    require 'terminal-table'
+  rescue LoadError
+    STDERR.puts "'terminal-table' library not found, using raw mode"
+    o[:raw] = true
+  end
+  a = []
+  r = ['site', 'id']
+  if o[:all]
+    r += ['project', 'user']
+  end
+  r += ['queue', 'state', 'start', 'end', 'duration', 'nodes', 'count' ]
+  a << r
+
+  login = o[:all] ? nil : $login
+  m = Mutex::new
+  sites.peach do |cursite|
+    jobs = $g5k.get_jobs(cursite, login, %w{waiting launching running hold error terminated} - %w{error terminated})
+    jobs.each do |j|
+      sa = if j['started_at'] and j['started_at'] > 0
+             Time::at(j['started_at'])
+           elsif j['scheduled_at'] and j['scheduled_at'] > 0
+             Time::at(j['scheduled_at'])
+           else
+             nil
+           end
+      sa_s = sa.nil? ? '' : sa.strftime("%Y-%m-%d %H:%M:%S")
+      endt = if sa
+               sa + j['walltime']
+             else
+               nil
+             end
+      endt_s = endt.nil? ? '' : endt.strftime("%Y-%m-%d %H:%M:%S")
+
+      # convert walltime to d/h/m/s
+      t = j['walltime']
+      mm, ss = t.divmod(60)            #=> [4515, 21]
+      hh, mm = mm.divmod(60)           #=> [75, 15]
+      dd, hh = hh.divmod(24)           #=> [3, 3]
+      walltime_s = "%dd %2dh %2dm %2ds" % [dd, hh, mm, ss]
+      nodes = nodeset(j['assigned_nodes'])
+      nodes_count = j['assigned_nodes'].uniq.length
+      m.synchronize do
+        r = [ cursite, j['uid'] ]
+        if o[:all]
+          r += [ j['project'], j['user'] ]
+        end
+        r += [ j['queue'], j['state'], sa_s, endt_s, walltime_s, nodes, nodes_count ]
+        a << r
+      end
+    end
+  end
+  a = [a[0]] + a[1..-1].sort { |a1, a2| [a1[0],a1[1]] <=> [a2[0], a2[1]] }
+  if o[:raw]
+    a.each do |l|
+      puts l.join("\t")
+    end
+  else
+    table = Terminal::Table.new
+    table.headings = a[0]
+    table.rows = a[1..-1]
+    puts table
+  end
+
+elsif ['terminate', 't'].include?(ARGV[0])
+  cute_init
   ARGV.shift
   o = {}
   OptionParser.new do |opts|
@@ -472,6 +560,7 @@ usage: grd <command> [options]
 
 Available commands:
    bootstrap   Reserve, provision, configure and connect to resources (alias: bs)
+   list        List resources reservations (alias: l)
    terminate   Terminate resources reservation(s) (alias: t)
 
 Use 'grd <command> --help' for details.

@@ -29,6 +29,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'net-ssh', '>= 3.2'
   s.add_dependency 'net-ssh-multi', '>= 1.2'
   s.add_dependency 'net-scp', '>= 1.2'
+  s.add_dependency 'peach', '>= 0.5.1'
 
   s.extra_rdoc_files = ['README.md', 'LICENSE']
   s.license = 'CeCILL-B'
