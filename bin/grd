@@ -1,6 +1,8 @@
 #!/usr/bin/ruby
 
 gem 'ruby-cute', '>= 0.12'
+$:.unshift File.expand_path("../../lib", File.realpath(__FILE__))
+
 require 'cute'
 require 'optparse'
 require 'pp'
@@ -250,7 +252,17 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
     end
   end
 
-  job = $g5k.reserve(jo)
+  begin
+    job = $g5k.reserve(jo)
+  rescue Cute::G5K::BadRequest => e
+    $logger.error("Reservation failed with error 400 (Bad Request)")
+    if e.inner_message
+      $logger.error("Error message from reservation system:")
+      e.inner_message.each_line { |l| puts "  " + l }
+    end
+    exit(1)
+  end
+
   $logger.info("OAR job ID: #{job['uid']}")
 
   begin

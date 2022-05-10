@@ -63,6 +63,7 @@ module Cute
     #
     #    end
     class BadRequest < Error
+      attr_accessor :inner_url, :inner_code, :inner_title, :inner_message
     end
 
     # It wraps all Restclient exceptions with http codes: 403, 405,406, 412, 415, 500, 502, 503 and 504.
@@ -321,6 +322,7 @@ module Cute
 
       # Issues a Cute::G5K exception according to the http status code
       def handle_exception(e, req = nil)
+=begin
         puts("Error: #{$!}")
         puts("Backtrace:\n\t"+e.backtrace.join("\n\t"))
         if e.respond_to? :http_code
@@ -329,6 +331,7 @@ module Cute
         if e.respond_to? :response and e.response != ''
           puts("Response: #{e.response}")
         end
+=end
 
         unless e.respond_to? :http_code
           raise e
@@ -338,11 +341,23 @@ module Cute
         case e.http_code
 
         when  400
-          raise BadRequest.new("Bad request", e)
+          br = BadRequest.new("Bad request (error 400): #{e.http_body}", e)
+          if e.http_body =~ /^Request to ([^ ]*) failed with status 400: (.*)$/m
+            br.inner_url = $1
+            json = $2
+            begin
+              d = JSON::parse(json)
+              br.inner_code = d['code']
+              br.inner_title = d['title']
+              br.inner_message = d['message']
+            rescue
+            end
+          end
+          raise br
         when 404
-          raise NotFound.new("Resource not found", e)
+          raise NotFound.new("Resource not found (error 404): #{e.http_body}", e)
         when 401
-          raise Unauthorized.new("Authentication problem",e)
+          raise Unauthorized.new("Authentication problem (error 401): #{e.http_body}",e)
         else
           if @on_error == :ignore
             return nil
@@ -723,7 +738,7 @@ module Cute
             @g5k_connection.get_json(j.rel_self)
           end
         end
-        jobs
+        jobs.to_a
       end
 
       # @return [Hash] the last 50 deployments performed in a Grid'5000 site
@@ -1083,15 +1098,8 @@ module Cute
           payload['reservation'] = reservation
         end
 
-        begin
-          info debug_cmd(api_uri("sites/#{site}/jobs"),"POST",payload.to_json), :debug
-          r = @g5k_connection.post_json(api_uri("sites/#{site}/jobs"),payload)  # This makes reference to the same class
-        rescue Error => e
-          info "Fail to submit job"
-          info e.message
-          e.http_body.split("\\n").each{ |line| info line} if e.http_body
-          raise
-        end
+        info debug_cmd(api_uri("sites/#{site}/jobs"),"POST",payload.to_json), :debug
+        r = @g5k_connection.post_json(api_uri("sites/#{site}/jobs"),payload)  # This makes reference to the same class
 
         job = @g5k_connection.get_json(r.rel_self)
         job = wait_for_job(job) if opts[:wait] == true
