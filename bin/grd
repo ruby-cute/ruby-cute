@@ -554,7 +554,11 @@ elsif ['terminate', 't'].include?(ARGV[0])
     jobs = $g5k.get_jobs(cursite, $login, %w{waiting launching running hold error terminated} - %w{error terminated})
     jobs.each do |j|
       next if o[:job] and j['uid'].to_i != o[:job].to_i
-      sa = j['started_at'] ? Time::at(j['started_at']) : nil
+      if j['started_at'] and j['started_at'] > 0
+        sa = Time::at(j['started_at'])
+      else
+        sa = ''
+      end
       sig = "site=#{cursite} id=#{j['uid']} state=#{j['state']} started_at=#{sa} nodes=#{nodeset(j['assigned_nodes'])}"
       if o[:yes]
         puts "Terminating #{sig}"
