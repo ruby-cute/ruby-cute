@@ -11,6 +11,7 @@ Build-Depends: debhelper-compat (= 13),
                ruby-net-scp (>= 1.2),
                ruby-net-ssh (>= 3.2),
                ruby-net-ssh-multi (>= 1.2),
+               ruby-peach (>= 0.5.1),
                ruby-rest-client (>= 1.6),
                ruby-rspec,
                ruby-simplecov,
@@ -30,5 +31,6 @@ XB-Ruby-Versions: ${ruby:Versions}
 Depends: ${misc:Depends},
          ${ruby:Depends},
          ${shlibs:Depends}
+Recommends: ruby-terminal-table
 Description: Critically Useful Tools for Experiments
  Ruby library for controlling experiments
