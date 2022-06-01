@@ -16,16 +16,16 @@ class Net::SSH::Connection::Session
     res[:exit_signal] = nil
     ts = Time::now
     open_channel do |channel|
-      channel.exec(command) do |ch, success|
+      channel.exec(command) do |_ch, success|
         unless success
           abort "FAILED: couldn't execute command (ssh.channel.exec)"
         end
-        channel.on_data do |ch,data|
+        channel.on_data do |_ch,data|
           print data unless o[:no_output]
           res[:stdout]+=data
         end
 
-        channel.on_extended_data do |ch,type,data|
+        channel.on_extended_data do |_ch,_type,data|
           print data unless o[:no_output]
           if o[:merge_outputs]
             res[:stdout]+=data
@@ -34,13 +34,13 @@ class Net::SSH::Connection::Session
           end
         end
 
-        channel.on_request("exit-status") do |ch,data|
+        channel.on_request("exit-status") do |_ch,data|
           res[:exit_code] = data.read_long
           d = sprintf("%.1f", Time::now - ts)
           puts "EXITCODE: #{res[:exit_code]} (duration: #{d}s)" unless o[:no_log]
         end
 
-        channel.on_request("exit-signal") do |ch, data|
+        channel.on_request("exit-signal") do |_ch, data|
           res[:exit_signal] = data.read_long
           d = sprintf("%.1f", Time::now - ts)
           puts "EXITSIGNAL: #{res[:exit_signal]} (duration: #{d}s)" unless o[:no_log]

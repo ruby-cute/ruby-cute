@@ -30,6 +30,7 @@ class FakeG5KResponse < Hash
                 'nodes' => {"node1" => {"hard"=> "alive", "soft"=>"busy"}}
                }
   def initialize(num_items = 2)
+    super
     MEDIA_TYPE.each { |key,value| self[key] = value}
     self['items'] = []
     num_items.times.each{ self['items'].push(MEDIA_TYPE) }

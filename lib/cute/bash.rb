@@ -55,7 +55,7 @@ module Cute; module Bash
             return Digest::SHA512.hexdigest(randee).to_s
         end
 
-        def _run(cmd, opts)
+        def _run(cmd, _opts)
             # it's a kind of magic
             $stderr.write("\nBASH CMD: #{cmd}\n") if @debug
             nonce = _nonce()
@@ -74,7 +74,7 @@ module Cute; module Bash
             return output, status.to_i
         end
 
-        def _run_block(cmd, opts)
+        def _run_block(cmd, _opts)
             @stdin.write("#{cmd}; printf '%04d#{nonce}' $?\n")
         end
 
@@ -110,7 +110,7 @@ module Cute; module Bash
         end
 
         def run_status(cmd, opts = {})
-            out, status = _run(cmd, opts)
+            _out, status = _run(cmd, opts)
             return status
         end
 
@@ -278,7 +278,7 @@ module Cute; module Bash
 
         def packages
             list = run("dpkg -l")
-            list = _unlines(list).map do |p|
+            _unlines(list).map do |p|
                 s, n, v = p.split
                 { :status => s, :name => n, :version => v }
             end
@@ -313,13 +313,13 @@ module Cute; module Bash
 
     def self.bash(cmd = 'bash', debug = false, &block)
         if not block_given?
-            sin, sout, serr, thr = Open3.popen3(cmd)
+            sin, sout, _serr, _thr = Open3.popen3(cmd)
             return Bash.new(sin, sout, debug)
         end
         # run bash interpreter using this command
         result = nil
-        Open3.popen3(cmd) do |sin, sout, serr, thr|
-            dsl = Bash.new(sin, sout, debug)
+        Open3.popen3(cmd) do |cmdsin, cmdsout, _cmdserr, _cmdthr|
+            dsl = Bash.new(cmdsin, cmdsout, debug)
             dsl.cd('~')   # go to the home dir
             result = dsl.parse(&block)
         end

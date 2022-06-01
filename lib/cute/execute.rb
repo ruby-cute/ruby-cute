@@ -2,8 +2,7 @@
 module Cute
 
   class Execute
-    require 'thread'
-    require 'fcntl'
+        require 'fcntl'
     attr_reader :command, :exec_pid, :stdout, :stderr, :status,:emptypipes
     @@forkmutex = Mutex.new
 
@@ -254,14 +253,17 @@ module Cute
                 f_IO=IO.new(fd)
                 f_IO.close if !f_IO.closed?
               end
-            rescue Exception
+            rescue StandardError
               #Some file descriptor are reserved for the rubyVM.
               #So the function 'IO.new' raises an exception. We ignore that.
             end
           end
         end
         exec(*@command)
-      rescue SystemCallError, Exception => e
+      rescue SystemCallError => e
+        STDERR.puts "Fork Error: #{e.message} (#{e.class.name})"
+        STDERR.puts e.backtrace
+      rescue StandardError => e
         STDERR.puts "Fork Error: #{e.message} (#{e.class.name})"
         STDERR.puts e.backtrace
       end

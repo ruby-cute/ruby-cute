@@ -24,7 +24,7 @@ module Cute
     # - {Cute::G5K::Unauthorized} it means that there is an authentication problem.
     # - {Cute::G5K::EventTimeout} this exception is triggered by the methods that wait for events such as:
     #   job submission and environment deployment.
-    class Error < Exception
+    class Error < StandardError
       attr_accessor :orig # Original exception
 
       def initialize(message = nil, object = nil)
@@ -218,7 +218,6 @@ module Cute
           @endpoint = "https://#{user_escaped}:#{pass_escaped}@#{uri.split("https://")[1]}"
         end
 
-        machine =`uname -ov`.chop
         @user_agent = "ruby-cute/#{VERSION} Ruby/#{RUBY_VERSION}"
         @api = RestClient::Resource.new(@endpoint, :timeout => 30,:verify_ssl => false)
         # some versions of restclient do not verify by default SSL certificates , :verify_ssl => true)
@@ -321,8 +320,7 @@ module Cute
       end
 
       # Issues a Cute::G5K exception according to the http status code
-      def handle_exception(e, req = nil)
-=begin
+      def handle_exception(e, _req = nil)
         puts("Error: #{$!}")
         puts("Backtrace:\n\t"+e.backtrace.join("\n\t"))
         if e.respond_to? :http_code
@@ -331,7 +329,6 @@ module Cute
         if e.respond_to? :response and e.response != ''
           puts("Response: #{e.response}")
         end
-=end
 
         unless e.respond_to? :http_code
           raise e
@@ -350,7 +347,8 @@ module Cute
               br.inner_code = d['code']
               br.inner_title = d['title']
               br.inner_message = d['message']
-            rescue
+            rescue JSON::ParserError
+              # Ignore error
             end
           end
           raise br
@@ -726,7 +724,6 @@ module Cute
           parameters.push("state=#{states.join(",")}")
         end
         parameters.push("user=#{uid}") if uid
-        parameters
         parameters.push("limit=1000000")
         parameters.push("resources=yes") if details
 
@@ -1053,7 +1050,7 @@ module Cute
 
         raise 'At least nodes and site must be given'  if [nodes, site].any? { |x| x.nil? }
 
-        raise 'nodes should be an integer or a string containing either ALL or BEST' unless (nodes.is_a?(Fixnum) or ["ALL","BEST"].include?(nodes))
+        raise 'nodes should be an integer or a string containing either ALL or BEST' unless (nodes.is_a?(Integer) or ["ALL","BEST"].include?(nodes))
 
         command = "sleep infinity" if command.nil?
 
@@ -1064,7 +1061,7 @@ module Cute
           resources += "/core=#{cores}" unless cores.nil?
 
           if cluster
-            resources = (cluster.is_a?(Fixnum) ? "/cluster=#{cluster}" : "{cluster='#{cluster}'}") + resources
+            resources = (cluster.is_a?(Integer) ? "/cluster=#{cluster}" : "{cluster='#{cluster}'}") + resources
           end
 
           resources = "{type='#{vlan}'}/vlan=#{num_vlan}+" + resources unless vlan.nil?
@@ -1289,7 +1286,7 @@ module Cute
 
         job["deploy"].map!{  |d| d.refresh(@g5k_connection) }
 
-        filter.keep_if{ |k,v| v} # removes nil values
+        filter.keep_if{ |_k,v| v} # removes nil values
         if filter.empty?
           status = job["deploy"].map{ |d| d["status"] }
         else
@@ -1367,7 +1364,7 @@ module Cute
       # @return [Array] machines that did not deploy successfully
       # @param deploy_info [Hash] deployment structure information
       def check_deployment(deploy_info)
-        deploy_info["result"].select{ |p,v|  v["state"] == "KO"}.keys
+        deploy_info["result"].select{ |_p,v|  v["state"] == "KO"}.keys
       end
 
       # Returns a valid  URI using the current G5K API version.

@@ -115,7 +115,7 @@ module SessionActions
             Multi.logger.debug("[#{c.connection.host}] #{data.strip}")
           end
         end
-        channel.on_extended_data do |c, type, data|
+        channel.on_extended_data do |c, _type, data|
           if block
             block.call(c, :stderr, data)
           else
@@ -129,7 +129,7 @@ module SessionActions
           results[c.connection.host][:status] = c[:exit_status]
           if c[:exit_status] != 0
             Multi.logger.info("execution of '#{command}' on #{c.connection.host}
-                            failed with return status #{c[:exit_status].to_s}")
+                            failed with return status #{c[:exit_status]}")
             if results[c.connection.host][:stdout]
               Multi.logger.info("--- stdout dump ---")
               Multi.logger.info(results[c.connection.host][:stdout])

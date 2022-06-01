@@ -503,7 +503,7 @@ elsif ['list', 'l'].include?(ARGV[0])
       nodes = nodeset(j['assigned_nodes'])
       nodes_count = j['assigned_nodes'].uniq.length
       # we hide the default monitor type to avoid useless noise
-      types = j['types'].reject { |t| t == 'monitor=prom_.*default_metrics' }.join(',')
+      types = j['types'].reject { |type| type == 'monitor=prom_.*default_metrics' }.join(',')
       m.synchronize do
         r = [ cursite, j['uid'] ]
         if o[:all]
@@ -550,8 +550,8 @@ elsif ['terminate', 't'].include?(ARGV[0])
   else
     sites = get_api_sites
   end
-  sites.each do |cursite|
-    jobs = $g5k.get_jobs(cursite, $login, %w{waiting launching running hold error terminated} - %w{error terminated})
+  sites.each do |current_site|
+    jobs = $g5k.get_jobs(current_site, $login, %w{waiting launching running hold error terminated} - %w{error terminated})
     jobs.each do |j|
       next if o[:job] and j['uid'].to_i != o[:job].to_i
       if j['started_at'] and j['started_at'] > 0

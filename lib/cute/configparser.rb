@@ -97,7 +97,9 @@ module Cute
       @path.compact.each do |field|
         begin
           field = Integer(field)
-        rescue ArgumentError
+        rescue ArgumentError => e
+          puts "Error: #{e.message}"
+          puts "#{e.backtrace}"
         end
 
         if ret[field]
@@ -164,7 +166,7 @@ module Cute
       end
     end
 
-    def check_array(val, array, fieldname)
+    def check_array(val, array, _fieldname)
       unless array.include?(val)
         raise ParserError.new(
           "Invalid value '#{val}', allowed value"\
@@ -183,7 +185,7 @@ module Cute
       check_array(val, range.entries, fieldname)
     end
 
-    def check_regexp(val, regexp, fieldname)
+    def check_regexp(val, regexp, _fieldname)
       unless val =~ regexp
         raise ParserError.new(
           "Invalid value '#{val}', the value must have the form (ruby-regexp): "\
@@ -193,8 +195,8 @@ module Cute
     end
 
     # A file, checking if exists (creating it otherwise) and writable
-    def check_file(val, file, fieldname)
-      if File.exists?(val)
+    def check_file(val, _file, _fieldname)
+      if File.exist?(val)
         unless File.file?(val)
           raise ParserError.new("The file '#{val}' is not a regular file")
         end
@@ -204,7 +206,7 @@ module Cute
     end
 
     # A directory, checking if exists (creating it otherwise) and writable
-    def check_dir(val, dir, fieldname)
+    def check_dir(val, _dir, _fieldname)
       if File.exist?(val)
         unless File.directory?(val)
           raise ParserError.new("'#{val}' is not a regular directory")
@@ -215,7 +217,7 @@ module Cute
     end
 
     # A pathname, checking if exists (creating it otherwise) and writable
-    def check_pathname(val, pathname, fieldname)
+    def check_pathname(val, _pathname, _fieldname)
       begin
         Pathname.new(val)
       rescue
@@ -223,7 +225,7 @@ module Cute
       end
     end
 
-    def check_string(val, str, fieldname)
+    def check_string(val, str, _fieldname)
       unless val == str
         raise ParserError.new(
           "Invalid value '#{val}', allowed values are: '#{str}'"
@@ -231,7 +233,7 @@ module Cute
       end
     end
 
-    def customcheck_code(val, fieldname, args)
+    def customcheck_code(_val, _fieldname, args)
       begin
         eval("#{args[:prefix]}#{args[:code]}#{args[:suffix]}")
       rescue
@@ -239,11 +241,11 @@ module Cute
       end
     end
 
-    def customcheck_file(val, fieldname, args)
+    def customcheck_file(val, _fieldname, args)
       return if args[:disable]
       val = File.join(args[:prefix],val) if args[:prefix]
       val = File.join(val,args[:suffix]) if args[:suffix]
-      if File.exists?(val)
+      if File.exist?(val)
         if File.file?(val)
           if args[:writable]
             unless File.stat(val).writable?
@@ -274,7 +276,7 @@ module Cute
       end
     end
 
-    def customcheck_dir(val, fieldname, args)
+    def customcheck_dir(val, _fieldname, args)
       return if args[:disable]
       val = File.join(args[:prefix],val) if args[:prefix]
       val = File.join(val,args[:suffix]) if args[:suffix]

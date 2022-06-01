@@ -4,7 +4,8 @@ require 'tmpdir'
 ROOT_DIR= File.expand_path('../..',__FILE__)
 BIN_DIR= File.join(ROOT_DIR,"bin")
 
-if `which pry` && $?.success? then
+pry_path = `which pry`
+if pry_path && $?.success? then
   PRY_BIN="pry"
 elsif File.exist?("~/.gem/bin/pry")
   PRY_BIN="~/.gem/bin/pry"

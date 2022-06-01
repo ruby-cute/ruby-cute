@@ -184,10 +184,7 @@ optparse = OptionParser.new do |opts|
    options[:ci] = path
   end
   opts.on( '-n', '--network-mode <mode>', 'Define the network mode (classical or vxlan)') do |mode|
-    case mode
-    when 'classical'
-    when 'vxlan'
-    else
+    if mode != 'classical' and mode != 'vxlan'
       puts 'Invalid network mode'
       exit 1
     end
@@ -497,7 +494,6 @@ Net::SSH::Multi.start do |session|
     session.with(:coord).exec! "mkdir -p #{PATH_DISTEMD_LOGS}"
     begin
       Timeout.timeout(10) do
-        root_iface_opt = options[:network_interface] ? "--network-interface #{options[:network_interface]}" : ''
         distem_cmd = "LANG=C distemd #{options[:verbose] ? '--verbose' : ''} -d &>#{File.join(PATH_DISTEMD_LOGS,'distemd.log')}&"
 
         session.with(:coord).exec! distem_cmd
@@ -545,19 +541,16 @@ Net::SSH::Multi.start do |session|
 
   if ARGV[0]
     begin
-      File.open(ARGV[0], 'r') do |f|
-        filename = session.with(:coord).exec!('tempfile')[coordinator][:stdout]
-        logger.info("Copying script file in '#{filename}' on #{coordinator}")
-        `scp #{ARGV[0]} root@#{coordinator}:#{filename}`
-        session.with(:coord).exec! "chmod +x #{filename}"
-        logger.info("Executing script file '#{filename}' on #{coordinator}")
+      filename = session.with(:coord).exec!('tempfile')[coordinator][:stdout]
+      logger.info("Copying script file in '#{filename}' on #{coordinator}")
+      `scp #{ARGV[0]} root@#{coordinator}:#{filename}`
+      session.with(:coord).exec! "chmod +x #{filename}"
+      logger.info("Executing script file '#{filename}' on #{coordinator}")
 
-        argv_dup = ARGV.dup
-        argv_dup.shift
-        #script_args = (argv_dup.length > 0 ? argv_dup.join(" ") : "")
-        #session.with(:coord).exec! "export #{VAR_DISTEM_NODES}='#{(nodelist + [coordinator]) * "\n"}'; export #{VAR_DISTEM_COORD}='#{coordinator}';#{filename} #{script_args}"
-        session.with(:coord).exec! "rm #{filename}"
-      end
+      argv_dup = ARGV.dup
+      argv_dup.shift
+      #session.with(:coord).exec! "export #{VAR_DISTEM_NODES}='#{(nodelist + [coordinator]) * "\n"}'; export #{VAR_DISTEM_COORD}='#{coordinator}';#{filename} #{script_args}"
+      session.with(:coord).exec! "rm #{filename}"
       logger.info 'Script execution done'
     rescue Errno::ENOENT
       logger.error "script file '#{ARGV[0]}' not found"
@@ -582,6 +575,7 @@ Net::SSH::Multi.start do |session|
        sock.send(stats.to_yaml,0)
        sock.close
      rescue SocketError, Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::ETIMEDOUT, Errno::EHOSTUNREACH
+       logger.error("An error occured while sending stats to #{STATS_SERV}:#{STATS_PORT}.")
      end
    end
 end
