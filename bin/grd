@@ -559,7 +559,7 @@ elsif ['terminate', 't'].include?(ARGV[0])
       else
         sa = ''
       end
-      sig = "site=#{cursite} id=#{j['uid']} state=#{j['state']} started_at=#{sa} nodes=#{nodeset(j['assigned_nodes'])}"
+      sig = "site=#{current_site} id=#{j['uid']} state=#{j['state']} started_at=#{sa} nodes=#{nodeset(j['assigned_nodes'])}"
       if o[:yes]
         puts "Terminating #{sig}"
         $g5k.release(j)
