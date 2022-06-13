@@ -1,4 +1,16 @@
 #!/usr/bin/ruby
+# For help, see' grd -h'
+#
+#
+# Grid5000 bugs that would help improve grd:
+# Bug 11547 - l'API OAR génère des fichiers temporaires oarapi.subscript.* dans les homes
+# Bug 13929 - Stocker la sortie des admissions rules dans un événement
+# Bug 13867 - l'API de kadeploy donne les logs de manière non idempotente
+# Random issues with the API that cause error 500:
+# - Bug 13928 - erreur 500 sur l'API lors d'un DELETE
+# - Bug 13742 - erreur 500 sur l'API pour créer un job
+# - Bug 13766 - erreur 500 api
+# - Bug 11697 - api-proxy/g5k-api: erreur "AH01102: error reading status line from remote server localhost:8000"
 
 gem 'ruby-cute', '>= 0.12'
 $:.unshift File.expand_path("../../lib", File.realpath(__FILE__))
