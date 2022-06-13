@@ -346,7 +346,7 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
     ssh.exec3!("chmod u+x #{tmpfile}", { :no_log => true, :no_output => true })
     args = (o[:script_arg] || []).join(' ')
     $logger.info "Running script on #{fnode} ..."
-    ssh.exec3!("#{tmpfile} #{args}")
+    ssh.exec3!("#{tmpfile} #{args}", { :ignore_error => true })
     $logger.info "Script finished."
     ssh.close
     ssh.shutdown!
@@ -432,7 +432,7 @@ elsif ['inner'].include?(ARGV[0])
       ssh.scp.upload!(o[:script], tmpfile)
       ssh.exec3!("chmod u+x #{tmpfile}", { :no_log => true, :no_output => true })
       $logger.info "Running script on #{fnode} ..."
-      ssh.exec3!("#{tmpfile} #{args}")
+      ssh.exec3!("#{tmpfile} #{args}", { :ignore_error => true })
       $logger.info "Script finished."
       ssh.close
       ssh.shutdown!
