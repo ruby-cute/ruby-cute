@@ -1,3 +1,18 @@
+ruby-cute (0.20) unstable; urgency=low
+
+  * ffac6af add --terminate-after-script
+  * 9363689 Do not raise exception when script fails
+  * e3bbe02 Improve help
+  * 75ff6db Add list of relevant Grid5000 bugs
+  * 6d3a407 Fix bug introduced by rubocop fixes
+  * 91773ae Merge branch 'feature/update-ci' into 'master'
+  * 6412d1c Run rspec tests in gitlab-ci
+  * 5507306 Fix Rubocop warnings.
+  * 9355eef [ci] add rubocop
+  * 3c6cc7e fix display of jobs that are not started
+
+ -- Lucas Nussbaum <lucas.nussbaum@loria.fr>  Mon, 13 Jun 2022 21:04:25 +0200
+
 ruby-cute (0.19) unstable; urgency=low
 
   * fef0ea7 Better error handling when reservation fails
