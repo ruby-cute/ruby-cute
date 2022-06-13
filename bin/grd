@@ -151,7 +151,7 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
       o[:env] = d
     end
     opts.separator ""
-    opts.separator "## (D) Run a file (a script) on the first node"
+    opts.separator "## (D) Run a file (typically a script) on the first node"
     opts.on("-f", "--script FILE", "script") do |d|
       o[:script] = d
     end
