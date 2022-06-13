@@ -159,6 +159,9 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
       o[:script_arg] ||= []
       o[:script_arg] << d
     end
+    opts.on("-T", "--terminate-after-script", "Terminate the reservation after the script execution") do
+      o[:terminate_after_script] = true
+    end
     opts.separator ""
     opts.separator "## (E) Connect interactively to the first node (incompatible with '--reservation' and '--detach')."
     opts.on("-c", "--connect") do
@@ -257,6 +260,9 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
       (o[:script_arg] || []).each do |a|
         jo[:cmd] += " -a '#{a}'"
       end
+      if o[:terminate_after_script]
+        jo[:cmd] += " --terminate-after-script"
+      end
     end
     if jo[:cmd] == 'grd inner'
       # since we have nothing specific to do, we just sleep instead of calling 'grd inner'.
@@ -275,7 +281,7 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
     exit(1)
   end
 
-  $logger.info("OAR job ID: #{job['uid']}")
+  $logger.info("OAR job (reservation) ID: #{job['uid']}")
 
   begin
     t = nil
@@ -285,7 +291,7 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
       begin
         job = $g5k.get_job(site, job['uid'])
       rescue Cute::G5K::RequestFailed, Cute::G5K::BadRequest => e
-        $logger.info "Fetching job status failed due to API error: #{e.message}"
+        $logger.info "Fetching reservation status failed due to API error: #{e.message}"
         tries += 1
         if tries < 5
           $logger.info "Retrying.."
@@ -355,8 +361,11 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
     end
   end
 
-  # connect
-  if o[:connect]
+  if o[:terminate_after_script]
+    $logger.info("Releasing resources.")
+    $g5k.release(job)
+
+  elsif o[:connect]
     jh = g5k_internal? ? "" : "-J #{$login}@access.grid5000.fr "
     cmd = "ssh -o StrictHostKeyChecking=accept-new #{jh}#{tlogin}@#{job['assigned_nodes'].first}"
     $logger.info "Connecting to first node using:"
@@ -375,6 +384,7 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
       $g5k.release(job)
     end
   end
+
 elsif ['inner'].include?(ARGV[0])
   ARGV.shift
   o = {}
@@ -391,6 +401,9 @@ elsif ['inner'].include?(ARGV[0])
     opts.on("-a", "--script-arg ARG", "argument to pass to the script (can be specified multiple times)") do |d|
       o[:script_arg] ||= []
       o[:script_arg] << d
+    end
+    opts.on("-T", "--terminate-after-script", "Terminate the reservation after the script execution (default: keep resources until end of walltime)") do
+      o[:terminate_after_script] = true
     end
   end.parse!
 
@@ -440,12 +453,17 @@ elsif ['inner'].include?(ARGV[0])
       # we are already on the node
       system("chmod u+x #{o[:script]}") or raise
       $logger.info "Running script ..."
-      system("#{o[:script]} #{args}") or raise
+      ssh.exec3!("#{tmpfile} #{args}", { :ignore_error => true }) or raise
       $logger.info "Script finished."
     end
   end
 
-  sleep() # sleep until end of reservation
+  if o[:terminate_after_script]
+    $logger.info("Terminating resources reservation.")
+  else
+    $logger.info("Waiting until end of reservation.")
+    sleep() # sleep until end of reservation
+  end
 
 elsif ['list', 'l'].include?(ARGV[0])
   cute_init
@@ -548,7 +566,7 @@ elsif ['terminate', 't'].include?(ARGV[0])
     opts.on("-s", "--site SITE", "Only terminate reservations on the specified site") do |d|
       o[:site] = resolve_site(d)
     end
-    opts.on("-j", "--job JOB_ID", "Only terminate the specified job (implies -y)") do |j|
+    opts.on("-j", "--job JOB_ID", "Only terminate the specified job/reservation (implies -y)") do |j|
       o[:job] = j
       o[:yes] = true
     end
