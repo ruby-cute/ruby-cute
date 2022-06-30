@@ -997,6 +997,7 @@ module Cute
       # @option opts [String] :cmd The command to execute when the job starts (e.g. ./my-script.sh).
       # @option opts [String] :cluster Valid Grid'5000 cluster
       # @option opts [String] :queue A specific job queue
+      # @option opts [String] :project A specific OAR project
       # @option opts [Array]  :subnets 1) prefix_size, 2) number of subnets
       # @option opts [String] :env Environment name for {http://kadeploy3.gforge.inria.fr/ Kadeploy}
       # @option opts [String] :vlan VLAN type and number: kavlan-local, kavlan, kavlan-topo, etc
@@ -1011,7 +1012,7 @@ module Cute
         # checking valid options
         valid_opts = [:site, :cluster, :switches, :cpus, :cores, :nodes, :walltime, :cmd,
                       :type, :name, :subnets, :env, :vlan, :num_vlan,:properties, :resources,
-                      :reservation, :wait, :keys, :queue, :env_user]
+                      :reservation, :wait, :keys, :queue, :project, :env_user]
         unre_opts = opts.keys - valid_opts
         raise ArgumentError, "Unrecognized option #{unre_opts}" unless unre_opts.empty?
 
@@ -1034,6 +1035,7 @@ module Cute
         type = [type] if type.is_a?(Symbol)
         keys = opts[:keys]
         queue = opts[:queue]
+        project = opts[:project]
         vlan = opts[:vlan]
         num_vlan = opts.fetch(:num_vlan, 1)
 
@@ -1084,6 +1086,7 @@ module Cute
         payload['types'] = type.map{ |t| t.to_s} unless type.nil?
         type.map!{|t| t.to_sym}  unless type.nil?
         payload['queue'] = queue if queue
+        payload['project'] = project if project
 
         unless type.include?(:deploy)
           if opts[:keys]
