@@ -1,3 +1,9 @@
+ruby-cute (0.21) unstable; urgency=low
+
+  * 402efe5 Support specifying OAR project
+
+ -- Lucas Nussbaum <lucas.nussbaum@loria.fr>  Thu, 30 Jun 2022 10:40:50 +0200
+
 ruby-cute (0.20) unstable; urgency=low
 
   * ffac6af add --terminate-after-script
