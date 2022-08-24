@@ -206,7 +206,8 @@ module Cute
       # @param user [String] user if authentication is needed
       # @param pass [String] password if authentication is needed
       # @param on_error [Symbol] option to deactivate the {Cute::G5K::RequestFailed RequestFailed} exceptions
-      def initialize(uri,api_version,user,pass,on_error)
+      # @param timeout [Integer] timeout for Rest request
+      def initialize(uri,api_version,user,pass,on_error,timeout)
         @user = user
         @pass = pass
         @api_version = api_version.nil? ? "stable" : api_version
@@ -219,7 +220,7 @@ module Cute
         end
 
         @user_agent = "ruby-cute/#{VERSION} Ruby/#{RUBY_VERSION}"
-        @api = RestClient::Resource.new(@endpoint, :timeout => 30,:verify_ssl => false)
+        @api = RestClient::Resource.new(@endpoint, :timeout => timeout,:verify_ssl => false)
         # some versions of restclient do not verify by default SSL certificates , :verify_ssl => true)
         # SSL verify is disabled due to Grid'5000 API certificate problem
         @on_error = on_error
@@ -241,7 +242,7 @@ module Cute
       def get_json(path)
         return G5KJSON.parse(get_raw(path))
       end
-      
+
       # @return [String] the HTTP response
       # @param path [String] this complements the URI to address to a specific resource
       def get_raw(path)
@@ -568,6 +569,7 @@ module Cute
       # @option params [String] :password Password to access the REST API
       # @option params [Symbol] :on_error Set to :ignore if you want to ignore {Cute::G5K::RequestFailed ResquestFailed} exceptions.
       # @option params [Boolean] :debug Activate the debug mode
+      # @option params [Integer] :timeout Set the timeout in sec, default is 30 sec
       def initialize(params={})
         config = {}
         default_file = "#{ENV['HOME']}/.grid5000_api.yml"
@@ -586,9 +588,10 @@ module Cute
         @api_version = params[:version] || config["version"] || "stable"
         @logger = nil
         @debug = params[:debug] || false
+        @timeout = params[:timeout] || 30
 
         begin
-          @g5k_connection = G5KRest.new(@uri,@api_version,@user,@pass,params[:on_error])
+          @g5k_connection = G5KRest.new(@uri,@api_version,@user,@pass,params[:on_error], @timeout)
         rescue => e
 
           msg_create_file = ""
