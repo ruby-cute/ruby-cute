@@ -1,3 +1,9 @@
+ruby-cute (0.22) unstable; urgency=low
+
+  * 9570af74 allow to set the timeout for Rest request
+
+ -- Alexandre MERLIN <alexandre.merlin@inria.fr>  Thu, 29 Sep 2022 08:54:15 +0200
+
 ruby-cute (0.21) unstable; urgency=low
 
   * 402efe5 Support specifying OAR project
