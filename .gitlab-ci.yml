@@ -52,3 +52,4 @@ push-package:
   when: manual
   script:
     - g5k-deploy-files --only-if-tag --debian --directory deb/ruby-cute
+  allow_failure: false
