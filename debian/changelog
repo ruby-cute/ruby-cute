@@ -1,3 +1,12 @@
+ruby-cute (0.23) unstable; urgency=low
+
+  * d56f254 Document some test cases
+  * a65b612 Add --armor
+  * e6a311c [grd] add VLAN support
+  * 0af5b85 [CI] add 'allow_failure: true' for manual jobs
+
+ -- Lucas Nussbaum <lucas.nussbaum@inria.fr>  Thu, 07 Dec 2023 15:14:43 +0100
+
 ruby-cute (0.22) unstable; urgency=low
 
   * 9570af74 allow to set the timeout for Rest request
