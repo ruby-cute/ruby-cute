@@ -11,6 +11,15 @@
 # - Bug 13742 - erreur 500 sur l'API pour créer un job
 # - Bug 13766 - erreur 500 api
 # - Bug 11697 - api-proxy/g5k-api: erreur "AH01102: error reading status line from remote server localhost:8000"
+#
+# Test cases:
+#   grd bs -s ncy
+#   grd bs -s ncy -c
+#   grd bs -s ncy -q production -l {grappe}/nodes=1+{"type='kavlan'"}/vlan=1 -w 0:10 --armor
+#   grd bs -s ncy -q production -l {grappe}/nodes=1+{"type='kavlan'"}/vlan=1 -w 0:10 --armor -d
+#   echo 'hostname ; pwd' > setup-script
+#   grd bs -s ncy -f setup-script -T
+#   grd l
 
 gem 'ruby-cute', '>= 0.12'
 $:.unshift File.expand_path("../../lib", File.realpath(__FILE__))
