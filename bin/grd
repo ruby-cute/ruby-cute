@@ -207,6 +207,11 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
       o[:name] = d
     end
     opts.separator ""
+    opts.separator "### Related to post-deployment configuration"
+    opts.on("", "--armor", "Fetch and run g5k-armor-node.py (see https://www.grid5000.fr/w/Armored_Node_for_Sensitive_Data). This implies '--environment debian11-x64-big'") do
+      o[:armor] = true
+    end
+    opts.separator ""
     opts.separator "# Notes:"
     opts.separator "* All options are optional except '--site' if running from outside Grid'5000."
     opts.separator "* In steps (D) and (E), the connection is done as 'root' if an environment was provisioned (and as the normal user otherwise)."
@@ -250,6 +255,28 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
     o[:type] << 'deploy'
   end
   jo[:type] = o[:type]
+
+  if o[:armor]
+    if o[:script]
+      $logger.error("--armor and --script are incompatible. Exiting.")
+      exit(1)
+    end
+    if o[:env] and o[:env] != 'debian11-x64-big'
+      $logger.error("--armor and --environment are incompatible. Exiting.")
+      exit(1)
+    end
+    o[:env] = 'debian11-x64-big'
+    tmp = `mktemp /tmp/armor.XXXXXX`.chomp
+    File::open(tmp, "w") do |fd|
+      fd.puts <<-EOF
+#!/bin/bash -xe
+wget https://gitlab.inria.fr/grid5000/g5k-armor/-/raw/master/g5k-armor-node.py
+chmod a+rx g5k-armor-node.py
+./g5k-armor-node.py
+      EOF
+    end
+    o[:script] = tmp
+  end
 
   if o[:detach]
     if o[:connect]
@@ -374,7 +401,12 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
       gateway = Net::SSH::Gateway.new('access.grid5000.fr', $login)
       ssh = gateway.ssh(fnode, tlogin)
     end
-    tmpfile = ssh.exec3!("mktemp /tmp/grd.XXXXXX", { :no_log => true, :no_output => true })[:stdout].chomp
+    if tlogin == 'root'
+      # We use a file in /root to avoid issues when unmounting /tmp in the script
+      tmpfile = ssh.exec3!("mkdir -p /root/.cache/grd && mktemp /root/.cache/grd/grd.XXXXXX", { :no_log => true, :no_output => true })[:stdout].chomp
+    else
+      tmpfile = ssh.exec3!("mktemp /tmp/grd.XXXXXX", { :no_log => true, :no_output => true })[:stdout].chomp
+    end
     ssh.scp.upload!(o[:script], tmpfile)
     ssh.exec3!("chmod u+x #{tmpfile}", { :no_log => true, :no_output => true })
     args = (o[:script_arg] || []).join(' ')
@@ -475,7 +507,8 @@ elsif ['inner'].include?(ARGV[0])
       end
       tlogin = 'root'
       ssh = Net::SSH.start(fnode, tlogin)
-      tmpfile = ssh.exec3!("mktemp /tmp/grd.XXXXXX", { :no_log => true, :no_output => true })[:stdout].chomp
+      # We use a file in /root to avoid issues when unmounting /tmp in the script
+      tmpfile = ssh.exec3!("mkdir -p /root/.cache/grd && mktemp /root/.cache/grd/grd.XXXXXX", { :no_log => true, :no_output => true })[:stdout].chomp
       ssh.scp.upload!(o[:script], tmpfile)
       ssh.exec3!("chmod u+x #{tmpfile}", { :no_log => true, :no_output => true })
       $logger.info "Running script on #{fnode} ..."
