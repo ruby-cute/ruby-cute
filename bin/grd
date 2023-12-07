@@ -59,6 +59,9 @@ def do_provisioning(site, job, o)
       :env => o[:env],
       :keys => keys
     }
+    if get_job_vlan(job)
+      d[:vlan_id] = get_job_vlan(job)
+    end
     $logger.level = Logger::WARN unless $debug
     job = $g5k.deploy(job, d)
     $logger.level = Logger::INFO unless $debug
@@ -78,9 +81,29 @@ def do_provisioning(site, job, o)
   end
 end
 
+def get_job_vlan(job)
+  if job['resources_by_type']['vlans'] and job['resources_by_type']['vlans'].length > 0
+    return job['resources_by_type']['vlans'].first
+  else
+    return nil
+  end
+end
+
+def nodename_in_vlan(node, vlan)
+  fqdn = node.split('.')
+  nodename = fqdn[0]
+  site = fqdn[1]
+  domainname = fqdn[2..3].join('.')
+  node_vlan_name = "#{nodename}-kavlan-#{vlan}.#{site}.#{domainname}"
+  return node_vlan_name
+end
+
 def show_nodes(job)
   nodes = job['assigned_nodes']
   $logger.info "Nodes: #{nodes.join(' ')}"
+  if (v = get_job_vlan(job))
+    $logger.info "VLAN: #{v}"
+  end
   if nodes.length > 1
     $logger.info "Nodeset: #{nodeset(nodes)}"
   end
@@ -338,6 +361,10 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
   # execute script
   tlogin = o[:env] ? 'root' : $login
   fnode = job['assigned_nodes'].first
+  # if in VLAN, adjust node name
+  if get_job_vlan(job)
+    fnode = nodename_in_vlan(fnode, get_job_vlan(job))
+  end
   if o[:script]
     ssh = nil
     gateway = nil
@@ -365,23 +392,26 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
     $logger.info("Releasing resources.")
     $g5k.release(job)
 
-  elsif o[:connect]
+  else
     jh = g5k_internal? ? "" : "-J #{$login}@access.grid5000.fr "
-    cmd = "ssh -o StrictHostKeyChecking=accept-new #{jh}#{tlogin}@#{job['assigned_nodes'].first}"
-    $logger.info "Connecting to first node using:"
+    cmd = "ssh -o StrictHostKeyChecking=accept-new #{jh}#{tlogin}@#{fnode}"
+    $logger.info "Connect to first node using:"
     $logger.info "  #{cmd}"
-    puts
-    system(cmd)
-    puts
-    s = nil
-    loop do
-      print "Connection to node terminated. Terminate resources reservation? (Y/N) "
-      s = gets.chomp.upcase
-      break if s == "Y" or s == "N"
-    end
-    if s == 'Y'
-      $logger.info("Releasing resources.")
-      $g5k.release(job)
+
+    if o[:connect]
+      puts
+      system(cmd)
+      puts
+      s = nil
+      loop do
+        print "Connection to node terminated. Terminate resources reservation? (Y/N) "
+        s = gets.chomp.upcase
+        break if s == "Y" or s == "N"
+      end
+      if s == 'Y'
+        $logger.info("Releasing resources.")
+        $g5k.release(job)
+      end
     end
   end
 
@@ -439,6 +469,10 @@ elsif ['inner'].include?(ARGV[0])
     if o[:env]
       # we need to copy the script to the node using ssh
       fnode = nodes.first
+      # if in VLAN, adjust node name
+      if get_job_vlan(job)
+        fnode = nodename_in_vlan(fnode, get_job_vlan(job))
+      end
       tlogin = 'root'
       ssh = Net::SSH.start(fnode, tlogin)
       tmpfile = ssh.exec3!("mktemp /tmp/grd.XXXXXX", { :no_log => true, :no_output => true })[:stdout].chomp
