@@ -1,3 +1,9 @@
+ruby-cute (0.24) unstable; urgency=low
+
+  * 05ab1f4 --armor should imply deploy
+
+ -- Lucas Nussbaum <lucas.nussbaum@inria.fr>  Fri, 08 Dec 2023 13:34:40 +0100
+
 ruby-cute (0.23) unstable; urgency=low
 
   * d56f254 Document some test cases
