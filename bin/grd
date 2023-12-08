@@ -275,6 +275,7 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
       exit(1)
     end
     o[:env] = 'debian11-x64-big'
+    o[:type] << 'deploy' if not o[:type].include?('deploy')
     tmp = `mktemp /tmp/armor.XXXXXX`.chomp
     File::open(tmp, "w") do |fd|
       fd.puts <<-EOF
