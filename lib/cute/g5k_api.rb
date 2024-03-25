@@ -1083,7 +1083,7 @@ module Cute
                    'command' => command
                   }
 
-        info "Reserving resources: #{resources} (types: #{type.join(' ')}) (in #{site})"
+        info("Reserving resources: #{resources} (types: #{type.join(' ')}) (in #{site})", :debug)
 
         payload['properties'] = properties unless properties.nil?
         payload['types'] = type.map{ |t| t.to_s} unless type.nil?
@@ -1155,7 +1155,7 @@ module Cute
       def wait_for_job(job,opts={})
         opts[:wait_time] = 36000 if opts[:wait_time].nil?
         jid = job['uid']
-        info "Waiting for reservation #{jid}"
+        info("Waiting for reservation #{jid}", :debug)
         begin
           Timeout.timeout(opts[:wait_time]) do
             while true
@@ -1164,7 +1164,7 @@ module Cute
               if !t.nil?
                 t = Time.at(t)
                 secs = [ t - Time.now, 0 ].max.to_i
-                info "Reservation #{jid} should be available at #{t} (#{secs} s)"
+                info("Reservation #{jid} should be available at #{t} (#{secs} s)", :debug)
               end
               break if job['state'] == 'running'
               raise "Job is finishing." if job['state'] == 'finishing'
@@ -1175,7 +1175,7 @@ module Cute
           raise EventTimeout.new("Event timeout")
         end
 
-        info "Reservation #{jid} ready"
+        info("Reservation #{jid} ready", :debug)
         return job
       end
 
@@ -1255,7 +1255,7 @@ module Cute
 
         payload['user'] = opts[:env_user] unless opts[:env_user].nil?
 
-        info "Creating deployment"
+        info("Creating deployment", :debug)
 
         begin
           info debug_cmd(api_uri("sites/#{site}/deployments"),"POST",payload.to_json), :debug
@@ -1346,11 +1346,11 @@ module Cute
             # it will ask just for processing status
             status = deploy_status(job,{:nodes => nodes, :status => "processing"})
             until status.empty? do
-              info "Waiting for #{status.length} deployment"
+              info("Waiting for #{status.length} deployment", :debug)
               sleep 4
               status = deploy_status(job,{:nodes => nodes, :status => "processing"})
             end
-            info "Deployment finished"
+            info("Deployment finished", :debug)
             return job
           end
         rescue Timeout::Error
