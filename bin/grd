@@ -180,6 +180,9 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
     end
     opts.separator ""
     opts.separator "## (B) Choose when to reserve resources (default: ASAP, and wait interactively):"
+    opts.on("", "--no-wait", "Reserve resources ASAP, but exit immediately (without waiting for scheduling information)") do
+     o[:no_wait] = true
+    end
     opts.on("-d", "--detach", "Reserve resources ASAP, but do not wait interactively (batch/submission mode)") do
      o[:detach] = true
     end
@@ -298,9 +301,9 @@ chmod a+rx g5k-armor-node.py
     o[:script] = tmp
   end
 
-  if o[:detach]
+  if o[:detach] or o[:no_wait]
     if o[:connect]
-      $logger.error("--connect and --detach (or --reservation) are incompatible. Exiting.")
+      $logger.error("--connect and --detach/--reservation/--no-wait are incompatible. Exiting.")
       exit(1)
     end
     jo[:cmd] = 'grd inner'
@@ -354,36 +357,38 @@ chmod a+rx g5k-armor-node.py
   $logger.info("OAR job (reservation) ID: #{job['uid']}")
 
   begin
-    t = nil
-    ts = Time::now
-    loop do
-      tries = 0
-      begin
-        job = $g5k.get_job(site, job['uid'])
-      rescue Cute::G5K::RequestFailed, Cute::G5K::BadRequest => e
-        $logger.info "Fetching reservation status failed due to API error: #{e.message}"
-        tries += 1
-        if tries < 5
-          $logger.info "Retrying.."
-          sleep 5
-          retry
-        else
-          $logger.info "Too many attempts, exiting. The job might still be running."
-          exit(1)
+    if not o[:no_wait]
+      t = nil
+      ts = Time::now
+      loop do
+        tries = 0
+        begin
+          job = $g5k.get_job(site, job['uid'])
+        rescue Cute::G5K::RequestFailed, Cute::G5K::BadRequest => e
+          $logger.info "Fetching reservation status failed due to API error: #{e.message}"
+          tries += 1
+          if tries < 5
+            $logger.info "Retrying.."
+            sleep 5
+            retry
+          else
+            $logger.info "Too many attempts, exiting. The job might still be running."
+            exit(1)
+          end
         end
+        break if job['state'] == 'running'
+        t = job['scheduled_at']
+        if !t.nil?
+          t = Time.at(t)
+          secs = [ t - Time.now, 0 ].max.to_i
+          $logger.info "Reservation #{job['uid']} should be available at #{t} (in #{secs} s)"
+          break if o[:detach]
+        end
+        Kernel.sleep(2)
       end
-      break if job['state'] == 'running'
-      t = job['scheduled_at']
-      if !t.nil?
-        t = Time.at(t)
-        secs = [ t - Time.now, 0 ].max.to_i
-        $logger.info "Reservation #{job['uid']} should be available at #{t} (in #{secs} s)"
-        break if o[:detach]
-      end
-      Kernel.sleep(2)
     end
 
-    if o[:detach]
+    if o[:detach] or o[:no_wait]
       $logger.info "Your reservation will run in the background. Follow its status:"
       $logger.info "  Using the API: https://api.grid5000.fr/3.0/sites/#{site}/jobs/#{job['uid']}?pretty"
       $logger.info "  Using the Gantt: https://intranet.grid5000.fr/oar/#{site}/drawgantt-svg/"
