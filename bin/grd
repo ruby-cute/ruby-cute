@@ -127,6 +127,16 @@ def get_api_sites
   return $cache['sites']
 end
 
+def get_api_clusters(s)
+  unless $cache['clusters']
+    $cache['clusters'] = {}
+  end
+  unless $cache['clusters'][s]
+    $cache['clusters'][s] = $g5k.cluster_uids(s)
+  end
+  return $cache['clusters'][s]
+end
+
 def resolve_site(s)
   s = 'nancy' if s == 'ncy' or s == 'ny'
   s = 'nantes' if s == 'ns'
