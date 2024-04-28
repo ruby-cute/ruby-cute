@@ -565,6 +565,8 @@ elsif ['list', 'l'].include?(ARGV[0])
   OptionParser.new do |opts|
     opts.banner =  "usage: grd list [options]"
     opts.separator "  List reservations"
+    opts.separator ""
+    opts.separator "# Options:"
     opts.on("-s", "--site SITE", "Only list reservations on the specified site") do |d|
       o[:site] = resolve_site(d)
     end
@@ -655,6 +657,8 @@ elsif ['terminate', 't'].include?(ARGV[0])
   OptionParser.new do |opts|
     opts.banner =  "usage: grd terminate [options]"
     opts.separator "  Terminate reservations"
+    opts.separator ""
+    opts.separator "# Options:"
     opts.on("-s", "--site SITE", "Only terminate reservations on the specified site") do |d|
       o[:site] = resolve_site(d)
     end
@@ -745,6 +749,8 @@ Available commands:
    bootstrap   Reserve, provision, configure and connect to resources (alias: bs)
    list        List resources reservations (alias: l)
    terminate   Terminate resources reservation(s) (alias: t)
+   sites       List sites (alias: s)
+   clusters    List clusters (alias: c)
 
 Use 'grd <command> --help' for details.
   EOF
