@@ -700,6 +700,43 @@ elsif ['terminate', 't'].include?(ARGV[0])
     end
   end
 
+elsif ['clusters', 'c'].include?(ARGV[0])
+  cute_init
+  ARGV.shift
+  o = {}
+  OptionParser.new do |opts|
+    opts.banner =  "usage: grd clusters"
+    opts.separator "  List clusters"
+    opts.separator ""
+    opts.separator "# Options:"
+    opts.on("-s", "--site SITE", "Only list clusters from the specified site (default: list clusters from all sites, prefixed with site)") do |d|
+      o[:site] = resolve_site(d)
+    end
+    opts.separator ""
+    opts.separator "# Examples:"
+    opts.separator "  grd c -s ly"
+    opts.separator "  grd c | while read s c; do echo site=$s cluster=$c; done"
+    opts.separator "  ## Reserve all available nodes on all sites, with one job per cluster, in queue admin, with types deploy, destructive and exotic, and do not wait for scheduling (--no-wait):"
+    opts.separator "  grd c | while read s c; do echo $s $c ...; grd bs -s $s -l {$c}/nodes=BEST -w 2 -q admin -t deploy -t destructive -t exotic -n ${s}_${c} --no-wait; done"
+  end.parse!
+  if o[:site]
+    puts get_api_clusters(o[:site]).sort
+  else
+    sites = get_api_sites
+    clusters = sites.inject([]) { |acc, si| acc + get_api_clusters(si).map { |cluster| [ si, cluster] } }
+    puts clusters.sort.map { |x| sprintf('%-11s %s', x[0], x[1]) }.join("\n")
+  end
+
+elsif ['sites', 's'].include?(ARGV[0])
+  cute_init
+  ARGV.shift
+  o = {}
+  OptionParser.new do |opts|
+    opts.banner =  "usage: grd sites"
+    opts.separator "  List sites"
+  end.parse!
+  puts get_api_sites.sort
+
 else
   puts <<-EOF
 usage: grd <command> [options]
