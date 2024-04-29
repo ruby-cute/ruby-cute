@@ -296,6 +296,12 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
     File::open(tmp, "w") do |fd|
       fd.puts <<-EOF
 #!/bin/bash -xe
+echo site=$GRD_SITE jobid=$GRD_JOBID
+apt-get -y install jq
+if [ $(curl -s https://api.grid5000.fr/3.0/sites/${GRD_SITE}/jobs/${GRD_JOBID} | jq -r .assigned_nodes[] | wc -l) -ne 1 ]; then
+   echo "--armor used with more than one node. --armor only works on a single node. Exiting."
+   exit 1
+fi
 wget https://gitlab.inria.fr/grid5000/g5k-armor/-/raw/master/g5k-armor-node.py
 chmod a+rx g5k-armor-node.py
 ./g5k-armor-node.py
