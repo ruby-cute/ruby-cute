@@ -1,3 +1,13 @@
+ruby-cute (0.26) unstable; urgency=low
+
+  * 63f4997 Decrease priority of some log messages
+  * c4f3ba5 Add API helper to get list of clusters
+  * 9d734d1 grd bs: add --no-wait
+  * 22999b4 Add clusters and sites commands
+  * 1a51f11 Doc improvements
+
+ -- Lucas Nussbaum <lucas.nussbaum@inria.fr>  Mon, 29 Apr 2024 16:11:54 +0200
+
 ruby-cute (0.25) unstable; urgency=low
 
   * bc69cba Decrease priority of some log messages
