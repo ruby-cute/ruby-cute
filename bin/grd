@@ -245,6 +245,9 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
     opts.separator "## Reserve, provision, execute a script, and connect to the node"
     opts.separator "  grd bs -s ly -l nodes=3 -w 0:10 -e debian11-x64-min -f setup-script -c"
     opts.separator ""
+    opts.separator "  Note that the GRD_SITE and GRD_JOBID are set, so the script could query the API to retrieve job details, with e.g."
+    opts.separator "    curl -s https://api.grid5000.fr/3.0/sites/${GRD_SITE}/jobs/${GRD_JOBID} | jq -r .assigned_nodes[]"
+    opts.separator ""
     opts.separator "Examples for -l / --resources:"
     opts.separator '  nodes=3  {"gpu_count>0"}/nodes=1  {"cluster=\'gros\'"}/nodes=1  {nova}/nodes=3  (see https://www.grid5000.fr/w/OAR_Syntax_simplification)'
     opts.separator ""
@@ -436,7 +439,7 @@ chmod a+rx g5k-armor-node.py
     ssh.exec3!("chmod u+x #{tmpfile}", { :no_log => true, :no_output => true })
     args = (o[:script_arg] || []).join(' ')
     $logger.info "Running script on #{fnode} ..."
-    ssh.exec3!("#{tmpfile} #{args}", { :ignore_error => true })
+    ssh.exec3!("GRD_SITE=#{site} GRD_JOBID=#{job['uid']} #{tmpfile} #{args}", { :ignore_error => true })
     $logger.info "Script finished."
     ssh.close
     ssh.shutdown!
@@ -537,7 +540,7 @@ elsif ['inner'].include?(ARGV[0])
       ssh.scp.upload!(o[:script], tmpfile)
       ssh.exec3!("chmod u+x #{tmpfile}", { :no_log => true, :no_output => true })
       $logger.info "Running script on #{fnode} ..."
-      ssh.exec3!("#{tmpfile} #{args}", { :ignore_error => true })
+      ssh.exec3!("GRD_SITE=#{site} GRD_JOBID=#{ENV['OAR_JOBID']} #{tmpfile} #{args}", { :ignore_error => true })
       $logger.info "Script finished."
       ssh.close
       ssh.shutdown!
@@ -545,7 +548,7 @@ elsif ['inner'].include?(ARGV[0])
       # we are already on the node
       system("chmod u+x #{o[:script]}") or raise
       $logger.info "Running script ..."
-      ssh.exec3!("#{tmpfile} #{args}", { :ignore_error => true }) or raise
+      system("GRD_SITE=#{site} GRD_JOBID=#{ENV['OAR_JOBID']} #{tmpfile} #{args}")
       $logger.info "Script finished."
     end
   end
