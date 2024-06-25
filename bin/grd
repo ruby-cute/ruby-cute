@@ -228,6 +228,9 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
     opts.on("-n", "--name NAME", "OAR name") do |d|
       o[:name] = d
     end
+    opts.on("", "--notify TXT", "OAR notify option (see oarsub(1))") do |d|
+      o[:notify] = d
+    end
     opts.separator ""
     opts.separator "### Related to post-deployment configuration"
     opts.on("", "--armor", "Fetch and run g5k-armor-node.py (see https://www.grid5000.fr/w/Armored_Node_for_Sensitive_Data). This implies '--environment debian11-x64-big'") do
@@ -273,6 +276,7 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
   jo[:reservation] = o[:reservation] if o[:reservation]
   jo[:queue] = o[:queue] if o[:queue] # else use OAR's default
   jo[:project] = o[:project] if o[:project] # else use OAR's default
+  jo[:notify] = o[:notify] if o[:notify]
   o[:name] ||= 'grd'
   jo[:name] = o[:name]
   jo[:wait] = false

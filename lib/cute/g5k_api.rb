@@ -1009,13 +1009,14 @@ module Cute
       # @option opts [String] :resources OAR syntax for complex submissions
       # @option opts [String] :reservation Request a job to be scheduled a specific date.
       #                        The date format is "YYYY-MM-DD HH:MM:SS".
+      # @option opts [String] :notify OAR notify option
       # @option opts [Boolean] :wait Whether or not to wait until the job is running (default is true)
       def reserve(opts)
 
         # checking valid options
         valid_opts = [:site, :cluster, :switches, :cpus, :cores, :nodes, :walltime, :cmd,
                       :type, :name, :subnets, :env, :vlan, :num_vlan,:properties, :resources,
-                      :reservation, :wait, :keys, :queue, :project, :env_user]
+                      :reservation, :notify, :wait, :keys, :queue, :project, :env_user]
         unre_opts = opts.keys - valid_opts
         raise ArgumentError, "Unrecognized option #{unre_opts}" unless unre_opts.empty?
 
@@ -1030,6 +1031,7 @@ module Cute
         switches = opts[:switches]
         cpus = opts[:cpus]
         cores = opts[:cores]
+        notify = opts[:notify]
         subnets = opts[:subnets]
         properties = opts[:properties]
         reservation = opts[:reservation]
@@ -1090,6 +1092,7 @@ module Cute
         type.map!{|t| t.to_sym}  unless type.nil?
         payload['queue'] = queue if queue
         payload['project'] = project if project
+        payload['notify'] = notify if notify
 
         unless type.include?(:deploy)
           if opts[:keys]
