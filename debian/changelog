@@ -1,3 +1,10 @@
+ruby-cute (0.28) unstable; urgency=low
+
+  * 0818063 [grd] mention that envs can be specified by URL (#15844)
+  * bf1bcb5 [lib,grd] add support for oarsub --notify (#15673)
+
+ -- Lucas Nussbaum <lucas.nussbaum@inria.fr>  Tue, 25 Jun 2024 21:10:10 +0200
+
 ruby-cute (0.27) unstable; urgency=low
 
   * 38a927e Set GRD_SITE and GRD_JOBID variables when running script
