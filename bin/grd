@@ -192,7 +192,7 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
     end
     opts.separator ""
     opts.separator "## (C) Set the environment (system image) to provision. If none specified, the 'standard' environment will be used"
-    opts.on("-e", "--environment ENV", "Kadeploy environment to provision") do |d|
+    opts.on("-e", "--environment ENV", "Kadeploy environment to provision (name or URL)") do |d|
       o[:env] = d
     end
     opts.separator ""
@@ -247,6 +247,9 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
     opts.separator ""
     opts.separator "## Reserve, provision, execute a script, and connect to the node"
     opts.separator "  grd bs -s ly -l nodes=3 -w 0:10 -e debian11-x64-min -f setup-script -c"
+    opts.separator ""
+    opts.separator "### Or specifying the environment by URL (anonymous deployment)"
+    opts.separator "  grd bs -s ly -l nodes=3 -w 0:10 -e http://public.nancy.grid5000.fr/~login/custom-ubuntu.dsc -f setup-script -c"
     opts.separator ""
     opts.separator "  Note that the GRD_SITE and GRD_JOBID are set, so the script could query the API to retrieve job details, with e.g."
     opts.separator "    curl -s https://api.grid5000.fr/3.0/sites/${GRD_SITE}/jobs/${GRD_JOBID} | jq -r .assigned_nodes[]"
