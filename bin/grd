@@ -312,6 +312,8 @@ fi
 wget https://gitlab.inria.fr/grid5000/g5k-armor/-/raw/master/g5k-armor-node.py
 chmod a+rx g5k-armor-node.py
 ./g5k-armor-node.py
+exit_code=$?
+exit $exit_code
       EOF
     end
     o[:script] = tmp
@@ -452,8 +454,10 @@ chmod a+rx g5k-armor-node.py
     ssh.exec3!("chmod u+x #{tmpfile}", { :no_log => true, :no_output => true })
     args = (o[:script_arg] || []).join(' ')
     $logger.info "Running script on #{fnode} ..."
-    ssh.exec3!("GRD_SITE=#{site} GRD_JOBID=#{job['uid']} #{tmpfile} #{args}", { :ignore_error => true })
-    $logger.info "Script finished."
+    result = ssh.exec3!("GRD_SITE=#{site} GRD_JOBID=#{job['uid']} #{tmpfile} #{args}", { :ignore_error => true })
+    exit_code = result[:exit_code]
+    armor_node_need_reboot = exit_code == 1
+    $logger.info "Script finished with exit code: #{exit_code}."
     ssh.close
     ssh.shutdown!
     if not g5k_internal?
@@ -468,7 +472,16 @@ chmod a+rx g5k-armor-node.py
   else
     jh = g5k_internal? ? "" : "-J #{$login}@access.grid5000.fr "
     cmd = "ssh -o StrictHostKeyChecking=accept-new #{jh}#{tlogin}@#{fnode}"
-    $logger.info "Connect to first node using:"
+    if o[:armor] && armor_node_need_reboot
+      $logger.info "Connect to the node using the command below, reboot the node and run g5k-armor-node.py again."
+    elsif o[:armor]
+      # If no need to reboot the armored node, connect to it using user's login from workstation
+      $logger.info "Setup completed successfully. Connect to the Armored Node from your workstation using:"
+      cmd = "ssh -J #{$login}@access.grid5000.fr #{$login}@#{fnode}"
+    else
+      # default case, nothing changes
+      $logger.info "Connect to first node using:"
+    end
     $logger.info "  #{cmd}"
 
     if o[:connect]
