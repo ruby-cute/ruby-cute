@@ -305,7 +305,6 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
       fd.puts <<-EOF
 #!/bin/bash -xe
 echo site=$GRD_SITE jobid=$GRD_JOBID
-apt-get -y install jq
 if [ $(curl -s https://api.grid5000.fr/3.0/sites/${GRD_SITE}/jobs/${GRD_JOBID} | jq -r .assigned_nodes[] | wc -l) -ne 1 ]; then
    echo "--armor used with more than one node. --armor only works on a single node. Exiting."
    exit 1
