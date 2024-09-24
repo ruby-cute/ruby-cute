@@ -1,3 +1,3 @@
 module Cute
-  VERSION = "0.25"
+  VERSION = "0.29"
 end

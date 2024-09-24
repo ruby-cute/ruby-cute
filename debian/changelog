@@ -1,3 +1,11 @@
+ruby-cute (0.29) unstable; urgency=low
+
+  * 40355fb2 [armor] Rectify command if no need to reboot the armored node
+  * deb65053 [armor] Add destructive to job type
+  * 22a3449e [armor] jq exists already in g5k-meta-packages
+
+ -- Yao Chi <yao.chi@inria.fr>  Thu, 12 Sep 2024 10:45:08 +0200
+
 ruby-cute (0.28) unstable; urgency=low
 
   * 0818063 [grd] mention that envs can be specified by URL (#15844)
