@@ -162,7 +162,7 @@ end
 if ['bootstrap', 'bs'].include?(ARGV[0])
   ARGV.shift
   o = {}
-  o[:type] = []
+  o[:type] = ['origin=grd']
   OptionParser.new do |opts|
     opts.banner =  "usage: grd bootstrap [options]"
     opts.separator "  Reserve, provision, configure and connect to resources (alias: bs)"
@@ -504,7 +504,7 @@ exit $exit_code
 elsif ['inner'].include?(ARGV[0])
   ARGV.shift
   o = {}
-  o[:type] = []
+  o[:type] = ['origin=grd']
   OptionParser.new do |opts|
     opts.banner =  "usage: grd inner [options]"
     opts.separator "  Do the actions that need to be performed inside a reservation"
