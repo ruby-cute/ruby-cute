@@ -31,6 +31,7 @@ require 'net/ssh/gateway'
 require 'net/ssh'
 require 'net/scp'
 require 'peach'
+require 'cute/grd/backbone'
 
 def cute_init
   $logger = Logger.new(STDOUT)
@@ -770,6 +771,11 @@ elsif ['sites', 's'].include?(ARGV[0])
   end.parse!
   puts get_api_sites.sort
 
+elsif ['backbone', 'bb'].include?(ARGV[0])
+  cute_init
+  ARGV.shift
+  do_backbone
+
 else
   puts <<-EOF
 usage: grd <command> [options]
@@ -780,6 +786,7 @@ Available commands:
    terminate   Terminate resources reservation(s) (alias: t)
    sites       List sites (alias: s)
    clusters    List clusters (alias: c)
+   backbone    List status of backbone network usage for each site (alias: bb)
 
 Use 'grd <command> --help' for details.
   EOF
