@@ -1,3 +1,10 @@
+ruby-cute (0.30) unstable; urgency=low
+
+  * bb71d64 grd: new subcommand backbone (shows if sites are using the backup network)
+  * a850aed Add type origin=grd for job made via grd
+
+ -- Lucas Nussbaum <lucas.nussbaum@inria.fr>  Wed, 13 Nov 2024 08:49:58 +0100
+
 ruby-cute (0.29) unstable; urgency=low
 
   * 40355fb2 [armor] Rectify command if no need to reboot the armored node
