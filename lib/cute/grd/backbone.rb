@@ -38,24 +38,29 @@ def do_backbone
   m = Mutex.new
   remotes.peach do |remote|
     sites.peach(100) do |site|
-      next if remote == site
       fnode = "frontend.#{remote}.grid5000.fr"
-      if g5k_internal?
-        ssh = Net::SSH.start(fnode, $login)
-      else
-        gw = Net::SSH::Gateway.new('access.grid5000.fr', $login)
-        ssh = gw.ssh(fnode, $login)
-      end
       rgw = "gw.#{site}.grid5000.fr"
-      o = ssh.exec3!("mtr -j -c 1 -G 1 #{rgw}", {:no_log => true, :no_output => true} )
-      m.synchronize do
-        results[site] ||= {'remotes' => {} }
-        results[site]['remotes'][remote] = { 'raw' => o }
-      end
-      ssh.close
-      ssh.shutdown!
-      if not g5k_internal?
-        gw.shutdown!
+      cmd = "mtr -j -c 1 -G 1 #{rgw}"
+      begin
+        next if remote == site
+        if g5k_internal?
+          ssh = Net::SSH.start(fnode, $login)
+        else
+          gw = Net::SSH::Gateway.new('access.grid5000.fr', $login)
+          ssh = gw.ssh(fnode, $login)
+        end
+        o = ssh.exec3!(cmd, {:no_log => true, :no_output => true} )
+        m.synchronize do
+          results[site] ||= {'remotes' => {} }
+          results[site]['remotes'][remote] = { 'raw' => o }
+        end
+        ssh.close
+        ssh.shutdown!
+        if not g5k_internal?
+          gw.shutdown!
+        end
+      rescue
+        raise "Failed to run #{cmd} on #{fnode}: #{$!.message}"
       end
     end
   end
