@@ -138,6 +138,28 @@ def get_api_clusters(s)
   return $cache['clusters'][s]
 end
 
+def filter_api_cluster_desc_key_sort(k)
+  return 0 if k == 'site'
+  return 1 if k == 'uid'
+  return 2
+end
+
+def filter_api_cluster_desc(c)
+  c = c.dup
+  c.delete('metrics') # remove metrics (too verbose)
+  c.delete('links') # remove links (useless in that context)
+  c.delete('version') # ditto
+  c['queues'] -= ['admin']
+  if c['queues'].length == 1
+    c['queues'] = c['queues'].first
+  else
+    raise "more than one queue remaining on cluster #{c['uid']}"
+  end
+  # sort hash keys by putting site and uid first (easier to read)
+  c = c.sort_by { |k,_v| filter_api_cluster_desc_key_sort(k) }.to_h
+  c
+end
+
 def resolve_site(s)
   s = 'nancy' if s == 'ncy' or s == 'ny'
   s = 'nantes' if s == 'ns'
@@ -746,19 +768,42 @@ elsif ['clusters', 'c'].include?(ARGV[0])
     opts.on("-s", "--site SITE", "Only list clusters from the specified site (default: list clusters from all sites, prefixed with site)") do |d|
       o[:site] = resolve_site(d)
     end
+    opts.on("-j", "--json", "Show results as JSON with clusters details") do
+      o[:json] = true
+    end
     opts.separator ""
     opts.separator "# Examples:"
+    opts.separator "  grd c"
     opts.separator "  grd c -s ly"
     opts.separator "  grd c | while read s c; do echo site=$s cluster=$c; done"
     opts.separator "  ## Reserve all available nodes on all sites, with one job per cluster, in queue admin, with types deploy, destructive and exotic, and do not wait for scheduling (--no-wait):"
     opts.separator "  grd c | while read s c; do echo $s $c ...; grd bs -s $s -l {$c}/nodes=BEST -w 2 -q admin -t deploy -t destructive -t exotic -n ${s}_${c} --no-wait; done"
+    opts.separator "  ## Post-process the JSON output using jq to get the sites/clusters in queue production"
+    opts.separator "  grd c -j | jq -r '.[] | select(.queues == \"production\") | \"\\(.site) \\(.uid)\"'"
   end.parse!
   if o[:site]
-    puts get_api_clusters(o[:site]).uids.sort
+    if o[:json]
+      # get results and clean up output a bit
+      puts JSON.pretty_generate(get_api_clusters(o[:site]).map { |c| filter_api_cluster_desc(c) })
+    else
+      puts get_api_clusters(o[:site]).uids.sort
+    end
   else
     sites = get_api_sites
-    clusters = sites.inject([]) { |acc, si| acc + get_api_clusters(si).uids.map { |cluster| [ si, cluster] } }
-    puts clusters.sort.map { |x| sprintf('%-11s %s', x[0], x[1]) }.join("\n")
+    sites.peach { |si| get_api_clusters(si) } # load everything in cache
+    if o[:json]
+      clusters = sites.inject([]) do |acc, si|
+        acc + get_api_clusters(si).map do |c|
+          c['site'] = si
+          c = filter_api_cluster_desc(c)
+          c
+        end
+      end
+      puts JSON.pretty_generate(clusters)
+    else
+      clusters = sites.inject([]) { |acc, si| acc + get_api_clusters(si).uids.map { |cluster| [ si, cluster] } }
+      puts clusters.sort.map { |x| sprintf('%-11s %s', x[0], x[1]) }.join("\n")
+    end
   end
 
 elsif ['sites', 's'].include?(ARGV[0])
