@@ -133,7 +133,7 @@ def get_api_clusters(s)
     $cache['clusters'] = {}
   end
   unless $cache['clusters'][s]
-    $cache['clusters'][s] = $g5k.cluster_uids(s)
+    $cache['clusters'][s] = $g5k.clusters(s)
   end
   return $cache['clusters'][s]
 end
@@ -754,10 +754,10 @@ elsif ['clusters', 'c'].include?(ARGV[0])
     opts.separator "  grd c | while read s c; do echo $s $c ...; grd bs -s $s -l {$c}/nodes=BEST -w 2 -q admin -t deploy -t destructive -t exotic -n ${s}_${c} --no-wait; done"
   end.parse!
   if o[:site]
-    puts get_api_clusters(o[:site]).sort
+    puts get_api_clusters(o[:site]).uids.sort
   else
     sites = get_api_sites
-    clusters = sites.inject([]) { |acc, si| acc + get_api_clusters(si).map { |cluster| [ si, cluster] } }
+    clusters = sites.inject([]) { |acc, si| acc + get_api_clusters(si).uids.map { |cluster| [ si, cluster] } }
     puts clusters.sort.map { |x| sprintf('%-11s %s', x[0], x[1]) }.join("\n")
   end
 
