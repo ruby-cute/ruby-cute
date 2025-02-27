@@ -781,28 +781,29 @@ elsif ['clusters', 'c'].include?(ARGV[0])
     opts.separator "  ## Post-process the JSON output using jq to get the sites/clusters in queue production"
     opts.separator "  grd c -j | jq -r '.[] | select(.queues == \"production\") | \"\\(.site) \\(.uid)\"'"
   end.parse!
+  # collect data
   if o[:site]
-    if o[:json]
-      # get results and clean up output a bit
-      puts JSON.pretty_generate(get_api_clusters(o[:site]).map { |c| filter_api_cluster_desc(c) })
-    else
-      puts get_api_clusters(o[:site]).uids.sort
-    end
+    sites = [o[:site]]
   else
     sites = get_api_sites
-    sites.peach { |si| get_api_clusters(si) } # load everything in cache
-    if o[:json]
-      clusters = sites.inject([]) do |acc, si|
-        acc + get_api_clusters(si).map do |c|
-          c['site'] = si
-          c = filter_api_cluster_desc(c)
-          c
-        end
-      end
-      puts JSON.pretty_generate(clusters)
+  end
+  sites.peach { |si| get_api_clusters(si) } # load everything in cache
+  clusters = sites.inject([]) do |acc, si|
+    acc + get_api_clusters(si).map do |c|
+      c['site'] = si
+      c = filter_api_cluster_desc(c)
+      c
+    end
+  end
+  clusters.sort_by! { |c| [c['site'], c['uid'][/(\D+)/, 1], c['uid'][/(\d+)/, 1].to_i ] }
+  # output data
+  if o[:json]
+    puts JSON.pretty_generate(clusters)
+  else
+    if o[:site]
+      puts clusters.map { |c| c['uid'] }.sort
     else
-      clusters = sites.inject([]) { |acc, si| acc + get_api_clusters(si).uids.map { |cluster| [ si, cluster] } }
-      puts clusters.sort.map { |x| sprintf('%-11s %s', x[0], x[1]) }.join("\n")
+      puts clusters.map { |c| sprintf('%-11s %s', c['site'], c['uid']) }.join("\n")
     end
   end
 
