@@ -838,7 +838,7 @@ elsif ['clusters', 'c'].include?(ARGV[0])
         m.synchronize do
           h = clusters.select { |c| c['uid'] == cluster }.first
           h['states'] = states
-          h['next_free'] = when_free
+          h['next_free'] = Time.at(when_free) if when_free
         end
       end
     end
@@ -879,9 +879,8 @@ elsif ['clusters', 'c'].include?(ARGV[0])
         b = (c['states']['busy'] || 0) + (c['states']['free_busy'] || 0)
         ot = c['nodes_count'] - f - be - b
         if c['next_free']
-          nf = Time.at(c['next_free'])
-          nfs = nf.strftime("%Y-%m-%d %H:%M:%S")
-          seconds = nf - Time::now
+          nfs = c['next_free'].strftime("%Y-%m-%d %H:%M:%S")
+          seconds = c['next_free'] - Time::now
           hours = seconds / 3600 ; minutes = (seconds % 3600) / 60 ; seconds = seconds % 60
           nfs += " (in " + format("%02dh%02dm%02ds", hours, minutes, seconds) + ")"
         else
