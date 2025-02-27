@@ -865,7 +865,7 @@ elsif ['clusters', 'c'].include?(ARGV[0])
     end
     h = ['site', 'cluster', 'queue', 'nodes']
     if o[:usage]
-      h += [ 'Free/BE/Busy/Broken', 'next free node' ]
+      h += [ 'free/BE/busy/broken', 'next free node' ]
     end
     if o[:verbose]
       h += ['year', 'description' ]
@@ -883,7 +883,7 @@ elsif ['clusters', 'c'].include?(ARGV[0])
           nfs = nf.strftime("%Y-%m-%d %H:%M:%S")
           seconds = nf - Time::now
           hours = seconds / 3600 ; minutes = (seconds % 3600) / 60 ; seconds = seconds % 60
-          nfs += " (in " + format("%02d:%02d:%02d", hours, minutes, seconds) + ")"
+          nfs += " (in " + format("%02dh%02dm%02ds", hours, minutes, seconds) + ")"
         else
           nfs = ""
         end
