@@ -774,6 +774,13 @@ elsif ['clusters', 'c'].include?(ARGV[0])
     opts.on("-v", "--verbose", "Show clusters descriptions") do
       o[:verbose] = true
     end
+    opts.on("-q", "--queue QUEUE", "Restrict to clusters in a specific queue") do |text|
+      o[:queue] = text
+    end
+    opts.on("-g", "--grep TEXT", "Restrict to clusters matching TEXT in their description (case insensitive)") do |text|
+      o[:grep] ||= []
+      o[:grep] << text
+    end
     opts.separator ""
     opts.separator "# Examples:"
     opts.separator "  grd c"
@@ -796,6 +803,15 @@ elsif ['clusters', 'c'].include?(ARGV[0])
       c['site'] = si
       c = filter_api_cluster_desc(c)
       c
+    end
+  end
+  # filter data
+  if o[:queue]
+    clusters.select! { |c| c['queues'] == o[:queue] }
+  end
+  if o[:grep]
+    o[:grep].each do |t|
+      clusters.select! { |c| c['nodes_description'].downcase.include?(t.downcase) }
     end
   end
   clusters.sort_by! { |c| [c['site'], c['uid'][/(\D+)/, 1], c['uid'][/(\d+)/, 1].to_i ] }
