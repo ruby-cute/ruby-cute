@@ -828,12 +828,12 @@ elsif ['clusters', 'c'].include?(ARGV[0])
   m = Mutex::new
   if o[:usage]
     sites.peach do |si|
-      st = get_api_site_status(si)['nodes'].group_by { |e| e[0].split('-').first }
+      st = get_api_site_status(si)['nodes'].group_by { |x| x[0].split('-').first }
       st.each_pair do |cluster, v|
-        v = v.map { |e| e[1] }
-        states = v.group_by { |e| e['soft'] }.map { |e| e[1] = e[1].length ; e }.to_h
+        v = v.map { |x| x[1] }
+        states = v.group_by { |x| x['soft'] }.map { |x| x[1] = x[1].length ; x }.to_h
         if states['free'].nil?
-          when_free = v.select { |e| ['busy', 'busy_besteffort', 'busy_free'].include?(e['soft']) }.map { |e| e['reservations'].select { |r| r['scheduled_at'] } .map { |r| r['scheduled_at'] + r['walltime'] }.max }.min
+          when_free = v.select { |x| ['busy', 'busy_besteffort', 'busy_free'].include?(x['soft']) }.map { |x| x['reservations'].select { |y| y['scheduled_at'] }.map { |y| y['scheduled_at'] + y['walltime'] }.max }.min
         end
         m.synchronize do
           h = clusters.select { |c| c['uid'] == cluster }.first
@@ -848,8 +848,8 @@ elsif ['clusters', 'c'].include?(ARGV[0])
     clusters.select! { |c| c['queues'] == o[:queue] }
   end
   if o[:grep]
-    o[:grep].each do |t|
-      clusters.select! { |c| c['nodes_description'].downcase.include?(t.downcase) }
+    o[:grep].each do |x|
+      clusters.select! { |c| c['nodes_description'].downcase.include?(x.downcase) }
     end
   end
   clusters.sort_by! { |c| [c['site'], c['uid'][/(\D+)/, 1], c['uid'][/(\d+)/, 1].to_i ] }
