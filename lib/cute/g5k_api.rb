@@ -588,7 +588,7 @@ module Cute
         @api_version = params[:version] || config["version"] || "stable"
         @logger = nil
         @debug = params[:debug] || false
-        @timeout = params[:timeout] || 30
+        @timeout = params[:timeout] || 60
 
         begin
           @g5k_connection = G5KRest.new(@uri,@api_version,@user,@pass,params[:on_error], @timeout)
