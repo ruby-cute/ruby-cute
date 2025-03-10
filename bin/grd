@@ -133,9 +133,41 @@ def get_api_clusters(s)
     $cache['clusters'] = {}
   end
   unless $cache['clusters'][s]
-    $cache['clusters'][s] = $g5k.cluster_uids(s)
+    $cache['clusters'][s] = $g5k.clusters(s)
   end
   return $cache['clusters'][s]
+end
+
+def filter_api_cluster_desc_key_sort(k)
+  return 0 if k == 'site'
+  return 1 if k == 'uid'
+  return 2
+end
+
+def filter_api_cluster_desc(c)
+  c = c.dup
+  c.delete('metrics') # remove metrics (too verbose)
+  c.delete('links') # remove links (useless in that context)
+  c.delete('version') # ditto
+  c['queues'] -= ['admin']
+  if c['queues'].length == 1
+    c['queues'] = c['queues'].first
+  else
+    raise "more than one queue remaining on cluster #{c['uid']}"
+  end
+  # sort hash keys by putting site and uid first (easier to read)
+  c = c.sort_by { |k,_v| filter_api_cluster_desc_key_sort(k) }.to_h
+  c
+end
+
+def get_api_site_status(s)
+  unless $cache['site_status']
+    $cache['site_status'] = {}
+  end
+  unless $cache['site_status'][s]
+    $cache['site_status'][s] = $g5k.site_status(s)
+  end
+  return $cache['site_status'][s]
 end
 
 def resolve_site(s)
@@ -746,19 +778,132 @@ elsif ['clusters', 'c'].include?(ARGV[0])
     opts.on("-s", "--site SITE", "Only list clusters from the specified site (default: list clusters from all sites, prefixed with site)") do |d|
       o[:site] = resolve_site(d)
     end
+    opts.on("-v", "--verbose", "Show clusters descriptions") do
+      o[:verbose] = true
+    end
+    opts.on("-u", "--usage", "Show clusters usage information") do
+      o[:usage] = true
+    end
+    opts.on("-j", "--json", "Show results as JSON with clusters details") do
+      o[:json] = true
+    end
+    opts.on("-q", "--queue QUEUE", "Restrict to clusters in a specific queue") do |text|
+      o[:queue] = text
+    end
+    opts.on("-g", "--grep TEXT", "Restrict to clusters matching TEXT in their description (case insensitive)") do |text|
+      o[:grep] ||= []
+      o[:grep] << text
+    end
     opts.separator ""
     opts.separator "# Examples:"
+    opts.separator "  grd c"
     opts.separator "  grd c -s ly"
     opts.separator "  grd c | while read s c; do echo site=$s cluster=$c; done"
+    opts.separator ""
     opts.separator "  ## Reserve all available nodes on all sites, with one job per cluster, in queue admin, with types deploy, destructive and exotic, and do not wait for scheduling (--no-wait):"
     opts.separator "  grd c | while read s c; do echo $s $c ...; grd bs -s $s -l {$c}/nodes=BEST -w 2 -q admin -t deploy -t destructive -t exotic -n ${s}_${c} --no-wait; done"
+    opts.separator ""
+    opts.separator "  ## Post-process the JSON output using jq to get the sites/clusters in queue production"
+    opts.separator "  grd c -j | jq -r '.[] | select(.queues == \"production\") | \"\\(.site) \\(.uid)\"'"
+    opts.separator ""
+    opts.separator "  ## Show details and current usage (thus availability) of nodes with both GPUs and SSDs, in the 'production' queue"
+    opts.separator "  grd c -uv -q production -g gpu -g ssd"
+    opts.separator "    Note that 'next free node' is the earliest when all currently scheduled reservations on a node will be over. This is a worst case scenario only, since jobs"
+    opts.separator "    might be able to fit in holes in the planned scheduled, or jobs might finish earlier than planned."
   end.parse!
+  # collect data
   if o[:site]
-    puts get_api_clusters(o[:site]).sort
+    sites = [o[:site]]
   else
     sites = get_api_sites
-    clusters = sites.inject([]) { |acc, si| acc + get_api_clusters(si).map { |cluster| [ si, cluster] } }
-    puts clusters.sort.map { |x| sprintf('%-11s %s', x[0], x[1]) }.join("\n")
+  end
+  sites.peach { |si| get_api_clusters(si) } # load everything in cache
+  clusters = sites.inject([]) do |acc, si|
+    acc + get_api_clusters(si).map do |c|
+      c['site'] = si
+      c = filter_api_cluster_desc(c)
+      c
+    end
+  end
+  m = Mutex::new
+  if o[:usage]
+    sites.peach do |si|
+      st = get_api_site_status(si)['nodes'].group_by { |x| x[0].split('-').first }
+      st.each_pair do |cluster, v|
+        v = v.map { |x| x[1] }
+        states = v.group_by { |x| x['soft'] }.map { |x| x[1] = x[1].length ; x }.to_h
+        if states['free'].nil?
+          when_free = v.select { |x| ['busy', 'busy_besteffort', 'busy_free'].include?(x['soft']) }.map { |x| x['reservations'].select { |y| y['scheduled_at'] }.map { |y| y['scheduled_at'] + y['walltime'] }.max }.min
+        end
+        m.synchronize do
+          h = clusters.select { |c| c['uid'] == cluster }.first
+          h['states'] = states
+          h['next_free'] = Time.at(when_free) if when_free
+        end
+      end
+    end
+  end
+  # filter data
+  if o[:queue]
+    clusters.select! { |c| c['queues'] == o[:queue] }
+  end
+  if o[:grep]
+    o[:grep].each do |x|
+      clusters.select! { |c| c['nodes_description'].downcase.include?(x.downcase) }
+    end
+  end
+  clusters.sort_by! { |c| [c['site'], c['uid'][/(\D+)/, 1], c['uid'][/(\d+)/, 1].to_i ] }
+  # output data
+  if o[:json]
+    puts JSON.pretty_generate(clusters)
+  elsif o[:verbose] or o[:usage]
+    begin
+      require 'terminal-table'
+    rescue LoadError
+      STDERR.puts "'terminal-table' library not found, required for this display mode"
+      exit(1)
+    end
+    h = ['site', 'cluster', 'queue', 'nodes']
+    if o[:usage]
+      h += [ 'free/BE/busy/broken', 'next free node' ]
+    end
+    if o[:verbose]
+      h += ['year', 'description' ]
+    end
+    a = [ h ]
+    clusters.each do |c|
+      h = [c['site'], c['uid'], c['queues'], sprintf("%4d", c['nodes_count']) ]
+      if o[:usage]
+        f = c['states']['free'] || 0
+        be = c['states']['busy_besteffort'] || 0
+        b = (c['states']['busy'] || 0) + (c['states']['free_busy'] || 0)
+        ot = c['nodes_count'] - f - be - b
+        if c['next_free']
+          nfs = c['next_free'].strftime("%Y-%m-%d %H:%M:%S")
+          seconds = c['next_free'] - Time::now
+          hours = seconds / 3600 ; minutes = (seconds % 3600) / 60 ; seconds = seconds % 60
+          nfs += " (in " + format("%02dh%02dm%02ds", hours, minutes, seconds) + ")"
+        else
+          nfs = ""
+        end
+        h += [ sprintf("%2d / %2d / %2d / %2d", f, be, b, ot), nfs ]
+      end
+      if o[:verbose]
+        y = Date::parse(c['manufactured_at']).year
+        h += [ y, c['nodes_description'] ]
+      end
+      a << h
+    end
+    table = Terminal::Table.new
+    table.headings = a[0]
+    table.rows = a[1..-1]
+    puts table
+  else
+    if o[:site]
+      puts clusters.map { |c| c['uid'] }.sort
+    else
+      puts clusters.map { |c| sprintf('%-11s %s', c['site'], c['uid']) }.join("\n")
+    end
   end
 
 elsif ['sites', 's'].include?(ARGV[0])
