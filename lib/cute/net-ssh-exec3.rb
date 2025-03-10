@@ -10,41 +10,12 @@ class Net::SSH::Connection::Session
   def exec3!(command, o = {})
     puts "SSH exec3 on #{host}: #{command}" unless o[:no_log]
     res = {}
-    res[:stdout] = ""
-    res[:stderr] = ""
-    res[:exit_code] = nil
-    res[:exit_signal] = nil
-    ts = Time::now
     open_channel do |channel|
       channel.exec(command) do |_ch, success|
         unless success
           abort "FAILED: couldn't execute command (ssh.channel.exec)"
         end
-        channel.on_data do |_ch,data|
-          print data unless o[:no_output]
-          res[:stdout]+=data
-        end
-
-        channel.on_extended_data do |_ch,_type,data|
-          print data unless o[:no_output]
-          if o[:merge_outputs]
-            res[:stdout]+=data
-          else
-            res[:stderr]+=data
-          end
-        end
-
-        channel.on_request("exit-status") do |_ch,data|
-          res[:exit_code] = data.read_long
-          d = sprintf("%.1f", Time::now - ts)
-          puts "EXITCODE: #{res[:exit_code]} (duration: #{d}s)" unless o[:no_log]
-        end
-
-        channel.on_request("exit-signal") do |_ch, data|
-          res[:exit_signal] = data.read_long
-          d = sprintf("%.1f", Time::now - ts)
-          puts "EXITSIGNAL: #{res[:exit_signal]} (duration: #{d}s)" unless o[:no_log]
-        end
+        channel.collect_outputs(res, o)
       end
     end
     self.loop
@@ -54,6 +25,43 @@ class Net::SSH::Connection::Session
       raise "SSH exec3 failed: #{command}"
     end
     res
+  end
+end
+
+class Net::SSH::Connection::Channel
+  # This mixin collects the channel's stdout, stderr, exit_code and exit_signal into a hash
+  def collect_outputs(res, o = {})
+    ts = Time::now
+    res[:stdout] = ""
+    res[:stderr] = ""
+    res[:exit_code] = nil
+    res[:exit_signal] = nil
+
+    on_data do |_ch,data|
+      print data unless o[:no_output]
+      res[:stdout]+=data
+    end
+
+    on_extended_data do |_ch,_type,data|
+      print data unless o[:no_output]
+      if o[:merge_outputs]
+        res[:stdout]+=data
+      else
+        res[:stderr]+=data
+      end
+    end
+
+    on_request("exit-status") do |_ch,data|
+      res[:exit_code] = data.read_long
+      d = sprintf("%.1f", Time::now - ts)
+      puts "EXITCODE: #{res[:exit_code]} (duration: #{d}s)" unless o[:no_log]
+    end
+
+    on_request("exit-signal") do |_ch, data|
+      res[:exit_signal] = data.read_long
+      d = sprintf("%.1f", Time::now - ts)
+      puts "EXITSIGNAL: #{res[:exit_signal]} (duration: #{d}s)" unless o[:no_log]
+    end
   end
 end
 

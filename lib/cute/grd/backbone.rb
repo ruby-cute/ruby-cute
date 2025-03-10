@@ -37,31 +37,35 @@ def do_backbone
   results = {}
   m = Mutex.new
   remotes.peach do |remote|
+    fnode = "frontend.#{remote}.grid5000.fr"
+    if g5k_internal?
+      ssh = Net::SSH.start(fnode, $login)
+    else
+      gw = Net::SSH::Gateway.new('access.grid5000.fr', $login)
+      ssh = gw.ssh(fnode, $login)
+    end
     sites.peach(100) do |site|
-      fnode = "frontend.#{remote}.grid5000.fr"
+      next if remote == site
       rgw = "gw.#{site}.grid5000.fr"
       cmd = "mtr -j -c 1 -G 1 #{rgw}"
-      begin
-        next if remote == site
-        if g5k_internal?
-          ssh = Net::SSH.start(fnode, $login)
-        else
-          gw = Net::SSH::Gateway.new('access.grid5000.fr', $login)
-          ssh = gw.ssh(fnode, $login)
+      m.synchronize do
+        results[site] ||= {'remotes' => {} }
+        results[site]['remotes'][remote] ||= {}
+        results[site]['remotes'][remote]['raw'] = {}
+        ssh.open_channel do |channel|
+          cmd = "mtr -j -c 1 -G 1 #{rgw}"
+          channel.exec(cmd) do |_ch, success|
+            abort "FAILED: couldn't execute command (ssh.channel.exec)" unless success
+            channel.collect_outputs(results[site]['remotes'][remote]['raw'], {:no_log => true, :no_output => true})
+          end
         end
-        o = ssh.exec3!(cmd, {:no_log => true, :no_output => true} )
-        m.synchronize do
-          results[site] ||= {'remotes' => {} }
-          results[site]['remotes'][remote] = { 'raw' => o }
-        end
-        ssh.close
-        ssh.shutdown!
-        if not g5k_internal?
-          gw.shutdown!
-        end
-      rescue
-        raise "Failed to run #{cmd} on #{fnode}: #{$!.message}"
       end
+    end
+    ssh.loop
+    ssh.close
+    ssh.shutdown!
+    if not g5k_internal?
+      gw.shutdown!
     end
   end
   # analyze results
