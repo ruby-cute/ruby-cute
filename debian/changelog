@@ -1,3 +1,19 @@
+ruby-cute (0.31) unstable; urgency=low
+
+  * c2bf955 grd bb: use a single SSH connection per remote, executing mtr commands in separate channels, to work around very limited MaxStartups on frontends
+  * 94072a1 Net.SSH.exec3!: extract output collection logic into another method
+  * f3ad8d9 grd c: move time parsing earlier so that it's parsed in the json output
+  * cc088d1 grd clusters: add usage information
+  * 2ae5359 grd clusters: Add filters on queue and description
+  * e159968 grd clusters: add verbose (table) mode
+  * d2c23c9 grd clusters: reorganize code between data collection and display
+  * 6c09132 Add json output for 'grd clusters'
+  * 4571cd2 Get full cluster description, not just uid
+  * 942cf42 g5k_api: increase default timeout to 60, as some calls (such as post /jobs with -r now) block for a long time
+  * 408bb1e grd bb: add exception handling to provide a better error message
+
+ -- Lucas Nussbaum <lucas.nussbaum@inria.fr>  Tue, 18 Mar 2025 06:04:34 +0100
+
 ruby-cute (0.30) unstable; urgency=low
 
   * bb71d64 grd: new subcommand backbone (shows if sites are using the backup network)
