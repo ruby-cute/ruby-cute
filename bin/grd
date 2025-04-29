@@ -521,13 +521,13 @@ exit $exit_code
       puts
       system(cmd)
       puts
-      s = nil
+      kbinput = nil
       loop do
         print "Connection to node terminated. Terminate resources reservation? (Y/N) "
-        s = gets.chomp.upcase
-        break if s == "Y" or s == "N"
+        kbinput = gets.chomp.upcase
+        break if kbinput == "Y" or kbinput == "N"
       end
-      if s == 'Y'
+      if kbinput == 'Y'
         $logger.info("Releasing resources.")
         $g5k.release(job)
       end
@@ -913,8 +913,30 @@ elsif ['sites', 's'].include?(ARGV[0])
   OptionParser.new do |opts|
     opts.banner =  "usage: grd sites"
     opts.separator "  List sites"
+    opts.separator ""
+    opts.separator "# Options:"
+    opts.on("-p", "--prefix PREFIX", "Prefix site name with machine name") do |s|
+      o[:prefix] = s
+    end
+    opts.on("-s", "--suffix SUFFIX", "Suffix site name") do |s|
+      o[:suffix] = s
+    end
+    opts.on("-f", "--fold", "Fold in a format compatible with ClusterShell") do
+      o[:fold] = true
+    end
+    opts.separator ""
+    opts.separator "# Example:"
+    opts.separator "## Execute something on all frontends (assuming you use the recommended SSH configuration)"
+    opts.separator "   clush -bw $(grd s -p frontend -s g5k -f) cat /etc/debian_version"
   end.parse!
-  puts get_api_sites.sort
+  sites = get_api_sites.sort
+  sites = sites.map { |s| "#{o[:prefix]}.#{s}" } if o[:prefix]
+  sites = sites.map { |s| "#{s}.#{o[:suffix]}" } if o[:suffix]
+  if o[:fold]
+    puts sites.join(',')
+  else
+    puts sites.join("\n")
+  end
 
 elsif ['backbone', 'bb'].include?(ARGV[0])
   cute_init
