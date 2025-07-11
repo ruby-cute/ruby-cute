@@ -545,11 +545,12 @@ exit $exit_code
       30.times do
         sleep 10
         begin
-          Net::SSH.start(fnode, tlogin, timeout: 5) do |test_ssh|
+          Net::SSH.start(fnode, tlogin, timeout: 5) do |_|
             reboot_ok = true
           end
           break
-        rescue
+        rescue => e
+          $logger.warn "SSH connection to #{fnode} failed: #{e.message}"
         end
       end
 
