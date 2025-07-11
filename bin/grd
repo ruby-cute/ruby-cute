@@ -531,8 +531,51 @@ exit $exit_code
     jh = g5k_internal? ? "" : "-J #{$login}@access.grid5000.fr "
     cmd = "ssh -o StrictHostKeyChecking=accept-new #{jh}#{tlogin}@#{fnode}"
     if o[:armor] && armor_node_need_reboot
-      $logger.info "Connect to the node using the command below, reboot the node and run g5k-armor-node.py again."
-    elsif o[:armor]
+      $logger.info "Rebooting the node #{fnode} due to required system upgrade..."
+      begin
+        reboot_ssh = g5k_internal? ? Net::SSH.start(fnode, tlogin) : Net::SSH::Gateway.new('access.grid5000.fr', $login).ssh(fnode, tlogin)
+        reboot_ssh.exec!("reboot")
+        reboot_ssh.close
+      rescue => e
+        $logger.warn "SSH connection likely closed by reboot: #{e}"
+      end
+
+      $logger.info "Waiting for the node #{fnode} to reboot..."
+      reboot_ok = false
+      30.times do
+        sleep 10
+        begin
+          Net::SSH.start(fnode, tlogin, timeout: 5) do |test_ssh|
+            reboot_ok = true
+          end
+          break
+        rescue
+        end
+      end
+
+      if reboot_ok
+        $logger.info "#{fnode} is back online. Re-running g5k-armor-node.py..."
+
+        relaunch_ssh = g5k_internal? ? Net::SSH.start(fnode, tlogin) : Net::SSH::Gateway.new('access.grid5000.fr', $login).ssh(fnode, tlogin)
+        tmpfile = if tlogin == 'root'
+                    relaunch_ssh.exec!("mkdir -p /root/.cache/grd && mktemp /root/.cache/grd/grd.XXXXXX").chomp
+                  else
+                    relaunch_ssh.exec!("mktemp /tmp/grd.XXXXXX").chomp
+                  end
+        relaunch_ssh.scp.upload!(o[:script], tmpfile)
+        relaunch_ssh.exec!("chmod u+x #{tmpfile}")
+        args = (o[:script_arg] || []).join(' ')
+        relaunch_ssh.exec!("GRD_SITE=#{site} GRD_JOBID=#{job['uid']} #{tmpfile} #{args}")
+        relaunch_ssh.close
+
+      else
+        $logger.error "Timeout: Node #{fnode} did not come back online after reboot."
+        $logger.info "Connect to the node using the command below, reboot the node and run g5k-armor-node.py again."
+        return
+      end
+    end
+
+    if o[:armor]
       # If no need to reboot the armored node, connect to it using user's login from workstation
       $logger.info "Setup completed successfully. Connect to the Armored Node from your workstation using:"
       cmd = "ssh -J #{$login}@access.grid5000.fr #{$login}@#{fnode}"
