@@ -153,10 +153,11 @@ def filter_api_cluster_desc(c)
   c.delete('links') # remove links (useless in that context)
   c.delete('version') # ditto
   c['queues'] -= ['admin']
+  c['queues'] -= ['production'] # ignore production queue, since it was replaced by abaca
   if c['queues'].length == 1
     c['queues'] = c['queues'].first
   else
-    raise "more than one queue remaining on cluster #{c['uid']}"
+    raise "more than one queue remaining on cluster #{c['uid']}: #{c['queues'].join(' ')}"
   end
   # sort hash keys by putting site and uid first (easier to read)
   c = c.sort_by { |k,_v| filter_api_cluster_desc_key_sort(k) }.to_h
