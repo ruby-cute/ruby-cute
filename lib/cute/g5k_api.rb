@@ -1216,7 +1216,7 @@ module Cute
         # checking valid options, same as reserve option even though some option dont make any sense
         valid_opts = [:site, :cluster, :switches, :cpus, :cores, :nodes, :walltime, :cmd,
                       :type, :name, :subnets, :env, :vlan_id, :properties, :resources,
-                      :reservation, :wait, :keys, :queue, :env_user]
+                      :reservation, :wait, :keys, :queue, :env_user, :partition_label]
 
         unre_opts = opts.keys - valid_opts
         raise ArgumentError, "Unrecognized option #{unre_opts}" unless unre_opts.empty?
@@ -1257,6 +1257,8 @@ module Cute
         payload['vlan'] = opts[:vlan_id] if opts[:vlan_id]
 
         payload['user'] = opts[:env_user] unless opts[:env_user].nil?
+
+        payload['partition_label'] = opts[:partition_label] if opts[:partition_label]
 
         info("Creating deployment", :debug)
 
