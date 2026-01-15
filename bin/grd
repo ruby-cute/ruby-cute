@@ -825,6 +825,9 @@ elsif ['clusters', 'c'].include?(ARGV[0])
     opts.on("-F", "--first", "Get full details of the first node (Reference API and OAR properties). Adds a 'first' subnode in JSON.") do
       o[:first] = true
     end
+    opts.on("-J", "--jq FILTER", "Restrict to clusters where the jq FILTER returns true (or not null/false)") do |filter|
+      o[:jq] = filter
+    end
     opts.on("-a", "--available-at DURATION", "Restrict to clusters available currently or within DURATION (e.g. '1h', '30m')") do |d|
       o[:available_at] = d.to_secs
       o[:usage] = true
@@ -928,6 +931,14 @@ elsif ['clusters', 'c'].include?(ARGV[0])
         $logger.warn "Failed to fetch first node details for #{cluster_uid} at #{site}: #{e.message}"
         c['first'] = { 'error' => e.message }
       end
+    end
+  end
+  if o[:jq]
+    require 'open3'
+    clusters.select! do |c|
+      json = JSON.generate(c)
+      stdout, stderr, status = Open3.capture3("jq -e '#{o[:jq]}'", :stdin_data => json)
+      status.success?
     end
   end
   clusters.sort_by! { |c| [c['site'], c['uid'][/(\D+)/, 1], c['uid'][/(\d+)/, 1].to_i ] }
