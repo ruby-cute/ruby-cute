@@ -831,7 +831,7 @@ elsif ['clusters', 'c'].include?(ARGV[0])
     opts.on("-J", "--jq FILTER", "Restrict to clusters where the jq FILTER returns true (or not null/false)") do |filter|
       o[:jq] = filter
     end
-    opts.on("-a", "--available-at DURATION", "Restrict to clusters available currently or within DURATION (e.g. '1h', '30m')") do |d|
+    opts.on("-a", "--available DURATION", "Restrict to clusters available currently or within DURATION (e.g. '1h', '30m')") do |d|
       o[:available_at] = d.to_secs
       o[:usage] = true
     end
