@@ -174,6 +174,16 @@ def get_api_site_status(s)
   return $cache['site_status'][s]
 end
 
+def get_api_site_oar_resources_details(s)
+  unless $cache['site_oar_resources_details']
+    $cache['site_oar_resources_details'] = {}
+  end
+  unless $cache['site_oar_resources_details'][s]
+    $cache['site_oar_resources_details'][s] = $g5k.rest.get_json($g5k.api_uri("/sites/#{s}/internal/oarapi/resources/details.json?limit=999999")).items
+  end
+  return $cache['site_oar_resources_details'][s]
+end
+
 def resolve_site(s)
   s = 'nancy' if s == 'ncy' or s == 'ny'
   s = 'nantes' if s == 'ns'
@@ -887,6 +897,7 @@ elsif ['clusters', 'c'].include?(ARGV[0])
     end
   end
   if o[:first]
+    m = Mutex::new
     clusters.peach(100) do |c; site, cluster_uid| # site and cluster_uid are block-local variables
       site = c['site']
       cluster_uid = c['uid']
@@ -901,7 +912,10 @@ elsif ['clusters', 'c'].include?(ARGV[0])
           
           # Fetch OAR properties
           node_fqdn = "#{first_node_uid}.#{site}.grid5000.fr"
-          oar_resources = $g5k.rest.get_json($g5k.api_uri("/sites/#{site}/internal/oarapi/resources/details.json?network_address=#{node_fqdn}")).items
+          oar_resources = nil
+          m.synchronize do
+            oar_resources = get_api_site_oar_resources_details(site).select { |r| r['network_address'] == node_fqdn }
+          end
           oar_properties = oar_resources.first if oar_resources && !oar_resources.empty?
 
           c['first'] = node_details
