@@ -812,6 +812,9 @@ elsif ['clusters', 'c'].include?(ARGV[0])
     opts.on("-u", "--usage", "Show clusters usage information") do
       o[:usage] = true
     end
+    opts.on("-A", "--access", "Show access level information") do
+      o[:access] = true
+    end
     opts.on("-j", "--json", "Show results as JSON with clusters details") do
       o[:json] = true
     end
@@ -899,6 +902,18 @@ elsif ['clusters', 'c'].include?(ARGV[0])
       clusters.select! { |c| c['nodes_description'].downcase.include?(x.downcase) }
     end
   end
+  if o[:access]
+    default_gga = $g5k.rest.get_json($g5k.api_uri("/users/users/~"))['default_gga']
+    accesses = $g5k.rest.get_json($g5k.api_uri("/accesses"))[default_gga]
+    clusters.each do |c|
+      # FIXME we assume that the nodeset name is the cluster name. Else we would have to fetch nodes to look
+      # up the nodeset field, because the nodeset field is not defined at the cluster level.
+      if c['queues'].include?('abaca')
+        c['access'] = accesses[c['uid']]
+        c['access'] = { 'level' => -1, 'label' => 'error' } if c['access'].nil? # no access defined for cluster
+      end
+    end
+  end
   if o[:first]
     clusters.group_by { |e| e['site'] }.peach do |e ; site, clusters| # site, clusters are block-local
       site, clusters = e
@@ -957,7 +972,9 @@ elsif ['clusters', 'c'].include?(ARGV[0])
       STDERR.puts "'terminal-table' library not found, required for this display mode"
       exit(1)
     end
-    h = ['site', 'cluster', 'queue', 'nodes']
+    h = ['site', 'cluster', 'queue']
+    h += ['access'] if o[:access]
+    h += ['nodes']
     if o[:usage]
       h += [ 'free/BE/busy/broken', 'next free node' ]
     end
@@ -966,7 +983,15 @@ elsif ['clusters', 'c'].include?(ARGV[0])
     end
     a = [ h ]
     clusters.each do |c|
-      h = [c['site'], c['uid'], c['queues'], sprintf("%4d", c['nodes_count']) ]
+      h = [c['site'], c['uid'], c['queues'] ]
+      if o[:access]
+        if c['access']
+          h += [ c['access']['label'] ]
+        else
+          h += [ '' ]
+        end
+      end
+      h += [ sprintf("%4d", c['nodes_count']) ]
       if o[:usage]
         f = c['states']['free'] || 0
         be = c['states']['busy_besteffort'] || 0
