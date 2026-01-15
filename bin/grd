@@ -812,6 +812,10 @@ elsif ['clusters', 'c'].include?(ARGV[0])
       o[:grep] ||= []
       o[:grep] << text
     end
+    opts.on("-a", "--available-at DURATION", "Restrict to clusters available currently or within DURATION (e.g. '1h', '30m')") do |d|
+      o[:available_at] = d.to_secs
+      o[:usage] = true
+    end
     opts.separator ""
     opts.separator "# Examples:"
     opts.separator "  grd c"
@@ -862,6 +866,15 @@ elsif ['clusters', 'c'].include?(ARGV[0])
     end
   end
   # filter data
+  if o[:available_at]
+    cutoff = Time.now + o[:available_at]
+    clusters.select! do |c|
+      states = c['states'] || {}
+      free = states['free'] || 0
+      next_free = c['next_free']
+      (free > 0) || (next_free && next_free <= cutoff)
+    end
+  end
   if o[:queue]
     clusters.select! { |c| c['queues'] == o[:queue] }
   end
