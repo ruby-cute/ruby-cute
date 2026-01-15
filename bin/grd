@@ -907,6 +907,7 @@ elsif ['clusters', 'c'].include?(ARGV[0])
   end
   if o[:access]
     default_gga = $g5k.rest.get_json($g5k.api_uri("/users/users/~"))['default_gga']
+    # FIXME I did not find an API endpoint that only list accesses for a given group
     accesses = $g5k.rest.get_json($g5k.api_uri("/accesses"))[default_gga]
     clusters.each do |c|
       # FIXME we assume that the nodeset name is the cluster name. Else we would have to fetch nodes to look
