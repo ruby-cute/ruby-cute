@@ -1,3 +1,20 @@
+ruby-cute (0.32) unstable; urgency=low
+
+  * f465b6a grd c: add examples for --jq
+  * da908b1 grd c: rename option
+  * d06b4db grd clusters: add ability to list access levels
+  * 5e22c43 Optimize fetching data about first node
+  * c62f33d Add jq based filter
+  * a6f396d Add cache for OAR API resources/details since that API does not allow filtering and we need to get all resources
+  * 331dc5d grd: add --first option to clusters command to fetch first node details
+  * d57c4b9 Allow filtering by availability
+  * fa5b89e Ignore production queue when listing clusters
+  * 25a40f0 Add support for deployment to custom partition
+  * 6b524a8 Merge branch 'sites_nodeset' into 'master'
+  * edb997a grd sites: ease usage with clush
+
+ -- Lucas Nussbaum <lucas.nussbaum@inria.fr>  Thu, 15 Jan 2026 15:52:43 +0100
+
 ruby-cute (0.31) unstable; urgency=low
 
   * c2bf955 grd bb: use a single SSH connection per remote, executing mtr commands in separate channels, to work around very limited MaxStartups on frontends
