@@ -812,6 +812,9 @@ elsif ['clusters', 'c'].include?(ARGV[0])
       o[:grep] ||= []
       o[:grep] << text
     end
+    opts.on("-F", "--first", "Get full details of the first node (Reference API and OAR properties). Adds a 'first' subnode in JSON.") do
+      o[:first] = true
+    end
     opts.on("-a", "--available-at DURATION", "Restrict to clusters available currently or within DURATION (e.g. '1h', '30m')") do |d|
       o[:available_at] = d.to_secs
       o[:usage] = true
@@ -881,6 +884,36 @@ elsif ['clusters', 'c'].include?(ARGV[0])
   if o[:grep]
     o[:grep].each do |x|
       clusters.select! { |c| c['nodes_description'].downcase.include?(x.downcase) }
+    end
+  end
+  if o[:first]
+    clusters.peach(100) do |c; site, cluster_uid| # site and cluster_uid are block-local variables
+      site = c['site']
+      cluster_uid = c['uid']
+      begin
+        # Fetch nodes list to identify the first one
+        # using nodes?limit=1 could be an optimization if supported, but let's stick to standard collection
+        nodes = $g5k.rest.get_json($g5k.api_uri("/sites/#{site}/clusters/#{cluster_uid}/nodes")).items
+        if nodes && !nodes.empty?
+          first_node_uid = nodes.first['uid']
+          # Fetch full details of the first node from Reference API
+          node_details = $g5k.rest.get_json($g5k.api_uri("/sites/#{site}/clusters/#{cluster_uid}/nodes/#{first_node_uid}"))
+          
+          # Fetch OAR properties
+          node_fqdn = "#{first_node_uid}.#{site}.grid5000.fr"
+          oar_resources = $g5k.rest.get_json($g5k.api_uri("/sites/#{site}/internal/oarapi/resources/details.json?network_address=#{node_fqdn}")).items
+          oar_properties = oar_resources.first if oar_resources && !oar_resources.empty?
+
+          c['first'] = node_details
+          c['first']['oar'] = oar_properties
+        else
+           $logger.warn "No nodes found for cluster #{cluster_uid} at #{site}"
+           c['first'] = nil
+        end
+      rescue => e
+        $logger.warn "Failed to fetch first node details for #{cluster_uid} at #{site}: #{e.message}"
+        c['first'] = { 'error' => e.message }
+      end
     end
   end
   clusters.sort_by! { |c| [c['site'], c['uid'][/(\D+)/, 1], c['uid'][/(\d+)/, 1].to_i ] }
