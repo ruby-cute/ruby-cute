@@ -278,6 +278,9 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
     opts.on("", "--notify TXT", "OAR notify option (see oarsub(1))") do |d|
       o[:notify] = d
     end
+    opts.on("", "--checkpoint SECONDS", "Enable checkpointing for the job (see oarsub(1))") do |d|
+      o[:checkpoint] = d.to_i
+    end
     opts.separator ""
     opts.separator "### Related to deployment"
     opts.on("", "--partition PART", "Deploy to a custom partition (PROD, TMP, etc.)") do |d|
@@ -332,6 +335,7 @@ if ['bootstrap', 'bs'].include?(ARGV[0])
   jo[:queue] = o[:queue] if o[:queue] # else use OAR's default
   jo[:project] = o[:project] if o[:project] # else use OAR's default
   jo[:notify] = o[:notify] if o[:notify]
+  jo[:checkpoint] = o[:checkpoint] if o[:checkpoint]
   o[:name] ||= 'grd'
   jo[:name] = o[:name]
   jo[:wait] = false

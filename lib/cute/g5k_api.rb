@@ -1016,7 +1016,7 @@ module Cute
         # checking valid options
         valid_opts = [:site, :cluster, :switches, :cpus, :cores, :nodes, :walltime, :cmd,
                       :type, :name, :subnets, :env, :vlan, :num_vlan,:properties, :resources,
-                      :reservation, :notify, :wait, :keys, :queue, :project, :env_user]
+                      :reservation, :notify, :wait, :keys, :queue, :project, :env_user, :checkpoint]
         unre_opts = opts.keys - valid_opts
         raise ArgumentError, "Unrecognized option #{unre_opts}" unless unre_opts.empty?
 
@@ -1093,6 +1093,7 @@ module Cute
         payload['queue'] = queue if queue
         payload['project'] = project if project
         payload['notify'] = notify if notify
+        payload['checkpoint'] = opts[:checkpoint] if opts[:checkpoint]
 
         unless type.include?(:deploy)
           if opts[:keys]
