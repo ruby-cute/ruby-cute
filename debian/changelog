@@ -1,3 +1,12 @@
+ruby-cute (0.33) unstable; urgency=low
+
+  * fe792fd Add support for checkpointing
+  * 482206e Merge pull request #38 from alxmerlin/auto-reboot-armor
+    + fc4ec31 [grd] correct rubocop warnings: empty rescue, unused block arg
+    + a074154 [armor] reboot, reconnect and re-run g5k-armor.py automatically when the system upgrade is required
+
+ -- Lucas Nussbaum <lucas.nussbaum@inria.fr>  Fri, 16 Jan 2026 14:15:07 +0100
+
 ruby-cute (0.32) unstable; urgency=low
 
   * f465b6a grd c: add examples for --jq
