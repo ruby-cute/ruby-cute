@@ -322,13 +322,18 @@ module Cute
 
       # Issues a Cute::G5K exception according to the http status code
       def handle_exception(e, _req = nil)
-        puts("Error: #{$!}")
-        puts("Backtrace:\n\t"+e.backtrace.join("\n\t"))
-        if e.respond_to? :http_code
-          puts("HTTP Code: #{e.http_code}")
-        end
-        if e.respond_to? :response and e.response != ''
-          puts("Response: #{e.response}")
+        unless e.respond_to?(:http_code) and e.http_code == 500
+          # Do not dump the error for HTTP 500: it is a known, transient G5K API
+          # error that callers typically skip (see grd's api_skip_500), and this
+          # verbose output only adds noise.
+          puts("Error: #{$!}")
+          puts("Backtrace:\n\t"+e.backtrace.join("\n\t"))
+          if e.respond_to? :http_code
+            puts("HTTP Code: #{e.http_code}")
+          end
+          if e.respond_to? :response and e.response != ''
+            puts("Response: #{e.response}")
+          end
         end
 
         unless e.respond_to? :http_code
