@@ -135,8 +135,8 @@ def get_api_clusters(s)
   unless $cache['clusters']
     $cache['clusters'] = {}
   end
-  unless $cache['clusters'][s]
-    $cache['clusters'][s] = $g5k.clusters(s)
+  unless $cache['clusters'].key?(s)
+    $cache['clusters'][s] = api_skip_500(s) { $g5k.clusters(s) } || []
   end
   return $cache['clusters'][s]
 end
@@ -204,6 +204,17 @@ end
 
 def g5k_internal?
   return `hostname --fqdn`.chomp =~ /\.grid5000\.fr$/ ? true : false
+end
+
+# Yields the block, skipping the site if a Cute::G5K::RequestFailed caused by an
+# HTTP 500 error is raised (a known, transient Grid'5000 API issue). A single
+# line is logged to stderr for each skipped site.
+def api_skip_500(site)
+  yield
+rescue Cute::G5K::RequestFailed => e
+  raise unless e.orig.respond_to?(:http_code) and e.orig.http_code == 500
+  STDERR.puts "Skipping site #{site}: API returned HTTP error 500"
+  nil
 end
 
 if ['bootstrap', 'bs'].include?(ARGV[0])
@@ -738,41 +749,43 @@ elsif ['list', 'l'].include?(ARGV[0])
   login = o[:all] ? nil : $login
   m = Mutex::new
   sites.peach do |cursite|
-    # FIXME implement pagination (see https://intranet.grid5000.fr/bugzilla/show_bug.cgi?id=13882 about missing doc)
-    jobs = $g5k.get_jobs(cursite, login, %w{waiting launching running hold error terminated} - %w{error terminated}, true, false)
-    jobs.each do |j|
-      sa = if j['started_at'] and j['started_at'] > 0
-             Time::at(j['started_at'])
-           elsif j['scheduled_at'] and j['scheduled_at'] > 0
-             Time::at(j['scheduled_at'])
-           else
-             nil
-           end
-      sa_s = sa.nil? ? '' : sa.strftime("%Y-%m-%d %H:%M:%S")
-      endt = if sa
-               sa + j['walltime']
+    api_skip_500(cursite) do
+      # FIXME implement pagination (see https://intranet.grid5000.fr/bugzilla/show_bug.cgi?id=13882 about missing doc)
+      jobs = $g5k.get_jobs(cursite, login, %w{waiting launching running hold error terminated} - %w{error terminated}, true, false)
+      jobs.each do |j|
+        sa = if j['started_at'] and j['started_at'] > 0
+               Time::at(j['started_at'])
+             elsif j['scheduled_at'] and j['scheduled_at'] > 0
+               Time::at(j['scheduled_at'])
              else
                nil
              end
-      endt_s = endt.nil? ? '' : endt.strftime("%Y-%m-%d %H:%M:%S")
+        sa_s = sa.nil? ? '' : sa.strftime("%Y-%m-%d %H:%M:%S")
+        endt = if sa
+                 sa + j['walltime']
+               else
+                 nil
+               end
+        endt_s = endt.nil? ? '' : endt.strftime("%Y-%m-%d %H:%M:%S")
 
-      # convert walltime to d/h/m/s
-      t = j['walltime']
-      mm, ss = t.divmod(60)            #=> [4515, 21]
-      hh, mm = mm.divmod(60)           #=> [75, 15]
-      dd, hh = hh.divmod(24)           #=> [3, 3]
-      walltime_s = "%dd%2dh%2dm%2ds" % [dd, hh, mm, ss]
-      nodes = nodeset(j['assigned_nodes'])
-      nodes_count = j['assigned_nodes'].uniq.length
-      # we hide the default monitor type to avoid useless noise
-      types = j['types'].reject { |type| type == 'monitor=prom_.*default_metrics' }.join(',')
-      m.synchronize do
-        r = [ cursite, j['uid'] ]
-        if o[:all]
-          r += [ j['project'], j['user'] ]
+        # convert walltime to d/h/m/s
+        t = j['walltime']
+        mm, ss = t.divmod(60)            #=> [4515, 21]
+        hh, mm = mm.divmod(60)           #=> [75, 15]
+        dd, hh = hh.divmod(24)           #=> [3, 3]
+        walltime_s = "%dd%2dh%2dm%2ds" % [dd, hh, mm, ss]
+        nodes = nodeset(j['assigned_nodes'])
+        nodes_count = j['assigned_nodes'].uniq.length
+        # we hide the default monitor type to avoid useless noise
+        types = j['types'].reject { |type| type == 'monitor=prom_.*default_metrics' }.join(',')
+        m.synchronize do
+          r = [ cursite, j['uid'] ]
+          if o[:all]
+            r += [ j['project'], j['user'] ]
+          end
+          r += [ j['queue'], j['state'], sa_s, endt_s, walltime_s, j['name'], types, nodes, nodes_count ]
+          a << r
         end
-        r += [ j['queue'], j['state'], sa_s, endt_s, walltime_s, j['name'], types, nodes, nodes_count ]
-        a << r
       end
     end
   end
@@ -815,28 +828,30 @@ elsif ['terminate', 't'].include?(ARGV[0])
     sites = get_api_sites
   end
   sites.each do |current_site|
-    jobs = $g5k.get_jobs(current_site, $login, %w{waiting launching running hold error terminated} - %w{error terminated})
-    jobs.each do |j|
-      next if o[:job] and j['uid'].to_i != o[:job].to_i
-      if j['started_at'] and j['started_at'] > 0
-        sa = Time::at(j['started_at'])
-      else
-        sa = ''
-      end
-      sig = "site=#{current_site} id=#{j['uid']} state=#{j['state']} started_at=#{sa} nodes=#{nodeset(j['assigned_nodes'])}"
-      if o[:yes]
-        puts "Terminating #{sig}"
-        $g5k.release(j)
-      else
-        print "Terminate #{sig} ? (Y/N) "
-        s = nil
-        loop do
-          s = gets.chomp.upcase
-          break if s == "Y" or s == "N"
-          print "Terminate? (Y/N) "
+    api_skip_500(current_site) do
+      jobs = $g5k.get_jobs(current_site, $login, %w{waiting launching running hold error terminated} - %w{error terminated})
+      jobs.each do |j|
+        next if o[:job] and j['uid'].to_i != o[:job].to_i
+        if j['started_at'] and j['started_at'] > 0
+          sa = Time::at(j['started_at'])
+        else
+          sa = ''
         end
-        if s == 'Y'
+        sig = "site=#{current_site} id=#{j['uid']} state=#{j['state']} started_at=#{sa} nodes=#{nodeset(j['assigned_nodes'])}"
+        if o[:yes]
+          puts "Terminating #{sig}"
           $g5k.release(j)
+        else
+          print "Terminate #{sig} ? (Y/N) "
+          s = nil
+          loop do
+            s = gets.chomp.upcase
+            break if s == "Y" or s == "N"
+            print "Terminate? (Y/N) "
+          end
+          if s == 'Y'
+            $g5k.release(j)
+          end
         end
       end
     end
@@ -920,17 +935,19 @@ elsif ['clusters', 'c'].include?(ARGV[0])
   m = Mutex::new
   if o[:usage]
     sites.peach do |si|
-      st = get_api_site_status(si)['nodes'].group_by { |x| x[0].split('-').first }
-      st.each_pair do |cluster, v|
-        v = v.map { |x| x[1] }
-        states = v.group_by { |x| x['soft'] }.map { |x| x[1] = x[1].length ; x }.to_h
-        if states['free'].nil?
-          when_free = v.select { |x| ['busy', 'busy_besteffort', 'busy_free'].include?(x['soft']) }.map { |x| x['reservations'].select { |y| y['scheduled_at'] }.map { |y| y['scheduled_at'] + y['walltime'] }.max }.min
-        end
-        m.synchronize do
-          h = clusters.select { |c| c['uid'] == cluster }.first
-          h['states'] = states
-          h['next_free'] = Time.at(when_free) if when_free
+      api_skip_500(si) do
+        st = get_api_site_status(si)['nodes'].group_by { |x| x[0].split('-').first }
+        st.each_pair do |cluster, v|
+          v = v.map { |x| x[1] }
+          states = v.group_by { |x| x['soft'] }.map { |x| x[1] = x[1].length ; x }.to_h
+          if states['free'].nil?
+            when_free = v.select { |x| ['busy', 'busy_besteffort', 'busy_free'].include?(x['soft']) }.map { |x| x['reservations'].select { |y| y['scheduled_at'] }.map { |y| y['scheduled_at'] + y['walltime'] }.max }.min
+          end
+          m.synchronize do
+            h = clusters.select { |c| c['uid'] == cluster }.first
+            h['states'] = states
+            h['next_free'] = Time.at(when_free) if when_free
+          end
         end
       end
     end
