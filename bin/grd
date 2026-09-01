@@ -861,6 +861,7 @@ elsif ['clusters', 'c'].include?(ARGV[0])
   cute_init
   ARGV.shift
   o = {}
+  ACCESS_LEVELS = %w{ p1 p2 p3 p4 besteffort } # ordered from highest to lowest
   OptionParser.new do |opts|
     opts.banner =  "usage: grd clusters"
     opts.separator "  List clusters"
@@ -898,6 +899,13 @@ elsif ['clusters', 'c'].include?(ARGV[0])
       o[:available_at] = d.to_secs
       o[:usage] = true
     end
+    opts.on("-l", "--min-level LEVEL", "Only show clusters providing at least access LEVEL (#{ACCESS_LEVELS.join(', ')})") do |d|
+      unless ACCESS_LEVELS.include?(d)
+        raise OptionParser::InvalidArgument, "invalid level '#{d}' (valid: #{ACCESS_LEVELS.join(', ')})"
+      end
+      o[:min_level] = d
+      o[:access] = true # access levels are needed for this filter
+    end
     opts.separator ""
     opts.separator "# Examples:"
     opts.separator "  grd c"
@@ -912,6 +920,9 @@ elsif ['clusters', 'c'].include?(ARGV[0])
     opts.separator "  grd c --jq '.queues == \"abaca\"'"
     opts.separator "  ### clusters with modern GPUs"
     opts.separator "  grd c -F --jq '.first.oar.gpu_compute_capability_major >= 8 and .first.oar.gpu_mem >= 40000 and .first.architecture.platform_type != \"aarch64\"' -v --access"
+    opts.separator ""
+    opts.separator "  ## Show only clusters providing at least access level p3"
+    opts.separator "  grd c -l p3"
     opts.separator ""
     opts.separator "  ## Show details and current usage (thus availability) of nodes with both GPUs and SSDs, in the 'production' queue"
     opts.separator "  grd c -uv -q production -g gpu -g ssd"
@@ -981,6 +992,14 @@ elsif ['clusters', 'c'].include?(ARGV[0])
         c['access'] = accesses[c['uid']]
         c['access'] = { 'level' => -1, 'label' => 'error' } if c['access'].nil? # no access defined for cluster
       end
+    end
+  end
+  if o[:min_level]
+    min = ACCESS_LEVELS.index(o[:min_level])
+    clusters.select! do |c|
+      label = c['access'] && c['access']['label']
+      idx = label && ACCESS_LEVELS.index(label)
+      !idx.nil? and idx <= min
     end
   end
   if o[:first]
